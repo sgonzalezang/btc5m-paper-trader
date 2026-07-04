@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC 5-Minute — Polymarket Momentum Paper Trader</title>
+<style>
+  :root{
+    --bg:#12161c; --panel:#1a2029; --panel2:#20272f; --ink:#e8ebef; --mut:#8b96a3;
+    --line:#2a323d; --btc:#f7931a; --btc-d:#d97f10; --up:#34c07c; --dn:#e06c4f;
+    --shadow:0 2px 10px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.4;font-size:15px}
+  header{background:#0d1116;border-bottom:3px solid var(--btc);padding:16px;box-shadow:var(--shadow)}
+  header h1{margin:0;font-size:20px;letter-spacing:.4px}
+  header h1 .b{color:var(--btc)}
+  header .sub{color:var(--mut);font-size:13px;margin-top:3px}
+  .wrap{max-width:1180px;margin:0 auto;padding:14px 12px 60px}
+  button{font-family:inherit;font-size:14px;cursor:pointer;border:none;border-radius:8px;padding:8px 12px;background:var(--panel2);color:var(--ink);font-weight:600;border:1px solid var(--line);transition:.12s}
+  button:hover{background:#2a333e}
+  button.gold{background:var(--btc);color:#1d1405;border-color:var(--btc)}
+  button.gold:hover{background:var(--btc-d)}
+  button.warn{background:transparent;color:var(--dn);border:1px solid #5a3a30}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;margin:14px 0;box-shadow:var(--shadow)}
+  .toolbar label{font-size:13px;color:var(--mut);display:flex;align-items:center;gap:5px}
+  .toolbar input[type=number]{width:70px;padding:6px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:var(--panel2);color:var(--ink)}
+  .toolbar select{padding:6px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:inherit;background:var(--panel2);color:var(--ink)}
+  .switch{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--ink);font-size:13px}
+  .pm-status{flex-basis:100%;font-size:13px;color:var(--mut)}
+  .note{background:#1c222b;border:1px solid #33404f;border-left:4px solid var(--btc);border-radius:8px;padding:10px 12px;font-size:13px;color:#c3ccd6;margin-bottom:14px}
+  .note b{color:var(--ink)}
+  a.pmlink{color:var(--btc);font-weight:700;font-size:12px;text-decoration:none;border-bottom:1px dotted var(--btc)}
+  .proj-h{font-size:15px;color:var(--btc);margin:18px 0 8px;border-left:4px solid var(--btc);padding-left:9px}
+  .tr-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:10px}
+  .tr-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:14px;text-align:center}
+  .tr-card .tr-big{font-size:26px;font-weight:800;color:var(--ink)}
+  .tr-card .tr-lab{font-size:12px;color:var(--mut);margin-top:3px}
+  .mc-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.trk{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13px;box-shadow:var(--shadow);min-width:640px}
+  table.trk th{background:var(--panel2);color:var(--mut);padding:7px 6px;font-size:11px;text-transform:uppercase}
+  table.trk td{padding:7px 6px;border-top:1px solid var(--line);text-align:center}
+  table.trk td.desc{text-align:left;font-weight:600;white-space:nowrap;padding-left:10px}
+  table.trk td small{color:var(--mut);font-weight:600}
+  table.trk tr.tr-hit td:first-child{box-shadow:inset 4px 0 0 var(--up)}
+  table.trk tr.tr-miss td:first-child{box-shadow:inset 4px 0 0 var(--dn)}
+  .verdict-tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px}
+  .v-value{background:#173527;color:var(--up)} .v-fair{background:#2a2f24;color:#cdc06a} .v-bad{background:#3a231c;color:var(--dn)}
+  .btc-live{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:12px}
+  .btc-count{font-size:30px;font-weight:800;color:var(--btc);font-variant-numeric:tabular-nums}
+  .btc-big{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+  .btc-chk{list-style:none;margin:0;padding:0;font-size:12px;text-align:left}
+  .btc-chk li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-top:1px solid var(--line)}
+  .btc-chk li:first-child{border-top:none}
+  .btc-chk li span:first-child{color:var(--mut)}
+  .btc-ok{color:var(--up);font-weight:700;white-space:nowrap}
+  .btc-no{color:var(--dn);font-weight:700;white-space:nowrap}
+  .btc-side-up{color:var(--up)} .btc-side-down{color:var(--dn)}
+  .btc-log{font-size:12px;color:var(--mut);max-height:240px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+  .btc-log div{padding:2px 0;border-top:1px dashed #242c36}
+  .btc-log div:first-child{border-top:none}
+  .btc-log b{color:#aab4bf}
+  footer{text-align:center;color:var(--mut);font-size:12px;padding:20px}
+  @media(max-width:640px){ .wrap{padding:10px 8px 50px} header h1{font-size:17px} }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="b">₿</span> BTC 5-Minute — Momentum into Close <span class="b">· paper trader</span></h1>
+  <div class="sub">Polymarket Bitcoin Up/Down 5-minute markets · read-only signal engine · simulated fills only — no real orders, ever</div>
+</header>
+
+<div class="wrap">
+  <div class="note"><b>What this is.</b> A live signal engine and <b>paper trader</b> for Polymarket's <b>crypto Up/Down 5-minute</b> markets (BTC, ETH, SOL, XRP, DOGE), porting a momentum-into-close strategy: enter only in the last ~2 minutes of an interval, only when the price has <b>already moved hard</b> since the interval opened, only when the crowd's pricing agrees with the direction, and only at a price that still leaves value. Everything is fetched <b>read-only in your browser</b> (Polymarket Gamma + order book, and a Coinbase→Binance→Kraken feed — the first source that responds). It <b>never places real orders</b>: qualifying entries are recorded to a paper ledger — <b>with a slippage haircut on every fill</b>, because live fills are always worse than the screen — and settled against Polymarket's own resolution, so the measured win rate is honest before you risk a cent. Remember the core math: <b>your entry price is your breakeven win rate</b> (a 68¢ entry needs &gt;68% wins); the ledger tracks this for you. These markets resolve on <b>Chainlink</b> price streams; exchange spot is a close proxy for the signal. Leave the page open with the watcher on — a strict profile passes on most intervals by design. Ledger and settings live in this browser only (plus Export). <b>Not financial advice.</b></div>
+
+  <div class="toolbar">
+    <button class="gold" id="btcStart">▶ Start watching</button>
+    <label>asset <select id="btcAsset"></select></label>
+    <label>profile <select id="btcProfile"></select></label>
+    <label>stake $ <input type="number" id="btcStake" min="1" max="1000" step="1" value="5"></label>
+    <label>bankroll $ <input type="number" id="btcBank" min="10" max="100000" step="10" value="100"></label>
+    <label>slippage ¢ <input type="number" id="btcSlip" min="0" max="5" step="0.5" value="1"></label>
+    <span class="switch"><input type="checkbox" id="btcAuto" checked> Auto paper-trade</span>
+    <button id="btcExport">⬇ Export</button>
+    <button id="btcImport">⬆ Import</button>
+    <button class="warn" id="btcClear">Clear ledger</button>
+    <input type="file" id="btcFile" accept="application/json" style="display:none">
+    <span class="pm-status" id="btcStatus">Watcher is off — nothing is being fetched.</span>
+  </div>
+
+  <div id="btcWrap"></div>
+
+  <div class="note" style="margin-top:16px"><b>Under the hood.</b> Markets are discovered by their deterministic slug <code>&lt;asset&gt;-updown-5m-&lt;unix start&gt;</code> (intervals align to 300-second UTC boundaries), with a series-feed and public-search sweep as fallback. Executable quotes come from the public CLOB order book (<code>clob.polymarket.com/book</code>), falling back to Gamma's <code>bestBid/bestAsk</code>; the spot price uses 1-minute candles from Coinbase Exchange → Binance data mirror → Kraken. If a direct call is blocked by CORS, a public-proxy fallback chain kicks in automatically. Strategy guards (ported from the "5min-btc-polymarket" momentum skill): 60–150&nbsp;s left, confirmed move ≥ <b>0.10%/0.07% of interval open</b> (≈ $100/$70 on BTC — percentage so it transfers across assets), momentum-side mid ≥ 52¢, ask ≤ 70¢, spread ≤ 3¢, top-ask depth ≥ $30, quotes fresh (book ≤ 8&nbsp;s, feed ≤ 15&nbsp;s), <b>quote stable across two consecutive ticks</b> (≤ 15¢ jump — a lone wild print is dirty data, not a fill), per-day trade & loss caps; plus a 0.25%/0.30% spot-retrace stop-loss and a $1+ micro-hedge when late skew goes extreme (≥ 95¢/93¢). Paper fills pay a configurable <b>slippage haircut</b> (default +1¢) on the visible ask. One simple strategy deployed across five assets beats a complex one on a single asset — switch assets with the selector and compare ledgers. Real execution would need an authenticated CLOB client, order signing, latency work and jurisdiction checks — deliberately out of scope for this page.</div>
+</div>
+<footer>Single self-contained file · public data only · simulated fills · not financial advice</footer>
+
+<script>
+"use strict";
+/* ============================================================
+   BTC 5-MINUTE — momentum-into-close signal engine + PAPER trader
+   Ports the strategy & risk profiles of the "5min-btc-polymarket"
+   skill (enter ~2 min before close, confirmed BTC move, crowd-skew
+   agreement, price cap, micro-hedge on extreme skew) as a fully
+   read-only browser paper trader. Nothing here signs or places
+   real orders — it fetches public data and simulates fills.
+   ============================================================ */
+const $=id=>document.getElementById(id);
+function esc(s){ return (s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function clampNum(v,lo,hi,def){ v=parseFloat(v); if(isNaN(v))return def; return Math.max(lo,Math.min(hi,v)); }
+
+// CORS layer: direct first, then public-proxy fallbacks; every request is
+// time-bounded, and the first wrapper that works is remembered.
+const CORS_PROXIES=[
+  u=>u,
+  u=>"https://api.codetabs.com/v1/proxy/?quest="+encodeURIComponent(u),
+  u=>"https://corsproxy.io/?url="+encodeURIComponent(u),
+  u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u)
+];
+let WORK_PROXY=null;
+function fetchTimeout(url, ms){
+  return new Promise(resolve=>{
+    let done=false; const ctrl=("AbortController" in window)?new AbortController():null;
+    const t=setTimeout(()=>{ if(!done){ done=true; if(ctrl)try{ctrl.abort();}catch(e){} resolve(null);} }, ms||11000);
+    fetch(url, ctrl?{signal:ctrl.signal}:{}).then(async r=>{
+      if(done)return; done=true; clearTimeout(t);
+      if(!r.ok){ resolve(null); return; }
+      try{ resolve(JSON.parse(await r.text())); }catch(e){ resolve(null); }
+    }).catch(()=>{ if(!done){ done=true; clearTimeout(t); resolve(null);} });
+  });
+}
+async function proxiedJson(url){
+  if(WORK_PROXY){ const j=await fetchTimeout(WORK_PROXY(url)); if(j) return j; WORK_PROXY=null; }
+  for(const wrap of CORS_PROXIES){ const j=await fetchTimeout(wrap(url)); if(j){ WORK_PROXY=wrap; return j; } }
+  return null;
+}
+// Gamma responses sometimes encode arrays as JSON strings and numbers as
+// strings — parse every field defensively.
+function pmArr(x){ if(Array.isArray(x))return x; if(typeof x==="string"){ try{ const a=JSON.parse(x); return Array.isArray(a)?a:null; }catch(e){ return null; } } return null; }
+function pmNum(x){ if(x==null||x==="")return null; const v=+x; return isNaN(v)?null:v; }
+function pmP01(p){ return (p==null||p<0||p>1)?null:p; }
+
+const PM_GAMMA="https://gamma-api.polymarket.com";
+const BTC_CLOB="https://clob.polymarket.com";
+const BTC_IVL=300;              // interval length, seconds
+const BTC_TICK_MS=4000;         // data refresh cadence
+const BTC5M_KEY="btc5m_paper_v1";
+// Same simple strategy, deployable across every 5-minute Up/Down series
+// Polymarket runs — an edge that is marginal on BTC may be real on SOL.
+const BTC_ASSETS={
+  BTC:{label:"BTC",  slug:"btc-updown-5m-",  series:"btc-updown-5m",  q:"Bitcoin Up or Down",  cb:"BTC-USD",  bn:"BTCUSDT",  kr:"XBTUSD"},
+  ETH:{label:"ETH",  slug:"eth-updown-5m-",  series:"eth-updown-5m",  q:"Ethereum Up or Down", cb:"ETH-USD",  bn:"ETHUSDT",  kr:"ETHUSD"},
+  SOL:{label:"SOL",  slug:"sol-updown-5m-",  series:"sol-updown-5m",  q:"Solana Up or Down",   cb:"SOL-USD",  bn:"SOLUSDT",  kr:"SOLUSD"},
+  XRP:{label:"XRP",  slug:"xrp-updown-5m-",  series:"xrp-updown-5m",  q:"XRP Up or Down",      cb:"XRP-USD",  bn:"XRPUSDT",  kr:"XRPUSD"},
+  DOGE:{label:"DOGE",slug:"doge-updown-5m-", series:"doge-updown-5m", q:"Dogecoin Up or Down", cb:"DOGE-USD", bn:"DOGEUSDT", kr:"XDGUSD"}
+};
+function btcAsset(){ return BTC_ASSETS[STATE.btc.asset]||BTC_ASSETS.BTC; }
+// Profiles ported from config/btc_5m_profiles.yaml of the source repo.
+// maxAsk 0.70 = the shared "0.70 ask" entry threshold read as a price CAP:
+// your entry price IS your breakeven win rate (a 70¢ entry needs >70% wins),
+// so the cap keeps headroom. minMid 0.52 = "skew supports the move" (crowd
+// prices the momentum side above a coin-flip). The $70–$100 BTC move band is
+// expressed as a percentage of the interval open (≈0.10%/0.07% at $100k BTC)
+// so it transfers across assets.
+const BTC_PROFILES={
+  conservative:{ label:"Conservative", movePct:0.10, minMid:0.52, maxAsk:0.70,
+    winLeftMax:150, winLeftMin:60, freshMs:8000, feedFreshMs:15000, maxSpread:0.03, minTopUsd:30,
+    stopPct:0.25, hedgeAt:0.95, hedgeLeft:45, hedgeFrac:0.03, maxDay:12, dayLossPct:10 },
+  aggressive:{ label:"Aggressive", movePct:0.07, minMid:0.52, maxAsk:0.70,
+    winLeftMax:150, winLeftMin:60, freshMs:8000, feedFreshMs:15000, maxSpread:0.03, minTopUsd:30,
+    stopPct:0.30, hedgeAt:0.93, hedgeLeft:50, hedgeFrac:0.05, maxDay:20, dayLossPct:15 }
+};
+function btcDefaults(){ return {on:false, auto:true, profile:"conservative", asset:"BTC", stake:5, bank:100, slip:1, trades:[]}; }
+function btcSanitize(o){
+  const d=btcDefaults(); if(!o||typeof o!=="object") return d;
+  d.on=!!o.on; d.auto=o.auto!==false;
+  d.profile=BTC_PROFILES[o.profile]?o.profile:"conservative";
+  d.asset=BTC_ASSETS[o.asset]?o.asset:"BTC";
+  d.stake=clampNum(o.stake,1,1000,5); d.bank=clampNum(o.bank,10,100000,100);
+  d.slip=clampNum(o.slip,0,5,1);
+  d.trades=Array.isArray(o.trades)?o.trades.filter(t=>t&&typeof t.t0==="number"&&(t.side==="up"||t.side==="down")).slice(0,250):[];
+  d.trades.forEach(t=>{ if(!BTC_ASSETS[t.asset]) t.asset="BTC"; });
+  return d;
+}
+let STATE={ btc:btcDefaults() };
+function save(){ try{ localStorage.setItem(BTC5M_KEY, JSON.stringify({version:1, btc:STATE.btc})); }catch(e){} }
+function load(){ try{ const raw=localStorage.getItem(BTC5M_KEY); if(raw){ const o=JSON.parse(raw); STATE.btc=btcSanitize(o&&o.btc); } }catch(e){ console.warn("load failed",e); } }
+
+// runtime only (never persisted)
+const BTC={ fetching:false, lastTick:0, mkt:null, feed:{src:null,open:null,last:null,at:0,t0:null},
+  feedIdx:null, slugOff:0, sweepAt:0, resAt:0, lastEval:null, winEval:null, sigLogged:null,
+  prevQuote:null, logs:[], dirty:false, err:null };
+function btcProf(){ return BTC_PROFILES[STATE.btc.profile]||BTC_PROFILES.conservative; }
+function btcOpenTrade(){ return (STATE.btc.trades||[]).find(t=>t.status==="open")||null; }
+function btcTradeFor(t0){ return (STATE.btc.trades||[]).find(t=>t.t0===t0&&(t.asset||"BTC")===STATE.btc.asset)||null; }
+function btcDayKey(ts){ const d=new Date(ts); return d.getUTCFullYear()+"-"+(d.getUTCMonth()+1)+"-"+d.getUTCDate(); }
+function btcDayStats(){
+  const k=btcDayKey(Date.now()); let n=0,pnl=0;
+  (STATE.btc.trades||[]).forEach(t=>{ if(btcDayKey(t.at)===k){ n++; if(typeof t.pnl==="number") pnl+=t.pnl; } });
+  return {n,pnl};
+}
+function btcLog(msg){ BTC.logs.unshift({t:Date.now(),msg}); if(BTC.logs.length>80)BTC.logs.length=80; BTC.dirty=true; }
+
+// --- BTC price feed: 1-min candles → {open of interval t0, latest price}.
+// If the t0 candle hasn't printed yet, the previous candle's close stands in
+// (crypto candles are gap-free); it self-corrects on the next tick.
+const BTC_FEEDS=[
+  { key:"Coinbase",
+    url:t0=>"https://api.exchange.coinbase.com/products/"+btcAsset().cb+"/candles?granularity=60&start="
+      +encodeURIComponent(new Date((t0-120)*1000).toISOString())+"&end="+encodeURIComponent(new Date(Date.now()+60000).toISOString()),
+    parse:(j,t0)=>{ if(!Array.isArray(j)) return null;      // rows [time,low,high,open,close,vol]
+      let open=null,last=null,lastT=-1,pc=null,pcT=-1;
+      j.forEach(r=>{ if(!Array.isArray(r)||r.length<5) return; const t=+r[0],o=pmNum(r[3]),c=pmNum(r[4]);
+        if(t===t0&&o!=null) open=o;
+        if(t<t0&&t>pcT&&c!=null){ pcT=t; pc=c; }
+        if(t>lastT&&c!=null){ lastT=t; last=c; } });
+      if(open==null&&pc!=null) open=pc;
+      return last==null?null:{open,last}; } },
+  { key:"Binance",
+    url:t0=>"https://data-api.binance.vision/api/v3/klines?symbol="+btcAsset().bn+"&interval=1m&startTime="+((t0-120)*1000)+"&limit=12",
+    parse:(j,t0)=>{ if(!Array.isArray(j)) return null;      // rows [openTimeMs,"o","h","l","c",...]
+      let open=null,last=null,lastT=-1,pc=null,pcT=-1;
+      j.forEach(r=>{ if(!Array.isArray(r)||r.length<5) return; const t=Math.floor(+r[0]/1000),o=pmNum(r[1]),c=pmNum(r[4]);
+        if(t===t0&&o!=null) open=o;
+        if(t<t0&&t>pcT&&c!=null){ pcT=t; pc=c; }
+        if(t>lastT&&c!=null){ lastT=t; last=c; } });
+      if(open==null&&pc!=null) open=pc;
+      return last==null?null:{open,last}; } },
+  { key:"Kraken",
+    url:t0=>"https://api.kraken.com/0/public/OHLC?pair="+btcAsset().kr+"&interval=1&since="+(t0-180),
+    parse:(j,t0)=>{ const res=j&&j.result; if(!res) return null;
+      const k=Object.keys(res).filter(x=>x!=="last")[0], rows=k?res[k]:null;
+      if(!Array.isArray(rows)) return null;                 // rows [time,"o","h","l","c","vwap","vol",n]
+      let open=null,last=null,lastT=-1,pc=null,pcT=-1;
+      rows.forEach(r=>{ if(!Array.isArray(r)||r.length<5) return; const t=+r[0],o=pmNum(r[1]),c=pmNum(r[4]);
+        if(t===t0&&o!=null) open=o;
+        if(t<t0&&t>pcT&&c!=null){ pcT=t; pc=c; }
+        if(t>lastT&&c!=null){ lastT=t; last=c; } });
+      if(open==null&&pc!=null) open=pc;
+      return last==null?null:{open,last}; } }
+];
+async function btcFeedTick(t0){
+  if(BTC.feed.t0!==t0) BTC.feed={src:BTC.feed.src,open:null,last:null,at:0,t0};
+  const order=[]; if(BTC.feedIdx!=null) order.push(BTC.feedIdx);
+  for(let i=0;i<BTC_FEEDS.length;i++) if(order.indexOf(i)<0) order.push(i);
+  for(const i of order){
+    const F=BTC_FEEDS[i]; let r=null;
+    try{ const j=await proxiedJson(F.url(t0)); r=j?F.parse(j,t0):null; }catch(e){ r=null; }
+    if(r&&r.last!=null){
+      BTC.feedIdx=i; BTC.feed.src=F.key;
+      if(r.open!=null) BTC.feed.open=r.open;
+      BTC.feed.last=r.last; BTC.feed.at=Date.now(); return;
+    }
+  }
+}
+
+// --- Market discovery & parsing (Gamma). bestBid/bestAsk refer to the first
+// outcome token, so orientation is normalized to the "Up" side.
+function btcParseEvent(ev){
+  if(!ev||!Array.isArray(ev.markets)||!ev.markets.length) return null;
+  const mk=ev.markets[0];
+  const toks=pmArr(mk.clobTokenIds)||[], outs=pmArr(mk.outcomes)||[], prices=pmArr(mk.outcomePrices)||[];
+  let iUp=-1; outs.forEach((o,i)=>{ if(iUp<0&&/up/i.test(""+o)) iUp=i; }); if(iUp<0) iUp=0;
+  const iDn=iUp===0?1:0;
+  const b0=pmP01(pmNum(mk.bestBid)), a0=pmP01(pmNum(mk.bestAsk));
+  let upBid=b0, upAsk=a0;
+  if(iUp!==0){ upBid=a0!=null?+(1-a0).toFixed(4):null; upAsk=b0!=null?+(1-b0).toFixed(4):null; }
+  return { slug:""+(ev.slug||""), title:ev.title||mk.question||"",
+    closed:(mk.closed===true)||(ev.closed===true),
+    resolved:/resolved/i.test(""+(mk.umaResolutionStatus||"")),
+    tokUp:toks[iUp]!=null?""+toks[iUp]:null, tokDown:toks[iDn]!=null?""+toks[iDn]:null,
+    pUp:pmP01(pmNum(prices[iUp])), pDown:pmP01(pmNum(prices[iDn])), upBid, upAsk,
+    end:Date.parse(mk.endDate||ev.endDate||"")||null };
+}
+function btcWinner(p){
+  if(!p||(!p.closed&&!p.resolved)) return null;
+  if(p.pUp!=null&&p.pUp>=0.99) return "up";
+  if(p.pDown!=null&&p.pDown>=0.99) return "down";
+  return null;
+}
+async function btcGammaBySlug(slug){
+  const j=await proxiedJson(PM_GAMMA+"/events?slug="+encodeURIComponent(slug));
+  return (Array.isArray(j)&&j.length)?j[0]:null;
+}
+async function btcSweep(nowSec){
+  const A=btcAsset();
+  const strategies=[
+    async()=>{ const j=await proxiedJson(PM_GAMMA+"/events?series_slug="+encodeURIComponent(A.series)+"&closed=false&limit=25"); return Array.isArray(j)?j:null; },
+    async()=>{ const j=await proxiedJson(PM_GAMMA+"/public-search?q="+encodeURIComponent(A.q)+"&limit_per_type=40&events_status=active");
+               return (j&&Array.isArray(j.events))?j.events:null; }
+  ];
+  for(const s of strategies){
+    let arr=null; try{ arr=await s(); }catch(e){}
+    if(!arr||!arr.length) continue;
+    let best=null,bestTs=null;
+    arr.forEach(e=>{ const sl=""+((e&&e.slug)||""); if(sl.indexOf(A.slug)!==0) return;
+      const ts=parseInt(sl.slice(A.slug.length),10); if(isNaN(ts)) return;
+      if(ts<=nowSec&&nowSec<ts+BTC_IVL){ best=e; bestTs=ts; } });
+    if(best) return {ev:best, ts:bestTs};
+  }
+  return null;
+}
+async function btcFindMarket(t0){
+  const raw=await btcGammaBySlug(btcAsset().slug+(t0+BTC.slugOff));
+  if(raw) return btcParseEvent(raw);
+  if(Date.now()-BTC.sweepAt>30000){       // slug scheme drifted? sweep, learn the offset
+    BTC.sweepAt=Date.now();
+    const hit=await btcSweep(Math.floor(Date.now()/1000));
+    if(hit){ BTC.slugOff=hit.ts-t0; return btcParseEvent(hit.ev); }
+  }
+  return null;
+}
+// --- CLOB order book → best bid/ask + top-of-book ask notional. The two
+// tokens of a binary market carry mirrored books, so the fetched side also
+// yields the display quote for its complement.
+async function btcBook(tokenId){
+  const j=await proxiedJson(BTC_CLOB+"/book?token_id="+encodeURIComponent(tokenId));
+  if(!j||(!Array.isArray(j.asks)&&!Array.isArray(j.bids))) return null;
+  let ask=null,askSz=0,bid=null,bidSz=0;
+  (j.asks||[]).forEach(l=>{ const p=pmNum(l&&l.price),s=pmNum(l&&l.size); if(p==null||s==null)return; if(ask==null||p<ask){ask=p;askSz=s;} });
+  (j.bids||[]).forEach(l=>{ const p=pmNum(l&&l.price),s=pmNum(l&&l.size); if(p==null||s==null)return; if(bid==null||p>bid){bid=p;bidSz=s;} });
+  if(ask==null&&bid==null) return null;
+  return {bid,ask,topAskUsd:ask!=null?ask*askSz:null,mirrorTopUsd:bid!=null?(1-bid)*bidSz:null,at:Date.now()};
+}
+function btcMirror(b){ if(!b) return null;
+  return {bid:b.ask!=null?+(1-b.ask).toFixed(4):null, ask:b.bid!=null?+(1-b.bid).toFixed(4):null,
+    topAskUsd:b.mirrorTopUsd, mirrorTopUsd:b.topAskUsd, at:b.at}; }
+// executable quote for 'up'|'down': live book first, Gamma fields as fallback
+function btcQuote(side){
+  const m=BTC.mkt; if(!m) return null;
+  const b=side==="up"?m.bookUp:m.bookDown;
+  if(b&&(b.bid!=null||b.ask!=null)) return {bid:b.bid, ask:b.ask, top:b.topAskUsd, at:b.at, src:"book"};
+  if(m.upBid!=null||m.upAsk!=null){
+    if(side==="up") return {bid:m.upBid, ask:m.upAsk, top:null, at:m.gAt, src:"gamma"};
+    return {bid:m.upAsk!=null?+(1-m.upAsk).toFixed(4):null, ask:m.upBid!=null?+(1-m.upBid).toFixed(4):null, top:null, at:m.gAt, src:"gamma"};
+  }
+  return null;
+}
+
+// --- Signal evaluation: every guard of the ported strategy, all visible in
+// the UI. nowMs is a parameter so the logic is directly unit-testable.
+function btcEvaluate(nowMs){
+  const prof=btcProf(), m=BTC.mkt, f=BTC.feed;
+  const nowSec=Math.floor(nowMs/1000);
+  const left=m?(m.t1-nowSec):null;
+  const delta=(f&&f.open!=null&&f.last!=null)?(f.last-f.open):null;
+  const side=(delta==null||delta===0)?null:(delta>0?"up":"down");
+  const q=side?btcQuote(side):null;
+  const mid=(q&&q.bid!=null&&q.ask!=null)?(q.bid+q.ask)/2:null;
+  const spread=(q&&q.bid!=null&&q.ask!=null)?(q.ask-q.bid):null;
+  const day=btcDayStats();
+  const lossCap=clampNum(STATE.btc.bank,10,100000,100)*prof.dayLossPct/100;
+  const open=btcOpenTrade(), dup=m?btcTradeFor(m.t0):null;
+  const usdThr=(f&&f.open!=null)?f.open*prof.movePct/100:null;   // %-of-open → $ threshold, transfers across assets
+  // dirty-tick guard: an entry quote must be confirmed by the previous tick
+  // (same momentum side, ask within 15¢) — a lone wild print is not tradeable
+  const pq=BTC.prevQuote;
+  const stable=!!(pq&&side&&pq.side===side&&q&&q.ask!=null&&pq.ask!=null&&Math.abs(q.ask-pq.ask)<=0.15);
+  const checks=[
+    {k:"Market found", ok:!!(m&&m.ev&&!m.evClosed), v:(m&&m.ev)?"…"+m.slug.slice(-4):"—"},
+    {k:"Window "+prof.winLeftMin+"–"+prof.winLeftMax+"s left", ok:left!=null&&left>=prof.winLeftMin&&left<=prof.winLeftMax, v:left!=null?left+"s":"—"},
+    {k:"Move ≥ "+prof.movePct+"%"+(usdThr!=null?(" ($"+btcFmtNum(usdThr)+")"):""), ok:delta!=null&&usdThr!=null&&Math.abs(delta)>=usdThr,
+      v:delta!=null?((delta>=0?"+$":"−$")+btcFmtNum(Math.abs(delta))):"—"},
+    {k:"Skew agrees (mid ≥ "+(prof.minMid*100).toFixed(0)+"¢)", ok:mid!=null&&mid>=prof.minMid, v:mid!=null?(mid*100).toFixed(1)+"¢":"—"},
+    {k:"Ask ≤ "+(prof.maxAsk*100).toFixed(0)+"¢", ok:!!(q&&q.ask!=null&&q.ask<=prof.maxAsk), v:(q&&q.ask!=null)?(q.ask*100).toFixed(0)+"¢":"—"},
+    {k:"Spread ≤ "+(prof.maxSpread*100).toFixed(0)+"¢", ok:spread!=null&&spread<=prof.maxSpread+1e-9, v:spread!=null?(spread*100).toFixed(1)+"¢":"—"},
+    {k:"Quotes fresh (book "+(prof.freshMs/1000)+"s / feed "+(prof.feedFreshMs/1000)+"s)",
+      ok:!!(q&&(nowMs-q.at)<=prof.freshMs&&f&&f.at&&(nowMs-f.at)<=prof.feedFreshMs),
+      v:q?Math.round((nowMs-q.at)/1000)+"s/"+(f&&f.at?Math.round((nowMs-f.at)/1000)+"s":"—"):"—"},
+    {k:"Quote stable vs last tick (≤15¢)", ok:stable, v:stable?((q.ask*100).toFixed(0)+"¢≈"+(pq.ask*100).toFixed(0)+"¢"):(pq&&q&&q.ask!=null?"jumped":"1st tick")},
+    {k:"Top-ask depth ≥ $"+prof.minTopUsd, ok:!!(q&&q.top!=null&&q.top>=prof.minTopUsd), v:(q&&q.top!=null)?"$"+Math.round(q.top):"—"},
+    {k:"Risk caps ("+prof.maxDay+"/day · −$"+lossCap.toFixed(0)+" stop)", ok:!open&&!dup&&day.n<prof.maxDay&&day.pnl>-lossCap,
+      v:day.n+" today · "+(day.pnl>=0?"+":"")+day.pnl.toFixed(2)}
+  ];
+  const all=checks.every(c=>c.ok);
+  BTC.lastEval={t:nowMs, side, delta, q, mid, spread, left, checks, all};
+  BTC.prevQuote=(side&&q&&q.ask!=null)?{side, ask:q.ask, t:nowMs}:null;
+  if(m&&left!=null&&left>=prof.winLeftMin&&left<=prof.winLeftMax) BTC.winEval=BTC.lastEval;
+  return BTC.lastEval;
+}
+
+// --- Paper execution ---------------------------------------------------
+function btcPaperEnter(ev){
+  const m=BTC.mkt, f=BTC.feed;
+  const stake=clampNum(STATE.btc.stake,1,1000,5);
+  // fill realism: paper fills pay a slippage haircut on top of the visible ask
+  // (live fills are worse than the screen — adverse selection and latency)
+  const slip=clampNum(STATE.btc.slip,0,5,1)/100;
+  const px=Math.min(0.99,+(ev.q.ask+slip).toFixed(4));
+  const tr={ at:Date.now(), t0:m.t0, t1:m.t1, slug:m.slug, profile:STATE.btc.profile, asset:STATE.btc.asset,
+    side:ev.side, entry:px, ask:ev.q.ask, slip:slip*100, stake, shares:+(stake/px).toFixed(4), btcOpen:f.open, btcEntry:f.last,
+    btcClose:null, feed:f.src, status:"open", hedge:null, pnl:null, result:null, settledBy:null };
+  STATE.btc.trades.unshift(tr); if(STATE.btc.trades.length>250)STATE.btc.trades.length=250;
+  save();
+  btcLog("ENTER "+STATE.btc.asset+" "+tr.side.toUpperCase()+" @ "+(px*100).toFixed(1)+"¢ (ask "+(ev.q.ask*100).toFixed(0)+"¢ + "+(slip*100)+"¢ slip) · $"+stake+" ("+tr.shares.toFixed(1)+" shares) · Δ "+(ev.delta>=0?"+$":"−$")+btcFmtNum(Math.abs(ev.delta)));
+}
+function btcManageOpen(nowMs){
+  const tr=btcOpenTrade(); if(!tr) return;
+  const prof=BTC_PROFILES[tr.profile]||btcProf();
+  const nowSec=Math.floor(nowMs/1000);
+  if(nowSec>=tr.t1){                                       // interval over → wait for resolution
+    tr.status="pending";
+    if(BTC.feed&&BTC.feed.t0===tr.t0&&BTC.feed.last!=null) tr.btcClose=BTC.feed.last;
+    save(); btcLog("Interval closed — "+tr.side.toUpperCase()+" position awaiting resolution."); return;
+  }
+  if(!BTC.mkt||BTC.mkt.t0!==tr.t0||(tr.asset||"BTC")!==STATE.btc.asset) return;
+  const q=btcQuote(tr.side), f=BTC.feed;
+  // stop-loss: BTC retraces stopPct% (of price at entry) against the position
+  if(f&&f.last!=null&&tr.btcEntry!=null&&q&&q.bid!=null){
+    const adverse=tr.side==="up"?(tr.btcEntry-f.last):(f.last-tr.btcEntry);
+    if(adverse>=tr.btcEntry*prof.stopPct/100){
+      let pnl=tr.shares*q.bid-tr.stake;
+      if(tr.hedge){ const hb=Math.max(0.01,1-(q.ask!=null?q.ask:q.bid)); pnl+=tr.hedge.shares*hb-tr.hedge.stake; }
+      tr.pnl=+pnl.toFixed(2); tr.result="stopped"; tr.status="settled"; tr.settledBy="stop-loss";
+      save(); btcLog("STOP-LOSS — exited "+tr.side.toUpperCase()+" at "+(q.bid*100).toFixed(0)+"¢ bid (BTC retraced $"+adverse.toFixed(0)+") · P&L "+(tr.pnl>=0?"+":"")+tr.pnl.toFixed(2));
+      return;
+    }
+  }
+  // micro-hedge when our side goes to an extreme late (tail-risk cover)
+  if(!tr.hedge&&q&&q.bid!=null){
+    const left=tr.t1-nowSec;
+    if(q.bid>=prof.hedgeAt&&left<=prof.hedgeLeft){
+      const hstake=+Math.max(1,tr.stake*prof.hedgeFrac).toFixed(2);
+      const hslip=clampNum(STATE.btc.slip,0,5,1)/100;
+      const hpx=Math.max(0.01,Math.min(0.99,+(1-q.bid+hslip).toFixed(4)));   // opposite ask ≈ 1 − side bid, plus slip
+      tr.hedge={stake:hstake, px:hpx, shares:+(hstake/hpx).toFixed(4), at:nowMs};
+      save(); btcLog("HEDGE — bought "+(tr.side==="up"?"DOWN":"UP")+" $"+hstake+" @ "+(hpx*100).toFixed(0)+"¢ ("+left+"s left, skew "+(q.bid*100).toFixed(0)+"¢)");
+    }
+  }
+}
+function btcApplySettle(tr,winner,by){
+  let pnl=(tr.side===winner)?(tr.shares-tr.stake):-tr.stake;
+  if(tr.hedge) pnl+=(winner!==tr.side)?(tr.hedge.shares-tr.hedge.stake):-tr.hedge.stake;
+  tr.pnl=+pnl.toFixed(2); tr.result=tr.side===winner?"win":"loss"; tr.status="settled"; tr.settledBy=by;
+  save();
+  btcLog((tr.result==="win"?"WIN ✓ ":"LOSS ✗ ")+tr.side.toUpperCase()+" settled ("+by+") · P&L "+(tr.pnl>=0?"+":"")+tr.pnl.toFixed(2));
+}
+async function btcSettlePending(){
+  const pend=(STATE.btc.trades||[]).filter(t=>t.status==="pending");
+  if(!pend.length) return;
+  const nowMs=Date.now();
+  if(nowMs-BTC.resAt<8000) return;                          // throttle resolution polling
+  BTC.resAt=nowMs;
+  for(const tr of pend){
+    let p=null; try{ p=btcParseEvent(await btcGammaBySlug(tr.slug)); }catch(e){}
+    const winner=btcWinner(p);
+    if(winner){ btcApplySettle(tr,winner,"polymarket"); continue; }
+    const age=nowMs/1000-tr.t1;
+    // Chainlink and exchange spot differ by a few dollars — only settle
+    // provisionally from the feed on a clear move, and only after 3 min.
+    if(age>180&&tr.btcOpen!=null&&tr.btcClose!=null&&Math.abs(tr.btcClose-tr.btcOpen)>=2)
+      btcApplySettle(tr, tr.btcClose>tr.btcOpen?"up":"down", "feed (provisional)");
+    else if(age>900){ tr.status="settled"; tr.result="unknown"; tr.pnl=null; tr.settledBy="unresolved";
+      save(); btcLog("Could not resolve "+tr.slug+" — marked unsettled (excluded from P&L)."); }
+  }
+}
+
+// --- Main loop ----------------------------------------------------------
+function btcRollover(t0,t1){
+  const prev=BTC.mkt;
+  if(prev&&BTC.winEval&&!btcTradeFor(prev.t0)){
+    const fails=BTC.winEval.checks.filter(c=>!c.ok).map(c=>c.k).join(", ");
+    btcLog("No entry for the "+new Date(prev.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+" interval"+(fails?(" — blockers: "+fails):""));
+  }
+  BTC.winEval=null; BTC.sigLogged=null; BTC.lastEval=null; BTC.prevQuote=null;
+  BTC.mkt={t0,t1,ev:false,evClosed:false,slug:btcAsset().slug+(t0+BTC.slugOff),title:"",
+    tokUp:null,tokDown:null,upBid:null,upAsk:null,pUp:null,gAt:0,bookUp:null,bookDown:null};
+}
+async function btcTick(){
+  if(BTC.fetching||!STATE.btc.on) return; BTC.fetching=true;
+  try{
+    const nowSec=Math.floor(Date.now()/1000);
+    const t0=Math.floor(nowSec/BTC_IVL)*BTC_IVL, t1=t0+BTC_IVL;
+    if(!BTC.mkt||BTC.mkt.t0!==t0) btcRollover(t0,t1);
+    const m=BTC.mkt;
+    const p=await btcFindMarket(t0);                        // refreshes prices/closed too
+    if(p&&p.slug){ m.ev=true; m.slug=p.slug; m.evClosed=p.closed; m.title=p.title;
+      m.tokUp=p.tokUp; m.tokDown=p.tokDown; m.upBid=p.upBid; m.upAsk=p.upAsk; m.pUp=p.pUp; m.gAt=Date.now(); }
+    await btcFeedTick(t0);
+    const delta=(BTC.feed.open!=null&&BTC.feed.last!=null)?BTC.feed.last-BTC.feed.open:null;
+    const openTr=btcOpenTrade();
+    const side=openTr?openTr.side:(delta&&delta!==0?(delta>0?"up":"down"):null);
+    if(side&&m.ev){
+      const tok=side==="up"?m.tokUp:m.tokDown;
+      if(tok){ let b=null; try{ b=await btcBook(tok); }catch(e){}
+        if(b){ if(side==="up"){ m.bookUp=b; m.bookDown=btcMirror(b); } else { m.bookDown=b; m.bookUp=btcMirror(b); } } }
+    }
+    const ev=btcEvaluate(Date.now());
+    if(ev.all){
+      if(STATE.btc.auto) btcPaperEnter(ev);
+      else if(BTC.sigLogged!==t0){ BTC.sigLogged=t0;
+        btcLog("SIGNAL "+ev.side.toUpperCase()+" @ "+(ev.q.ask*100).toFixed(0)+"¢ — auto paper-trade is OFF, not recorded."); }
+    }
+    btcManageOpen(Date.now());
+    await btcSettlePending();
+    BTC.err=null;
+  }catch(e){ BTC.err=""+((e&&e.message)||e); }
+  BTC.fetching=false; BTC.lastTick=Date.now();
+  renderBtc5mLive();
+}
+function btcPulse(){
+  if(STATE.btc.on&&Date.now()-BTC.lastTick>=BTC_TICK_MS&&!BTC.fetching) btcTick();
+  renderBtc5mLive();
+}
+function btcUpdateStartBtn(){ const b=$("btcStart"); if(b) b.textContent=STATE.btc.on?"■ Stop watching":"▶ Start watching"; }
+function btcSetOn(on){
+  STATE.btc.on=!!on; save(); btcUpdateStartBtn();
+  if(on){ btcLog("Watcher started — "+btcAsset().label+" · "+btcProf().label+" profile · $"+STATE.btc.stake+" paper stake · +"+clampNum(STATE.btc.slip,0,5,1)+"¢ slippage."); btcTick(); }
+  else btcLog("Watcher stopped.");
+  renderBtc5m();
+}
+function btcSetAsset(a){
+  if(!BTC_ASSETS[a]||a===STATE.btc.asset) return;
+  STATE.btc.asset=a; save();
+  BTC.mkt=null; BTC.feed={src:null,open:null,last:null,at:0,t0:null};
+  BTC.feedIdx=null; BTC.slugOff=0; BTC.sweepAt=0; BTC.prevQuote=null; BTC.lastEval=null; BTC.winEval=null;
+  btcLog("Asset switched to "+a+".");
+  renderBtc5m();
+  if(STATE.btc.on) btcTick();
+}
+
+// --- Rendering ----------------------------------------------------------
+// decimals scale with magnitude so DOGE ($0.1) and BTC ($100k) both read well
+function btcFmtNum(v){ if(v==null)return "—"; const a=Math.abs(+v);
+  const dp=a<0.01?6:a<1?4:a<100?2:0;
+  return (+v).toLocaleString(undefined,{minimumFractionDigits:dp,maximumFractionDigits:dp}); }
+function btcFmtUsd(v){ return v==null?"—":"$"+btcFmtNum(v); }
+function btcCountdown(){ const m=BTC.mkt; if(!m) return "—:—";
+  const s=Math.max(0,m.t1-Math.floor(Date.now()/1000)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+function renderBtc5m(){
+  const wrap=$("btcWrap"); if(!wrap) return;
+  wrap.innerHTML='<div id="btcLive"></div><div id="btcLedger"></div><h3 class="proj-h">Activity log</h3><div class="btc-log" id="btcLogBox"></div>';
+  renderBtc5mLive(true);
+}
+function renderBtc5mLive(force){
+  const live=$("btcLive"); if(!live) return;
+  const m=BTC.mkt, f=BTC.feed, e=BTC.lastEval, prof=btcProf(), on=STATE.btc.on;
+  const delta=(f&&f.open!=null&&f.last!=null)?f.last-f.open:null;
+  const sideTxt=delta==null?"—":(delta>0?'<b class="btc-side-up">▲ UP</b>':delta<0?'<b class="btc-side-down">▼ DOWN</b>':"flat");
+  const tr=btcOpenTrade();
+  let state;
+  if(!on) state="<b>Watcher off</b> — press ▶ Start watching.";
+  else if(tr) state='<b class="btc-ok">IN TRADE</b> — '+(tr.side==="up"?"▲ UP":"▼ DOWN")+" @ "+(tr.entry*100).toFixed(0)+"¢ · $"+tr.stake+(tr.hedge?" · hedged":"");
+  else if(e&&e.all) state='<b class="btc-ok">SIGNAL</b> — all guards green.';
+  else if(e) state=e.checks.filter(c=>!c.ok).length+" guard(s) not met — waiting.";
+  else state="Waiting for first data tick…";
+  const upQ=btcQuote("up"), dnQ=btcQuote("down");
+  const qcell=q=>!q?"—":((q.bid!=null?(q.bid*100).toFixed(0):"–")+"¢ / "+(q.ask!=null?(q.ask*100).toFixed(0):"–")+"¢");
+  live.innerHTML='<div class="btc-live">'
+    +'<div class="tr-card"><div class="tr-lab">Current 5-min interval (UTC-aligned)</div>'
+      +'<div class="btc-count">'+btcCountdown()+'</div>'
+      +'<div class="tr-lab">'+(m?(new Date(m.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+" – "+new Date(m.t1*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})):"—")+'</div>'
+      +'<div class="tr-lab" style="margin-top:4px">'+((m&&m.ev)?('<a class="pmlink" target="_blank" rel="noopener" href="https://polymarket.com/event/'+encodeURIComponent(m.slug)+'">'+esc(m.slug)+' ↗</a>'):(on?"looking for the market…":"—"))+'</div></div>'
+    +'<div class="tr-card"><div class="tr-lab">'+esc(btcAsset().label)+' · '+(f&&f.src?esc(f.src):"no feed yet")+(f&&f.at?(" · "+Math.round((Date.now()-f.at)/1000)+"s ago"):"")+'</div>'
+      +'<div class="btc-big">'+btcFmtUsd(f&&f.last)+'</div>'
+      +'<div class="tr-lab">open '+btcFmtUsd(f&&f.open)+' · Δ <b class="'+(delta>0?"btc-side-up":delta<0?"btc-side-down":"")+'">'+(delta==null?"—":((delta>=0?"+$":"−$")+btcFmtNum(Math.abs(delta))))+'</b> · '+sideTxt+'</div></div>'
+    +'<div class="tr-card"><div class="tr-lab">Polymarket book · bid/ask</div>'
+      +'<div style="font-size:14px;margin:6px 0;font-variant-numeric:tabular-nums">▲ Up&nbsp; '+qcell(upQ)+'<br>▼ Down '+qcell(dnQ)+'</div>'
+      +'<div class="tr-lab">'+((e&&e.spread!=null)?("spread "+(e.spread*100).toFixed(1)+"¢"):"")+((upQ&&upQ.top!=null)?(" · top-ask $"+Math.round(upQ.top)):"")+((upQ&&upQ.src==="gamma")?" · gamma quote":"")+'</div></div>'
+    +'<div class="tr-card"><div class="tr-lab">Signal — '+esc(prof.label)+' profile</div>'
+      +'<div style="margin:5px 0 7px;font-size:13px">'+state+'</div>'
+      +(e?('<ul class="btc-chk">'+e.checks.map(c=>'<li><span>'+esc(c.k)+'</span><span class="'+(c.ok?"btc-ok":"btc-no")+'">'+esc(c.v)+" "+(c.ok?"✓":"✗")+'</span></li>').join("")+'</ul>'):"")
+      +'</div></div>'
+    +(BTC.err?('<div class="note" style="border-left-color:var(--dn);color:var(--dn)">Last fetch problem: '+esc(BTC.err)+'</div>'):"");
+  const st=$("btcStatus");
+  if(st) st.textContent=on
+    ?("Watching "+btcAsset().label+" — refresh every "+(BTC_TICK_MS/1000)+"s · "+prof.label+" needs: "+prof.winLeftMin+"–"+prof.winLeftMax+"s left · |Δ| ≥ "+prof.movePct+"% of open · ask ≤ "+(prof.maxAsk*100)+"¢ · spread ≤ "+(prof.maxSpread*100)+"¢ · top-ask ≥ $"+prof.minTopUsd+" · quote stable 2 ticks · ≤ "+prof.maxDay+" trades/day · paper fills pay +"+clampNum(STATE.btc.slip,0,5,1)+"¢ slippage.")
+    :"Watcher is off — nothing is being fetched.";
+  if(force||BTC.dirty){ BTC.dirty=false; renderBtcLedger(); renderBtcLog(); }
+}
+function renderBtcLedger(){
+  const el=$("btcLedger"); if(!el) return;
+  const trs=STATE.btc.trades||[];
+  const settled=trs.filter(t=>t.result==="win"||t.result==="loss"||t.result==="stopped");
+  const wins=settled.filter(t=>t.result==="win").length;
+  const pnl=settled.reduce((s,t)=>s+(t.pnl||0),0);
+  const day=btcDayStats();
+  // Entry price IS the breakeven win rate: a book of 68¢ average entries
+  // needs >68% wins to break even, ~+5pp to be worth trading.
+  const priced=trs.filter(t=>typeof t.entry==="number");
+  const avgE=priced.length?priced.reduce((s,t)=>s+t.entry,0)/priced.length*100:null;
+  const winPct=settled.length?wins/settled.length*100:null;
+  let wrCol="var(--ink)", beNote="win rate ("+wins+"/"+settled.length+")";
+  if(winPct!=null&&avgE!=null){
+    wrCol=winPct>=avgE+5?"var(--up)":(winPct<avgE?"var(--dn)":"#cdc06a");
+    beNote="win rate ("+wins+"/"+settled.length+") · breakeven "+avgE.toFixed(0)+"%";
+  }
+  el.innerHTML='<h3 class="proj-h">Paper ledger</h3>'
+    +'<div class="tr-summary">'
+    +'<div class="tr-card"><div class="tr-big">'+trs.length+'</div><div class="tr-lab">paper trades</div></div>'
+    +'<div class="tr-card"><div class="tr-big" style="color:'+wrCol+'">'+(winPct!=null?Math.round(winPct)+"%":"—")+'</div><div class="tr-lab">'+beNote+'</div></div>'
+    +'<div class="tr-card"><div class="tr-big">'+(avgE!=null?avgE.toFixed(1)+"¢":"—")+'</div><div class="tr-lab">avg entry = breakeven win%</div></div>'
+    +'<div class="tr-card"><div class="tr-big" style="color:'+(pnl>=0?"var(--up)":"var(--dn)")+'">'+(pnl>=0?"+":"")+pnl.toFixed(2)+'</div><div class="tr-lab">total P&amp;L ($)</div></div>'
+    +'<div class="tr-card"><div class="tr-big">'+day.n+'</div><div class="tr-lab">today · P&amp;L '+(day.pnl>=0?"+":"")+day.pnl.toFixed(2)+'</div></div>'
+    +'</div>'
+    +(winPct!=null&&avgE!=null&&winPct<avgE?'<div class="note" style="border-left-color:var(--dn)"><b>Losing math:</b> the win rate ('+Math.round(winPct)+'%) is below the average entry price ('+avgE.toFixed(0)+'¢) — this book loses money even though most trades win. The strategy needs naturally cheaper entries, not more of them.</div>':"")
+    +(trs.length?('<div class="mc-scroll"><table class="trk"><thead><tr><th>Interval</th><th>Asset</th><th>Side</th><th>Entry</th><th>Stake</th><th>Δ@in</th><th>Result</th><th>P&amp;L $</th><th>Via</th></tr></thead><tbody>'+trs.map(btcTradeRow).join("")+'</tbody></table></div>')
+      :'<div class="note">No paper trades yet. Start the watcher and leave the page open — an entry is only recorded when <b>every</b> guard turns green in the final ~2 minutes of an interval, so expect most intervals to pass without one.</div>');
+}
+function btcTradeRow(t){
+  const d=(t.btcEntry!=null&&t.btcOpen!=null)?t.btcEntry-t.btcOpen:null;
+  const res=t.status==="open"?'<span class="verdict-tag v-fair">OPEN</span>'
+    :t.status==="pending"?'<span class="verdict-tag v-fair">SETTLING…</span>'
+    :t.result==="win"?'<span class="verdict-tag v-value">WIN</span>'
+    :t.result==="loss"?'<span class="verdict-tag v-bad">LOSS</span>'
+    :t.result==="stopped"?'<span class="verdict-tag v-bad">STOP</span>'
+    :'<span class="verdict-tag v-fair">UNSETTLED</span>';
+  const cls=t.result==="win"?"tr-hit":(t.result==="loss"||t.result==="stopped")?"tr-miss":"";
+  return '<tr class="'+cls+'"><td class="desc" data-label="Interval">'+new Date(t.t0*1000).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})+'</td>'
+    +'<td data-label="Asset"><b>'+esc(t.asset||"BTC")+'</b></td>'
+    +'<td data-label="Side">'+(t.side==="up"?'<b class="btc-side-up">▲ UP</b>':'<b class="btc-side-down">▼ DOWN</b>')+(t.hedge?' <small>+hedge</small>':"")+'</td>'
+    +'<td data-label="Entry">'+(t.entry*100).toFixed(1)+'¢'+(t.slip?'<small> ('+(t.ask*100).toFixed(0)+'+'+t.slip+')</small>':"")+'</td>'
+    +'<td data-label="Stake">$'+(+t.stake).toFixed(0)+'</td>'
+    +'<td data-label="Δ@in">'+(d==null?"—":((d>=0?"+$":"−$")+btcFmtNum(Math.abs(d))))+'</td>'
+    +'<td data-label="Result">'+res+'</td>'
+    +'<td data-label="P&L $">'+(typeof t.pnl==="number"?((t.pnl>=0?"+":"")+t.pnl.toFixed(2)):"—")+'</td>'
+    +'<td data-label="Via"><small>'+esc(t.settledBy||t.profile||"")+'</small></td></tr>';
+}
+function renderBtcLog(){
+  const el=$("btcLogBox"); if(!el) return;
+  el.innerHTML=BTC.logs.length?BTC.logs.map(l=>'<div><b>'+new Date(l.t).toLocaleTimeString()+'</b> — '+esc(l.msg)+'</div>').join(""):"<div>No activity yet.</div>";
+}
+
+// --- Init ---------------------------------------------------------------
+function init(){
+  load();
+  const ps=$("btcProfile");
+  ps.innerHTML=Object.keys(BTC_PROFILES).map(k=>'<option value="'+k+'">'+BTC_PROFILES[k].label+'</option>').join("");
+  ps.value=STATE.btc.profile;
+  const as=$("btcAsset");
+  as.innerHTML=Object.keys(BTC_ASSETS).map(k=>'<option value="'+k+'">'+BTC_ASSETS[k].label+'</option>').join("");
+  as.value=STATE.btc.asset;
+  $("btcStake").value=STATE.btc.stake;
+  $("btcBank").value=STATE.btc.bank;
+  $("btcSlip").value=STATE.btc.slip;
+  $("btcAuto").checked=STATE.btc.auto!==false;
+  $("btcStart").addEventListener("click", ()=>btcSetOn(!STATE.btc.on));
+  as.addEventListener("change", e=>btcSetAsset(e.target.value));
+  ps.addEventListener("change", e=>{ STATE.btc.profile=BTC_PROFILES[e.target.value]?e.target.value:"conservative"; save(); renderBtc5mLive(true); });
+  $("btcStake").addEventListener("change", e=>{ STATE.btc.stake=clampNum(e.target.value,1,1000,5); e.target.value=STATE.btc.stake; save(); });
+  $("btcBank").addEventListener("change", e=>{ STATE.btc.bank=clampNum(e.target.value,10,100000,100); e.target.value=STATE.btc.bank; save(); renderBtc5mLive(true); });
+  $("btcSlip").addEventListener("change", e=>{ STATE.btc.slip=clampNum(e.target.value,0,5,1); e.target.value=STATE.btc.slip; save(); renderBtc5mLive(true); });
+  $("btcAuto").addEventListener("change", e=>{ STATE.btc.auto=e.target.checked; save(); });
+  $("btcClear").addEventListener("click", ()=>{ if(confirm("Clear the whole BTC paper-trade ledger? This cannot be undone.")){ STATE.btc.trades=[]; save(); BTC.dirty=true; renderBtc5m(); } });
+  $("btcExport").addEventListener("click", ()=>{
+    const blob=new Blob([JSON.stringify({version:1, btc:STATE.btc},null,2)],{type:"application/json"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="btc5m-paper-backup.json"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  });
+  $("btcImport").addEventListener("click", ()=>$("btcFile").click());
+  $("btcFile").addEventListener("change", e=>{
+    const f=e.target.files[0]; if(!f)return; const rd=new FileReader();
+    rd.onload=()=>{ try{ const o=JSON.parse(rd.result);
+      if(o&&o.version===1&&o.btc){ STATE.btc=btcSanitize(o.btc); save(); init2(); alert("Imported "+STATE.btc.trades.length+" paper trades and settings."); }
+      else alert("Unrecognised file (need a btc5m-paper-backup.json)."); }catch(err){ alert("Import failed: "+err.message); } };
+    rd.readAsText(f); e.target.value="";
+  });
+  init2();
+  setInterval(btcPulse,1000);
+  if(STATE.btc.on){ btcLog("Watcher resumed after reload."); btcTick(); }
+}
+function init2(){   // re-sync controls + full render (used after import too)
+  $("btcProfile").value=STATE.btc.profile;
+  $("btcAsset").value=STATE.btc.asset;
+  $("btcStake").value=STATE.btc.stake;
+  $("btcBank").value=STATE.btc.bank;
+  $("btcSlip").value=STATE.btc.slip;
+  $("btcAuto").checked=STATE.btc.auto!==false;
+  btcUpdateStartBtn();
+  renderBtc5m();
+}
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
