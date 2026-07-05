@@ -22,7 +22,8 @@ PROF    = {"movePct": 0.10, "minMid": 0.52, "maxAsk": 0.70,
            "winLeftMax": 150, "winLeftMin": 60, "freshMs": 8000, "feedFreshMs": 15000,
            "maxSpread": 0.03, "minTopUsd": 30, "stopPct": 0.25,
            "hedgeAt": 0.95, "hedgeLeft": 45, "hedgeFrac": 0.03,
-           "maxDay": 12, "dayLossPct": 10}
+           "maxDay": float("inf"),   # day-count cap OFF at user request 2026-07-04 "for now" — was 12
+           "dayLossPct": 10}
 STAKE, BANK, SLIP_C = 20.0, 1000.0, 1.0        # $ stake, $ bankroll, ¢ slippage
 IVL      = 300                                  # market interval, seconds
 TICK_S   = 4                                    # active polling cadence
