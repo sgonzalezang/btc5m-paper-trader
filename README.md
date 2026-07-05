@@ -68,3 +68,12 @@ Paper trading only, deliberately. Real execution needs an authenticated CLOB cli
 EIP-712 order signing, latency engineering, and jurisdiction checks — build that only
 if the paper ledger's win rate beats its average entry price by 5+ points over a real
 sample.
+
+## Lifetime tracking (local daemon)
+
+`daemon/btc5m_daemon.py` runs the strict engine 24/7 on a Mac via a
+LaunchAgent (`daemon/com.sgonzalez.btc5m.plist`), so the lifetime return
+accumulates even with no browser tab open. Ledger lives in `~/.btc5m/`.
+
+    python3 daemon/btc5m_daemon.py status   # lifetime return
+    python3 daemon/btc5m_daemon.py tail     # recent trades

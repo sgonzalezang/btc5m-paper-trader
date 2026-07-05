@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.sgonzalez.btc5m</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/sgonzalez/btc5m-paper-trader/daemon/btc5m_daemon.py</string>
+    <string>run</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/Users/sgonzalez/.btc5m/daemon.log</string>
+  <key>StandardErrorPath</key><string>/Users/sgonzalez/.btc5m/daemon.log</string>
+  <key>ThrottleInterval</key><integer>30</integer>
+</dict>
+</plist>
