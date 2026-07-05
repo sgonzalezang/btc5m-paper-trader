@@ -12,7 +12,7 @@ Usage:
   btc5m_daemon.py status    # lifetime return summary
   btc5m_daemon.py tail      # last 20 ledger events
 """
-import json, os, sys, time, urllib.request, urllib.parse
+import json, os, subprocess, sys, time, urllib.request, urllib.parse
 from datetime import datetime, timezone
 
 # --- Config (mirrors the page's strict engine / Conservative profile) -----
@@ -23,7 +23,7 @@ PROF    = {"movePct": 0.10, "minMid": 0.52, "maxAsk": 0.70,
            "maxSpread": 0.03, "minTopUsd": 30, "stopPct": 0.25,
            "hedgeAt": 0.95, "hedgeLeft": 45, "hedgeFrac": 0.03,
            "maxDay": 12, "dayLossPct": 10}
-STAKE, BANK, SLIP_C = 5.0, 100.0, 1.0          # $ stake, $ bankroll, ¢ slippage
+STAKE, BANK, SLIP_C = 20.0, 1000.0, 1.0        # $ stake, $ bankroll, ¢ slippage
 IVL      = 300                                  # market interval, seconds
 TICK_S   = 4                                    # active polling cadence
 GAMMA    = "https://gamma-api.polymarket.com"
@@ -31,6 +31,8 @@ CLOB     = "https://clob.polymarket.com"
 DATA_DIR = os.path.expanduser("~/.btc5m")
 LEDGER   = os.path.join(DATA_DIR, "ledger.json")
 LOGFILE  = os.path.join(DATA_DIR, "daemon.log")
+REPO_DIR = os.path.expanduser("~/btc5m-paper-trader")
+PUB_FILE = os.path.join(REPO_DIR, "lifetime.json")
 
 # --- Small utils -----------------------------------------------------------
 def now_ms():  return int(time.time() * 1000)
@@ -355,13 +357,65 @@ def settle_pending(L):
             ledger_save(L)
             log(f"could not resolve {tr['slug']} - marked unsettled (excluded from P&L)")
 
+# --- Publish lifetime results to the website (GitHub Pages) -------------------
+def summarize(L):
+    settled = [t for t in L["trades"] if t["status"] == "settled" and isinstance(t.get("pnl"), (int, float))]
+    wins    = [t for t in settled if t["result"] == "win"]
+    losses  = [t for t in settled if t["result"] == "loss"]
+    stopped = [t for t in settled if t["result"] == "stopped"]
+    unknown = [t for t in L["trades"] if t.get("result") == "unknown"]
+    live    = [t for t in L["trades"] if t["status"] in ("open", "pending")]
+    pnl, staked = sum(t["pnl"] for t in settled), sum(t["stake"] for t in settled)
+    n = len(wins) + len(losses)
+    keep = ("at", "t0", "side", "entry", "stake", "status", "result", "pnl", "settledBy", "slug")
+    return {"engine": "strict", "profile": "conservative", "asset": "BTC",
+            "startedAt": L["startedAt"], "bank": BANK, "stake": STAKE,
+            "settled": len(settled), "wins": len(wins), "losses": len(losses),
+            "stopped": len(stopped), "unresolved": len(unknown), "liveCount": len(live),
+            "winRatePct": round(100 * len(wins) / n, 1) if n else None,
+            "avgEntry": round(sum(t["entry"] for t in settled) / len(settled), 4) if settled else None,
+            "pnl": round(pnl, 2), "staked": round(staked, 2),
+            "returnOnBankPct": round(100 * pnl / BANK, 2),
+            "trades": [{k: t.get(k) for k in keep} for t in L["trades"][:40]]}
+
+_pub_last = None      # last successfully pushed summary (JSON string, no timestamp)
+_pub_at   = 0.0
+def publish(L):
+    """Write lifetime.json into the repo and push — only when results changed."""
+    global _pub_last, _pub_at
+    s = summarize(L)
+    body = json.dumps(s, sort_keys=True)
+    if body == _pub_last or time.time() - _pub_at < 60: return
+    s["updatedAt"] = now_ms()
+    try:
+        with open(PUB_FILE, "w") as f: json.dump(s, f, indent=1)
+        def git(*a): return subprocess.run(("/usr/bin/git", "-C", REPO_DIR) + a,
+                                           capture_output=True, text=True, timeout=60)
+        git("add", "lifetime.json")
+        if "nothing to commit" not in git("commit", "-m", "lifetime: " + (
+                f"{s['settled']} settled, P&L {s['pnl']:+.2f}")).stdout:
+            r = git("push", "origin", "main")
+            if r.returncode != 0:                      # racing a manual push? rebase once
+                git("pull", "--rebase", "origin", "main")
+                r = git("push", "origin", "main")
+            if r.returncode != 0:
+                log("publish push failed: " + (r.stderr or "").strip()[:200])
+                _pub_at = time.time()                  # back off, retry on next change/minute
+                return
+        _pub_last, _pub_at = body, time.time()
+        log(f"published lifetime.json ({s['settled']} settled, P&L {s['pnl']:+.2f})")
+    except Exception as e:
+        log(f"publish error: {e}")
+        _pub_at = time.time()
+
 # --- Main loop ----------------------------------------------------------------
 def run():
     os.makedirs(DATA_DIR, exist_ok=True)
     L = ledger_load()
     if not L["trades"]: ledger_save(L)
-    log(f"daemon started - strict 10/10 - Conservative - ${STAKE:.0f} stake - +{SLIP_C:.0f}c slip "
-        f"- ledger {LEDGER} ({len(L['trades'])} trades)")
+    log(f"daemon started - strict 10/10 - Conservative - ${STAKE:.0f} stake - ${BANK:.0f} bank "
+        f"- +{SLIP_C:.0f}c slip - ledger {LEDGER} ({len(L['trades'])} trades)")
+    publish(L)
     mkt, feed, prev_quote = None, {"src": None, "open": None, "last": None, "at": 0, "t0": None}, None
     while True:
         try:
@@ -375,6 +429,7 @@ def run():
             in_window = t0 + 140 <= now_sec <= t0 + 245
             if not busy and not in_window:
                 prev_quote = None
+                publish(L)                 # flush any change the 60s throttle deferred
                 nxt = (t0 + 140) if now_sec < t0 + 140 else (t1 + 140)
                 time.sleep(max(2, min(nxt - time.time(), 120)))
                 continue
@@ -408,6 +463,7 @@ def run():
             cq = quote_for(mkt, cs) if cs else None
             prev_quote = {"side": cs, "ask": cq["ask"]} if (cs and cq and cq["ask"] is not None) else None
             settle_pending(L)
+            publish(L)
         except Exception as e:
             log(f"tick error: {e}")
         time.sleep(TICK_S)

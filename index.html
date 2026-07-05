@@ -589,7 +589,8 @@ function btcCountdown(){ const m=BTC.mkt; if(!m) return "—:—";
   const s=Math.max(0,m.t1-Math.floor(Date.now()/1000)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
 function renderBtc5m(){
   const wrap=$("btcWrap"); if(!wrap) return;
-  wrap.innerHTML='<div id="btcLive"></div><div id="btcLedger"></div><h3 class="proj-h">Activity log</h3><div class="btc-log" id="btcLogBox"></div>';
+  wrap.innerHTML='<div id="btcLive"></div><div id="btcLife"></div><div id="btcLedger"></div><h3 class="proj-h">Activity log</h3><div class="btc-log" id="btcLogBox"></div>';
+  renderBtcLife();
   renderBtc5mLive(true);
 }
 function btcEngVerdict(id){
@@ -635,6 +636,39 @@ function renderBtcLedger(){
   const el=$("btcLedger"); if(!el) return;
   el.innerHTML='<h3 class="proj-h">Paper ledgers — strict vs loose</h3><div class="btc-books">'
     +BTC_ENGINES.map(e=>renderEngineLedger(e.id)).join("")+'</div>';
+}
+// --- Lifetime results from the 24/7 local daemon (lifetime.json, pushed by
+// the Mac whenever the strict engine's ledger changes; absent until first push)
+let BTC_LIFE=null;
+function renderBtcLife(){
+  const el=$("btcLife"); if(!el) return;
+  const L=BTC_LIFE;
+  if(!L){ el.innerHTML=""; return; }
+  const n=L.wins+L.losses;
+  const wr=L.winRatePct, be=L.avgEntry!=null?L.avgEntry*100:null;
+  let wrCol="var(--ink)";
+  if(wr!=null&&be!=null) wrCol=wr>=be+5?"var(--up)":(wr<be?"var(--dn)":"#cdc06a");
+  const since=new Date(L.startedAt).toLocaleDateString([],{month:"short",day:"numeric"});
+  const upd=L.updatedAt?Math.round((Date.now()-L.updatedAt)/60000):null;
+  const days=Math.max((Date.now()-L.startedAt)/86400000,0.01);
+  el.innerHTML='<h3 class="proj-h">Lifetime — strict engine · 24/7 daemon</h3>'
+    +'<div class="tr-card"><div class="tr-lab">running since '+since+' ('+days.toFixed(1)+' days) · $'+L.stake
+    +' stakes on a $'+L.bank.toLocaleString()+' bankroll'
+    +(upd!=null?(' · updated '+(upd<1?'just now':upd+' min ago')):'')
+    +(L.liveCount?(' · <b class="btc-ok">'+L.liveCount+' live</b>'):'')+'</div>'
+    +'<div class="eng-tiles" style="margin-top:8px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">'
+    +'<div><div class="et-big">'+L.settled+'</div><div class="et-lab">settled trades</div></div>'
+    +'<div><div class="et-big" style="color:'+wrCol+'">'+(wr!=null?Math.round(wr)+"%":"—")+'</div><div class="et-lab">win ('+L.wins+'/'+n+')</div></div>'
+    +'<div><div class="et-big">'+(be!=null?be.toFixed(0)+"¢":"—")+'</div><div class="et-lab">avg entry = b/e win%</div></div>'
+    +'<div><div class="et-big" style="color:'+(L.pnl>=0?"var(--up)":"var(--dn)")+'">'+(L.pnl>=0?"+":"")+L.pnl.toFixed(2)+'</div><div class="et-lab">P&amp;L $</div></div>'
+    +'<div><div class="et-big" style="color:'+(L.returnOnBankPct>=0?"var(--up)":"var(--dn)")+'">'+(L.returnOnBankPct>=0?"+":"")+L.returnOnBankPct.toFixed(2)+'%</div><div class="et-lab">return on bankroll</div></div>'
+    +'</div></div>';
+}
+async function btcLifeFetch(){
+  try{
+    const r=await fetch("lifetime.json?ts="+Date.now(),{cache:"no-store"});
+    if(r.ok){ BTC_LIFE=await r.json(); renderBtcLife(); }
+  }catch(e){}
 }
 function renderEngineLedger(id){
   const eng=btcEngById(id), trs=btcTrades(id), need=btcEngPass(id);
@@ -720,6 +754,7 @@ function init(){
   });
   init2();
   setInterval(btcPulse,1000);
+  btcLifeFetch(); setInterval(btcLifeFetch,300000);   // lifetime panel: on load + every 5 min
   if(STATE.btc.on){ btcLog("Watcher resumed after reload."); btcTick(); }
 }
 function init2(){   // re-sync controls + full render (used after import too)
