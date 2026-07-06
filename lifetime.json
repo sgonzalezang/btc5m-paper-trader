@@ -5,17 +5,17 @@
  "startedAt": 1783221808291,
  "bank": 1000.0,
  "stake": 20.0,
- "settled": 1,
- "wins": 1,
+ "settled": 2,
+ "wins": 2,
  "losses": 0,
  "stopped": 0,
  "unresolved": 0,
- "liveCount": 1,
+ "liveCount": 0,
  "winRatePct": 100.0,
- "avgEntry": 0.55,
- "pnl": 15.36,
- "staked": 20.0,
- "returnOnBankPct": 1.54,
+ "avgEntry": 0.625,
+ "pnl": 22.93,
+ "staked": 40.0,
+ "returnOnBankPct": 2.29,
  "trades": [
   {
    "at": 1783347478089,
@@ -23,10 +23,10 @@
    "side": "down",
    "entry": 0.7,
    "stake": 20.0,
-   "status": "pending",
-   "result": null,
-   "pnl": null,
-   "settledBy": null,
+   "status": "settled",
+   "result": "win",
+   "pnl": 7.57,
+   "settledBy": "polymarket",
    "slug": "btc-updown-5m-1783347300"
   },
   {
@@ -42,5 +42,5 @@
    "slug": "btc-updown-5m-1783339500"
   }
  ],
- "updatedAt": 1783347602371
+ "updatedAt": 1783347775724
 }
