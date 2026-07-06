@@ -9,8 +9,8 @@
  "wins": 3,
  "losses": 0,
  "stopped": 0,
- "unresolved": 0,
- "liveCount": 2,
+ "unresolved": 1,
+ "liveCount": 1,
  "winRatePct": 100.0,
  "avgEntry": 0.65,
  "pnl": 30.5,
@@ -35,10 +35,10 @@
    "side": "down",
    "entry": 0.64,
    "stake": 20.0,
-   "status": "pending",
-   "result": null,
+   "status": "settled",
+   "result": "unknown",
    "pnl": null,
-   "settledBy": null,
+   "settledBy": "unresolved",
    "slug": "btc-updown-5m-1783352700"
   },
   {
@@ -78,5 +78,5 @@
    "slug": "btc-updown-5m-1783339500"
   }
  ],
- "updatedAt": 1783353602238
+ "updatedAt": 1783353908523
 }
