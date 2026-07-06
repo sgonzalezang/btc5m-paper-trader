@@ -23,7 +23,7 @@
    "side": "up",
    "entry": 0.7,
    "stake": 20.0,
-   "status": "open",
+   "status": "pending",
    "result": null,
    "pnl": null,
    "settledBy": null,
@@ -90,5 +90,5 @@
    "slug": "btc-updown-5m-1783339500"
   }
  ],
- "updatedAt": 1783357664497
+ "updatedAt": 1783357801946
 }
