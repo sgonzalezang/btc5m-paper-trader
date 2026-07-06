@@ -10,13 +10,25 @@
  "losses": 0,
  "stopped": 0,
  "unresolved": 0,
- "liveCount": 1,
+ "liveCount": 2,
  "winRatePct": 100.0,
  "avgEntry": 0.65,
  "pnl": 30.5,
  "staked": 60.0,
  "returnOnBankPct": 3.05,
  "trades": [
+  {
+   "at": 1783353452351,
+   "t0": 1783353300,
+   "side": "down",
+   "entry": 0.71,
+   "stake": 20.0,
+   "status": "open",
+   "result": null,
+   "pnl": null,
+   "settledBy": null,
+   "slug": "btc-updown-5m-1783353300"
+  },
   {
    "at": 1783352878369,
    "t0": 1783352700,
@@ -66,5 +78,5 @@
    "slug": "btc-updown-5m-1783339500"
   }
  ],
- "updatedAt": 1783353001980
+ "updatedAt": 1783353452448
 }
