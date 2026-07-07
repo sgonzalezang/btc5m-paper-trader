@@ -52,7 +52,12 @@
   .eqctrl button:hover{border-color:var(--btc)}
   .eqctrl button.on{background:var(--btc);color:#0d1116;border-color:var(--btc);font-weight:700}
   .eqscroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;margin-top:4px;border-radius:8px}
-  .eqsvg{display:block}
+  .eqsvg{display:block;cursor:crosshair}
+  .eqcross{stroke:var(--mut);stroke-width:1;stroke-dasharray:3 2;opacity:.75;vector-effect:non-scaling-stroke}
+  .eqhd{stroke:var(--bg);stroke-width:1.5}
+  .eqtip{position:absolute;pointer-events:none;display:none;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;line-height:1.5;box-shadow:var(--shadow);z-index:6;white-space:nowrap}
+  .eqtip-t{color:var(--mut);font-size:11px;margin-bottom:2px}
+  .eqtip b{font-weight:700}
   .eqgrid{stroke:var(--line);stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
   .eqloose{fill:none;stroke:var(--blue);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqvariant{fill:none;stroke:#8f7bff;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
@@ -237,9 +242,9 @@ function equityChart(st){
   const ctrl='<div class="eqctrl">'+SPANS.map(sp=>`<button data-span="${sp[1]}" class="${VIEW.spanH===sp[1]&&!VIEW.daily?'on':''}" onclick="setSpan(${sp[1]})">${sp[0]}</button>`).join('')
     +`<button data-daily="1" class="${VIEW.daily?'on':''}" onclick="toggleDaily()" title="one point per day at 11:55pm local (daily close)">Daily</button></div>`;
   // SVG is filled by layoutChart() after insert (needs the container width)
-  return '<div class="col" style="margin-bottom:16px"><h2>Engine P&amp;L — separate books '+legend+'</h2>'
+  return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — separate books '+legend+'</h2>'
     +ctrl+'<div class="eqscroll" id="eqscroll"><div class="lab" style="padding:12px 2px">…</div></div>'
-    +'<div class="eqmeta" id="eqmeta"></div></div>';
+    +'<div class="eqtip" id="eqtip"></div><div class="eqmeta" id="eqmeta"></div></div>';
 }
 function layoutChart(userAction, _try){
   const wrap=document.getElementById("eqscroll"); if(!wrap||!LAST) return;
@@ -264,15 +269,47 @@ function layoutChart(userAction, _try){
   if(days<=60){ let d=new Date(t0); d.setHours(0,0,0,0); if(d.getTime()<t0) d.setDate(d.getDate()+1);
     for(;d.getTime()<=t1;d.setDate(d.getDate()+1)){ const x=X(d.getTime()).toFixed(1); grid+=`<line class="eqgrid" x1="${x}" y1="0" x2="${x}" y2="${H}"/>`; } }
   const z=Y(0);
+  const cross=`<line class="eqcross" id="eqcross" y1="0" y2="${H}" style="display:none"/>`
+    +engs.map(e=>`<circle class="eqhd ${ENGMETA[e].cls.replace('eq','eqd-')}" id="eqhd-${e}" r="3.6" style="display:none"/>`).join("");
   const svg=`<svg class="eqsvg" width="${Wpx}" height="${H}" viewBox="0 0 ${Wpx} ${H}" preserveAspectRatio="none" style="width:${Wpx}px;height:${H}px">`
     +grid+`<line class="eqzero" x1="0" y1="${z.toFixed(1)}" x2="${Wpx}" y2="${z.toFixed(1)}"/>`
-    +engs.map(e=>poly(S[e],ENGMETA[e].cls)).join("")+engs.map(dot).join("")+`</svg>`;
+    +engs.map(e=>poly(S[e],ENGMETA[e].cls)).join("")+engs.map(dot).join("")+cross+`</svg>`;
   const wasRight = wrap.scrollWidth-wrap.clientWidth-wrap.scrollLeft < 6, prevLeft=wrap.scrollLeft;
   wrap.innerHTML=svg;
   wrap.scrollLeft = (userAction||wasRight) ? wrap.scrollWidth : prevLeft;   // keep viewing latest unless panned
+  EQ={S:S, t0:t0, t1:t1, Wpx:Wpx, vmin:vmin, vmax:vmax, H:H, padT:padT, padB:padB, engs:engs};
+  wrap.onpointermove=eqHover; wrap.onpointerleave=eqHoverHide;
   const fT=t=>new Date(t).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
   const m=document.getElementById("eqmeta");
   if(m) m.innerHTML=`<span>${fT(t0)}</span><span>${VIEW.daily?"daily close · 11:55pm":(VIEW.spanH?VIEW.spanH+"h/screen · swipe ←→":"full history")}</span><span>${fT(t1)}</span>`;
+}
+let EQ=null;
+function eqHoverHide(){
+  const c=document.getElementById("eqcross"); if(c) c.style.display="none";
+  const t=document.getElementById("eqtip"); if(t) t.style.display="none";
+  (EQ?EQ.engs:[]).forEach(e=>{const d=document.getElementById("eqhd-"+e); if(d) d.style.display="none";});
+}
+function eqHover(ev){
+  if(ev.pointerType==="touch") return;              // touch is for swipe-scroll; hover is cursor-only
+  const wrap=document.getElementById("eqscroll"), svg=wrap&&wrap.querySelector("svg"); if(!EQ||!svg) return;
+  const sr=svg.getBoundingClientRect(), x=ev.clientX-sr.left;
+  if(x<0||x>EQ.Wpx){ eqHoverHide(); return; }
+  const t=EQ.t0+(EQ.Wpx?x/EQ.Wpx:0)*(EQ.t1-EQ.t0);
+  const Y=v=>EQ.padT+(1-(v-EQ.vmin)/(EQ.vmax-EQ.vmin))*(EQ.H-EQ.padT-EQ.padB);
+  const c=document.getElementById("eqcross"); if(c){ c.setAttribute("x1",x); c.setAttribute("x2",x); c.style.display=""; }
+  let rows="";
+  EQ.engs.forEach(e=>{ const s=EQ.S[e], d=document.getElementById("eqhd-"+e);
+    if(s&&s.length&&t>=s[0][0]){ const v=stepVal(s,t);
+      if(d){ d.setAttribute("cx",x); d.setAttribute("cy",Y(v).toFixed(1)); d.style.display=""; }
+      rows+=`<div><b class="${ENGMETA[e].lg}">${ENGMETA[e].label}</b> <b class="${v>=0?'eqpos':'eqneg'}">${D$(v)}</b></div>`;
+    } else if(d){ d.style.display="none"; } });
+  const tip=document.getElementById("eqtip"), col=wrap.closest(".col");
+  if(tip&&col){ const cr=col.getBoundingClientRect(), scr=wrap.getBoundingClientRect();
+    tip.innerHTML=`<div class="eqtip-t">${new Date(t).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</div>${rows||'<div class="eqtip-t">no trades yet</div>'}`;
+    tip.style.display="block";
+    let left=ev.clientX-cr.left+12; left=Math.max(4,Math.min(left,cr.width-tip.offsetWidth-4));
+    tip.style.left=left+"px"; tip.style.top=(scr.top-cr.top+6)+"px";
+  }
 }
 let LAST=null;
 async function render(){
