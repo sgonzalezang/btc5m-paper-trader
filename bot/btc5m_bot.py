@@ -374,11 +374,13 @@ class Bot:
     @staticmethod
     def _trade_fees(t):
         return t.get("feeEntry", 0)+t.get("feeExit", 0)+t.get("gas", 0)+(t["hedge"].get("fee", 0) if t.get("hedge") else 0)
+    EQ_CAP = 400   # max persisted equity points per engine (decimated when exceeded)
     def _trim(self, eid):
         trs = self.trades(eid)
         if len(trs) <= self.KEEP: return
         agg = self.st.setdefault("lifetime", {}).setdefault(eid, _zero_life())
-        for t in trs[self.KEEP:]:                 # fold the dropped (old, final) trades into the running totals
+        eq = self.st.setdefault("equity", {}).setdefault(eid, [])
+        for t in reversed(trs[self.KEEP:]):       # oldest first → chronological equity points
             agg["trimmed"] += 1
             if isinstance(t.get("entry"), (int, float)): agg["entrySum"] += t["entry"]; agg["entryN"] += 1
             agg["fees"] += self._trade_fees(t)
@@ -387,7 +389,10 @@ class Bot:
                 agg["settled"] += 1; agg[{"win": "wins", "loss": "losses", "stopped": "stopped"}[r]] += 1
                 if isinstance(t.get("pnl"), (int, float)): agg["pnl"] += t["pnl"]
                 agg["staked"] += t.get("stake", 0)
+                eq.append([t["at"], round(agg["pnl"], 2)])   # cumulative lifetime P&L at this trade's time
             elif r == "unknown": agg["unknown"] += 1
+        if len(eq) > self.EQ_CAP:                 # decimate but always keep the last point (== agg pnl)
+            self.st["equity"][eid] = eq[::2] + ([eq[-1]] if len(eq) % 2 == 0 else [])
         del trs[self.KEEP:]
 
     def paper_enter(self, eid, ev):
@@ -609,6 +614,7 @@ def default_state(args):
             "looseMust": list(getattr(args, "loose_must", None) or LOOSE_MANDATORY),
             "startedAt": now_ms(),
             "lifetime": {e: _zero_life() for e in ENGINES},   # totals for trades trimmed out of the list
+            "equity": {e: [] for e in ENGINES},               # [t_ms, cumPnl] curve for trimmed trades
             "engines": {e: {"trades": []} for e in ENGINES}}
 def sanitize(o, args):
     d = default_state(args)
@@ -623,6 +629,12 @@ def sanitize(o, args):
         if isinstance(lf, dict):
             for e in ENGINES:
                 if isinstance(lf.get(e), dict): d["lifetime"][e].update({k: lf[e][k] for k in _zero_life() if isinstance(lf[e].get(k), (int, float))})
+        eq = o.get("equity")
+        if isinstance(eq, dict):
+            for e in ENGINES:
+                if isinstance(eq.get(e), list):
+                    d["equity"][e] = [[p[0], p[1]] for p in eq[e]
+                                      if isinstance(p, list) and len(p) == 2 and all(isinstance(x, (int, float)) for x in p)]
         eng = o.get("engines")
         if isinstance(eng, dict):
             for e in ENGINES:
@@ -663,7 +675,7 @@ def snapshot(bot):
             "summary": {e: summ(e) for e in ENGINES},
             "log": bot.logs[:30],
             "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip",
-                                       "loosePass", "looseMust", "startedAt", "lifetime", "engines")}}
+                                       "loosePass", "looseMust", "startedAt", "lifetime", "equity", "engines")}}
 def save_state(path, bot):
     tmp = path + ".tmp"
     with open(tmp, "w") as f: json.dump(snapshot(bot), f, separators=(",", ":"))
@@ -815,6 +827,9 @@ def selftest():
     s6 = snapshot(b6)["summary"]["loose"]
     ok(s6["settled"]==4 and s6["wins"]==3 and abs(s6["pnl"]-(-15))<0.01 and s6["trades"]==4 and s6["shown"]==2,
        "lifetime totals survive trimming", f"settled={s6['settled']} wins={s6['wins']} pnl={s6['pnl']} shown={s6['shown']}")
+    eq6 = b6.st["equity"]["loose"]   # oldest-folded first: cum 10 (win), then 10-50=-40 (loss); ends at lifetime pnl
+    ok(len(eq6)==2 and abs(eq6[0][1]-10)<1e-6 and abs(eq6[1][1]-(-40))<1e-6,
+       "equity curve records cumulative P&L on trim", f"eq={eq6}")
     print("\n" + ("ALL PASS" if fails == 0 else f"{fails} FAILURES"))
     return 1 if fails else 0
 
