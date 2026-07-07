@@ -51,16 +51,21 @@ PROFILES = {
 }
 # Engines run side by side over the same live data, in page-priority order.
 #  loose   — 7/10 + Stable2tick, fills <=65c (the Monte-Carlo-optimal cap)
-#  capless — identical to loose but WITHOUT the 65c cap (fills to 70c). The only
-#            difference from loose is the cap, so loose-vs-capless isolates
+#  capless — identical to loose but WITHOUT the 65c cap (fills to 70c). Isolates
 #            exactly what the 65c cap costs/saves, live.
-#  strict  — all 10 guards (has not fired in practice; kept as a control)
-ENGINES = ["loose", "capless", "strict"]
+#  calm    — loose (+65c cap) PLUS a volatility gate: only enters when BTC's
+#            trailing 10-min range is tight (<=0.25%). The edge is a low-vol
+#            mean-reversion bet, so this tests whether sitting out choppy/
+#            trending regimes improves it. Isolates the volatility filter.
+#  strict  — all 10 guards (fires almost never; kept as a control)
+ENGINES = ["loose", "capless", "calm", "strict"]
 ENGINE_CFG = {
-    "loose":   dict(label="Loose",   tunable=True,  driftMax=None, entryMax=0.65),   # cap 2026-07-07: MC showed >=66c net-negative, 70c+ a disaster
-    "capless": dict(label="Capless", tunable=True,  driftMax=None, entryMax=None),   # loose with NO cap — fills up to the 70c profile ask cap
-    "strict":  dict(label="Strict",  tunable=False, driftMax=None, entryMax=None),
+    "loose":   dict(label="Loose",   tunable=True,  driftMax=None, entryMax=0.65, volMax=None),
+    "capless": dict(label="Capless", tunable=True,  driftMax=None, entryMax=None,  volMax=None),
+    "calm":    dict(label="Calm",    tunable=True,  driftMax=None, entryMax=0.65, volMax=0.25),
+    "strict":  dict(label="Strict",  tunable=False, driftMax=None, entryMax=None,  volMax=None),
 }
+VOL_WIN_MS = 600000   # trailing window for the volatility measure (10 min)
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
 # backtest (2026-07-06, 21 honest trades) showed loose entries that skipped
 # Stable2tick — filling on a jumpy/stale quote — lost badly (-26pp edge), while
@@ -298,11 +303,23 @@ class Bot:
         self.eng = {e: {"eval": None, "miss": None} for e in ENGINES}
         self.logs = []
         self.misses = []                      # recent "close but no entry" markets (published for the page)
+        self.pxwin = []                       # rolling [t_ms, price] for the volatility measure
+        self.vol = None                       # trailing 10-min BTC range as % (None until enough samples)
         self.err = None
 
     # --- config accessors ---
     def prof(self): return PROFILES[self.st["profile"]]
     def asset(self): return ASSETS[self.st["asset"]]
+    def update_vol(self, now, price):        # trailing-window range% as the volatility measure
+        if price is None: return
+        self.pxwin.append((now, price))
+        cut = now - VOL_WIN_MS
+        while self.pxwin and self.pxwin[0][0] < cut: self.pxwin.pop(0)
+        if len(self.pxwin) >= 30:            # ~2 min of 4s samples before we trust it
+            pr = [p for _, p in self.pxwin]; lo, hi = min(pr), max(pr)
+            self.vol = round((hi-lo)/lo*100, 4) if lo else None
+        else:
+            self.vol = None
     def eng_pass(self, eid): return int(clampf(self.st["loosePass"], 1, 10, 6)) if ENGINE_CFG[eid]["tunable"] else 10
     def eng_must(self, eid): return tuple(self.st.get("looseMust", LOOSE_MANDATORY)) if ENGINE_CFG[eid]["tunable"] else ()
     def trades(self, eid): return self.st["engines"][eid]["trades"]
@@ -380,6 +397,8 @@ class Bot:
             slip = clampf(self.st["slip"], 0, 5, 1) / 100                    # gate on the expected FILL (ask+slip),
             extra.append(("entry≤%dc" % round(cfg["entryMax"]*100),          # so the realized price stays under the cap
                           bool(q and q["ask"] is not None and q["ask"] + slip <= cfg["entryMax"] + 1e-9)))
+        if cfg.get("volMax") is not None:
+            extra.append(("calm≤%.2g%%" % cfg["volMax"], self.vol is not None and self.vol <= cfg["volMax"]))
         extra_ok = all(o for _, o in extra)
         can_fill = bool(q and q["ask"] is not None and left is not None and left > 0
                         and not opent and not dup and dn < prof["maxDay"] and dpnl > -loss_cap)
@@ -467,7 +486,7 @@ class Bot:
         elif passc >= need and ev.get("mustOk") and not ev.get("extraOk"):
             why = []
             for lbl, o in ev.get("extra", []):
-                if not o: why.append("price >65¢" if "entry" in lbl else ("drift too big" if "drift" in lbl else lbl))
+                if not o: why.append("price >65¢" if "entry" in lbl else ("drift too big" if "drift" in lbl else ("too choppy (vol)" if "calm" in lbl else lbl)))
             lvl, note = 3, "filter: " + ", ".join(why)
         elif passc >= need and not ev.get("mustOk"):
             lvl, note = 2, "unstable quote (stability guard red)"
@@ -636,6 +655,7 @@ class Bot:
                 m.update(ev=True, slug=p["slug"], evClosed=p["closed"], tokUp=p["tokUp"], tokDown=p["tokDown"],
                          upBid=p["upBid"], upAsk=p["upAsk"], pUp=p["pUp"], gAt=now_ms())
             self.feed_tick(t0)
+            self.update_vol(now_ms(), self.feed["last"])
             delta = (self.feed["last"]-self.feed["open"]) if (self.feed["open"] is not None and self.feed["last"] is not None) else None
             opent = next((self.open_trade(e) for e in ENGINES if self.open_trade(e)), None)
             side = opent["side"] if opent else (None if not delta else ("up" if delta > 0 else "down"))
@@ -733,7 +753,9 @@ def snapshot(bot):
             "slip": st["slip"], "loosePass": st["loosePass"],
             "looseMust": st.get("looseMust", list(LOOSE_MANDATORY)),
             "hedgeOn": st.get("hedgeOn", False),
-            "engineCfg": {e: {"entryMax": ENGINE_CFG[e]["entryMax"], "driftMax": ENGINE_CFG[e]["driftMax"]} for e in ENGINES},
+            "engineCfg": {e: {"entryMax": ENGINE_CFG[e]["entryMax"], "driftMax": ENGINE_CFG[e]["driftMax"],
+                              "volMax": ENGINE_CFG[e].get("volMax")} for e in ENGINES},
+            "vol": bot.vol,
             "feed": {"src": bot.feed.get("src"), "price": bot.feed.get("last"),
                      "open": bot.feed.get("open"), "t0": bot.feed.get("t0"), "at": bot.feed.get("at")},
             "market": ({"slug": bot.mkt.get("slug"), "t0": bot.mkt.get("t0"),
@@ -846,6 +868,13 @@ def selftest():
     bv.mkt = mkmkt(0.58, 0.57); bv.prev_quote = {"side":"up","ask":0.58,"t":now-4000}     # cheap 58c
     lc, cc = bv.evaluate(now,"loose"), bv.evaluate(now,"capless")
     ok(lc["enter"] and cc["enter"], "loose and capless both take a cheap fill", f"loose={lc['enter']} capless={cc['enter']}")
+    # calm engine: volatility gate — enters only when trailing range is tight
+    bv.vol = 0.5; cv_hi = bv.evaluate(now,"calm")          # choppy: 0.5% range > 0.25% cap
+    ok(not cv_hi["enter"], "calm blocks entry when volatility is high", f"vol={bv.vol} enter={cv_hi['enter']}")
+    bv.vol = 0.10; cv_lo = bv.evaluate(now,"calm")         # calm: 0.10% range <= 0.25%
+    ok(cv_lo["enter"], "calm enters when the market is calm", f"vol={bv.vol} enter={cv_lo['enter']}")
+    bv.vol = None; cv_un = bv.evaluate(now,"calm")         # unknown vol → no entry (conservative)
+    ok(not cv_un["enter"], "calm blocks entry when vol unknown", f"enter={cv_un['enter']}")
     # miss tracking: an enter that can't fill (thin book) records a level-4 miss
     bmz = Bot({}, default_state(A)); bmz.eng["loose"]={"eval":None,"miss":None}
     bmz._track_miss("loose", {"enter":True,"side":"up","passCount":8,"need":7,"mustOk":True,"extraOk":True,"extra":[],"checks":[]}, False)
@@ -972,7 +1001,7 @@ def main():
     bot = Bot({"publishEvery": args.publish_every}, st)
     must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
     bot.log(f"bot started — {st['asset']} · {st['profile']} · loose {args.loose}/10{must_lbl} + fill≤65c · "
-            f"capless (loose, no cap, fills≤70c) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
+            f"capless (no cap) · calm (loose + 10m-range≤0.25%) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
             f"${st['stake']:g} stake · +{st['slip']:g}c slip · state={args.state}")
     last_pub = 0
     def positions_sig():   # changes when any trade opens, settles, or goes pending → publish promptly

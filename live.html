@@ -76,7 +76,8 @@
   .eqloose{fill:none;stroke:var(--blue);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqvariant{fill:none;stroke:#8f7bff;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqstrict{fill:none;stroke:var(--btc);stroke-width:1.6;opacity:.7;vector-effect:non-scaling-stroke;stroke-linejoin:round}
-  .eqd-loose{fill:var(--blue)}.eqd-variant{fill:#8f7bff}.eqd-strict{fill:var(--btc)}
+  .eqcalm{fill:none;stroke:#3fb6a8;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+  .eqd-loose{fill:var(--blue)}.eqd-variant{fill:#8f7bff}.eqd-calm{fill:#3fb6a8}.eqd-strict{fill:var(--btc)}
   .eqpos{color:var(--up)}.eqneg{color:var(--dn)}
   .eqzero{stroke:var(--mut);stroke-dasharray:3 3;stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
   .eqarea{stroke:none}.eqarea.pos{fill:var(--up);opacity:.10}.eqarea.neg{fill:var(--dn);opacity:.10}
@@ -84,7 +85,7 @@
   .eqmeta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--mut);margin-top:4px;flex-wrap:wrap}
   .eqnow.pos{color:var(--up);font-weight:700}.eqnow.neg{color:var(--dn);font-weight:700}
   .eqlegend{font-size:11px;color:var(--mut);font-weight:400}
-  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-v{color:#8f7bff}.lg-s{color:var(--btc)}
+  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-v{color:#8f7bff}.lg-c{color:#3fb6a8}.lg-s{color:var(--btc)}
   .gd{white-space:nowrap}
   .gd i{display:inline-block;font-style:normal;font-size:9px;width:13px;height:13px;line-height:13px;text-align:center;border-radius:3px;margin:0 1px;font-weight:700;cursor:default}
   .gd .g1{background:#173527;color:var(--up)}.gd .g0{background:#3a231c;color:var(--dn)}
@@ -262,7 +263,7 @@ function eqSeries(st, id){
   return pts;
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
-const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},capless:{label:"capless",lg:"lg-v",cls:"eqvariant"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
+const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},capless:{label:"capless",lg:"lg-v",cls:"eqvariant"},calm:{label:"calm",lg:"lg-c",cls:"eqcalm"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
 const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
 // timeframe: spanH = hours of history shown per screen width (wider SVG scrolls
 // horizontally — finger-swipe on mobile); null = fit-all. daily = one point per
@@ -286,7 +287,7 @@ function dailyClose(series){
   return out;
 }
 function equityChart(st){
-  const engs=["loose","capless","strict"];
+  const engs=["loose","capless","calm","strict"];
   const S={}; engs.forEach(e=>S[e]=eqSeries(st,e));
   const legend='<span class="eqlegend">'+engs.filter(e=>S[e].length).map(e=>{const n=S[e][S[e].length-1][1];
     return `<b class="${ENGMETA[e].lg}">━</b> ${ENGMETA[e].label} <b class="${n>=0?'eqpos':'eqneg'}">${D$(n)}</b>`;
@@ -302,7 +303,7 @@ function layoutChart(userAction, _try){
   const wrap=document.getElementById("eqscroll"); if(!wrap||!LAST) return;
   const cw=wrap.clientWidth||Math.round(wrap.getBoundingClientRect().width);
   if(!cw){ if((_try||0)<20) setTimeout(()=>layoutChart(userAction,(_try||0)+1), 40); return; }  // wait for layout to flush
-  const engs=["loose","capless","strict"];
+  const engs=["loose","capless","calm","strict"];
   const S={}; engs.forEach(e=>{let s=eqSeries(LAST,e); if(VIEW.daily) s=dailyClose(s); S[e]=s;});
   const all=engs.flatMap(e=>S[e]);
   if(all.length<2){ wrap.innerHTML='<div class="lab" style="padding:12px 2px">'+(VIEW.daily?'Need at least 2 daily closes — check back after a day or two.':'Each engine’s line appears once it has 2+ trades.')+'</div>'; return; }
@@ -386,14 +387,14 @@ function draw(st){
   // second: green = inside the expected window, orange = slightly overdue
   // (usually CDN lag), red = two missed publishes + slack.
   HB={heartbeat:st.heartbeat||0, pubEvery:(st.publishEvery||1800)*1000};
-  const S=st.summary||{}, feesTot=["loose","capless","strict"].reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
+  const S=st.summary||{}, feesTot=["loose","capless","calm","strict"].reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
   const must=(st.looseMust||[]), mustAbbr=must.map(k=>(GUARDS[k]||[k])[0]).join("/");
   const mustTxt=must.length?` + ${mustAbbr} required`:"";
   $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · hedge ${st.hedgeOn?"on":"off"} · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
   const eng=st.btc&&st.btc.engines||{};
-  const HUE={loose:"var(--blue)",capless:"#8f7bff",strict:"var(--btc)"};
-  const LABEL={loose:"Loose",capless:"Capless",strict:"Strict"};
+  const HUE={loose:"var(--blue)",capless:"#8f7bff",calm:"#3fb6a8",strict:"var(--btc)"};
+  const LABEL={loose:"Loose",capless:"Capless",calm:"Calm",strict:"Strict"};
   const needLbl=(id)=>{
     const need=(S[id]||{}).need||(id==="strict"?10:st.loosePass);
     if(id==="strict") return `needs 10/10`;
@@ -402,14 +403,18 @@ function draw(st){
     if(must.length) l+=` + <b title="mandatory: ${must.map(k=>(GUARDS[k]||['',k])[1]).join('; ')}">${esc(mustAbbr)}</b>`;
     if(cfg.entryMax!=null) l+=` + <b title="only fills at ≤${Math.round(cfg.entryMax*100)}¢ — the Monte Carlo showed fills ≥66¢ are net-negative">≤${Math.round(cfg.entryMax*100)}¢</b>`;
     if(cfg.driftMax!=null) l+=` + <b title="only enters when early drift ≤${cfg.driftMax}% of the interval open (buy the lean, don't chase)">drift</b>`;
+    if(cfg.volMax!=null){
+      const v=st.vol; const now=(v!=null)?` (now ${v.toFixed(2)}%${v<=cfg.volMax?' ✓':' ✗'})`:" (—)";
+      l+=` + <b title="only enters when BTC's trailing 10-min range ≤${cfg.volMax}% — tests whether sitting out choppy/trending regimes helps this low-vol mean-reversion edge">calm≤${cfg.volMax}%</b><span class="mut">${now}</span>`;
+    }
     return l;
   };
   const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span><span>${needLbl(id)}</span></h2>`
     +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
   $("body").innerHTML=equityChart(st)
     +headToHead(st)
-    +`<div class="books">${col("loose")}${col("capless")}</div>`      /* the race, side by side */
-    +`<div class="books-single">${col("strict")}</div>`               /* control engine, below */
+    +`<div class="books">${col("loose")}${col("capless")}</div>`      /* primary race: the 65c cap A/B */
+    +`<div class="books" style="margin-top:16px">${col("calm")}${col("strict")}</div>`  /* calm = vol filter, strict = control */
     +guardKey(must)
     +missesPanel(st)
     +`<h3 class="sec">Activity log</h3><div class="log">`
@@ -486,7 +491,7 @@ function drawBtcBar(){
 function drawLiveTrade(){
   const el=$("livetrade"); if(!el) return;
   const eng=(LAST&&LAST.btc&&LAST.btc.engines)||{};
-  const engs=["loose","capless","strict"];
+  const engs=["loose","capless","calm","strict"];
   const now=Math.floor(Date.now()/1000);
   let parts=[];
   engs.forEach(id=>{
