@@ -354,6 +354,26 @@ class Bot:
         m = self.mkt
         return (m["bookUp"] if side == "up" else m["bookDown"]) if m else None
 
+    KEEP = 250   # trades kept per engine in the list; older ones fold into lifetime totals
+    @staticmethod
+    def _trade_fees(t):
+        return t.get("feeEntry", 0)+t.get("feeExit", 0)+t.get("gas", 0)+(t["hedge"].get("fee", 0) if t.get("hedge") else 0)
+    def _trim(self, eid):
+        trs = self.trades(eid)
+        if len(trs) <= self.KEEP: return
+        agg = self.st.setdefault("lifetime", {}).setdefault(eid, _zero_life())
+        for t in trs[self.KEEP:]:                 # fold the dropped (old, final) trades into the running totals
+            agg["trimmed"] += 1
+            if isinstance(t.get("entry"), (int, float)): agg["entrySum"] += t["entry"]; agg["entryN"] += 1
+            agg["fees"] += self._trade_fees(t)
+            r = t.get("result")
+            if r in ("win", "loss", "stopped"):
+                agg["settled"] += 1; agg[{"win": "wins", "loss": "losses", "stopped": "stopped"}[r]] += 1
+                if isinstance(t.get("pnl"), (int, float)): agg["pnl"] += t["pnl"]
+                agg["staked"] += t.get("stake", 0)
+            elif r == "unknown": agg["unknown"] += 1
+        del trs[self.KEEP:]
+
     def paper_enter(self, eid, ev):
         m, f, prof = self.mkt, self.feed, self.prof()
         side = ev["side"]
@@ -381,7 +401,7 @@ class Bot:
                   feed=f["src"], status="open", hedge=None, pnl=None, result=None, settledBy=None,
                   guards=[[k, 1 if ok else 0] for k, ok in ev["checks"]])
         self.trades(eid).insert(0, tr)
-        del self.trades(eid)[250:]
+        self._trim(eid)
         part = "" if fully else f" partial {tr['fillFrac']*100:.0f}%"
         self.log(f"[{eid.upper()}] ENTER {self.st['asset']} {side.upper()} @ {entry*100:.1f}c avg "
                  f"${spent:.0f}{part} fee ${fee:.2f} ({ev['passCount']}/10) "
@@ -565,10 +585,13 @@ class Bot:
 
 
 # ---------- persistence ----------
+def _zero_life(): return dict(trimmed=0, settled=0, wins=0, losses=0, stopped=0, unknown=0,
+                              pnl=0.0, fees=0.0, staked=0.0, entrySum=0.0, entryN=0)
 def default_state(args):
     return {"on": True, "auto": True, "profile": "conservative", "asset": args.asset,
             "stake": args.stake, "bank": args.bank, "slip": args.slip, "loosePass": args.loose,
             "startedAt": now_ms(),
+            "lifetime": {e: _zero_life() for e in ENGINES},   # totals for trades trimmed out of the list
             "engines": {e: {"trades": []} for e in ENGINES}}
 def sanitize(o, args):
     d = default_state(args)
@@ -577,6 +600,10 @@ def sanitize(o, args):
             if o.get(k) in (PROFILES if k == "profile" else ASSETS): d[k] = o[k]
         for k in ("stake", "bank", "slip", "loosePass", "startedAt"):
             if isinstance(o.get(k), (int, float)): d[k] = o[k]
+        lf = o.get("lifetime")
+        if isinstance(lf, dict):
+            for e in ENGINES:
+                if isinstance(lf.get(e), dict): d["lifetime"][e].update({k: lf[e][k] for k in _zero_life() if isinstance(lf[e].get(k), (int, float))})
         eng = o.get("engines")
         if isinstance(eng, dict):
             for e in ENGINES:
@@ -591,16 +618,20 @@ def snapshot(bot):
     """Full state.json: config + ledgers + rolled-up summary + heartbeat + recent log."""
     st = bot.st
     def summ(eid):
+        # lifetime = trimmed-out aggregate + everything still in the list, so the
+        # totals stay complete no matter how many trades scroll off over 24/7.
+        a = st.get("lifetime", {}).get(eid, _zero_life())
         trs = bot.trades(eid)
         settled = [t for t in trs if t["result"] in ("win", "loss", "stopped")]
-        wins = sum(1 for t in settled if t["result"] == "win")
-        pnl = round(sum((t["pnl"] or 0) for t in settled), 2)
-        fees = round(sum(t.get("feeEntry", 0)+t.get("feeExit", 0)+t.get("gas", 0)
-                         + (t["hedge"].get("fee", 0) if t.get("hedge") else 0) for t in trs), 2)
+        wins = a["wins"] + sum(1 for t in settled if t["result"] == "win")
+        n_settled = a["settled"] + len(settled)
+        pnl = round(a["pnl"] + sum((t["pnl"] or 0) for t in settled), 2)
+        fees = round(a["fees"] + sum(Bot._trade_fees(t) for t in trs), 2)
         priced = [t["entry"] for t in trs if isinstance(t.get("entry"), (int, float))]
-        avg_e = round(sum(priced)/len(priced)*100, 1) if priced else None
-        return dict(trades=len(trs), settled=len(settled), wins=wins,
-                    winPct=(round(wins/len(settled)*100, 1) if settled else None),
+        entry_sum, entry_n = a["entrySum"] + sum(priced), a["entryN"] + len(priced)
+        avg_e = round(entry_sum/entry_n*100, 1) if entry_n else None
+        return dict(trades=a["trimmed"]+len(trs), shown=len(trs), settled=n_settled, wins=wins,
+                    winPct=(round(wins/n_settled*100, 1) if n_settled else None),
                     avgEntry=avg_e, pnl=pnl, feesPaid=fees, need=bot.eng_pass(eid))
     return {"version": 2, "heartbeat": now_ms(),
             "heartbeatIso": datetime.now(timezone.utc).isoformat(),
@@ -611,7 +642,8 @@ def snapshot(bot):
             "slip": st["slip"], "loosePass": st["loosePass"],
             "summary": {e: summ(e) for e in ENGINES},
             "log": bot.logs[:30],
-            "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip", "loosePass", "engines")}}
+            "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip",
+                                       "loosePass", "startedAt", "lifetime", "engines")}}
 def save_state(path, bot):
     tmp = path + ".tmp"
     with open(tmp, "w") as f: json.dump(snapshot(bot), f, separators=(",", ":"))
@@ -738,6 +770,16 @@ def selftest():
     b5.mkt = dict(bot.mkt); b5.feed = dict(bot.feed); b5.prev_quote = {"side":"up","ask":0.66,"t":now-4000}
     e5 = b5.evaluate(now, "strict")
     ok(not e5["enter"] and not e5["checks"][9][1], "daily loss cap blocks entry")
+    # lifetime totals survive trimming (24/7: trades scroll off but totals stay whole)
+    b6 = Bot({}, default_state(A)); b6.KEEP = 2
+    for i, (res, pnl, entry) in enumerate([("win",10,0.6),("loss",-50,0.7),("win",20,0.65),("win",5,0.55)]):
+        b6.trades("loose").insert(0, dict(at=now,t0=i,t1=i+1,slug="x",profile="conservative",asset="BTC",eng="loose",
+            side="up",entry=entry,ask=entry,slip=1,stake=50,shares=1,feeEntry=1.0,feeExit=0,gas=0.004,
+            btcOpen=1,btcEntry=1,btcClose=None,feed="x",status="settled",hedge=None,pnl=pnl,result=res,settledBy="t"))
+        b6._trim("loose")
+    s6 = snapshot(b6)["summary"]["loose"]
+    ok(s6["settled"]==4 and s6["wins"]==3 and abs(s6["pnl"]-(-15))<0.01 and s6["trades"]==4 and s6["shown"]==2,
+       "lifetime totals survive trimming", f"settled={s6['settled']} wins={s6['wins']} pnl={s6['pnl']} shown={s6['shown']}")
     print("\n" + ("ALL PASS" if fails == 0 else f"{fails} FAILURES"))
     return 1 if fails else 0
 

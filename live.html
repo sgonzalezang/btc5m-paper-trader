@@ -37,6 +37,13 @@
   .tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px}
   .win{background:#173527;color:var(--up)}.loss{background:#3a231c;color:var(--dn)}.open{background:#2a2f24;color:#cdc06a}
   .prov{color:#e6a03c;font-weight:700;margin-left:2px;cursor:help}
+  .tscroll{max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:8px}
+  .tscroll table{margin-top:0}
+  .tscroll thead th{position:sticky;top:0;z-index:1}
+  .tfoot{display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap}
+  .more{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer}
+  .more:hover{border-color:var(--btc)}
+  .rowinfo{font-size:11px;color:var(--mut)}
   .gd{white-space:nowrap}
   .gd i{display:inline-block;font-style:normal;font-size:9px;width:13px;height:13px;line-height:13px;text-align:center;border-radius:3px;margin:0 1px;font-weight:700;cursor:default}
   .gd .g1{background:#173527;color:var(--up)}.gd .g0{background:#3a231c;color:var(--dn)}
@@ -132,10 +139,12 @@ function guardKey(){
     +'<div class="gkey">'+Object.values(GUARDS).map(G=>
       `<span><i class="gd"><i class="g1">${G[0]}</i></i> ${esc(G[1])}</span>`).join("")+'</div></div>';
 }
-function rows(trades){
+const PAGE=25;                       // rows revealed per "show more"
+const SHOWN={strict:PAGE, loose:PAGE};
+function rows(trades, id, lifetimeTotal){
   if(!trades||!trades.length) return '<div class="lab" style="margin-top:8px">No trades yet.</div>';
-  return '<table><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th>Guards @ entry</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>'
-    + trades.slice(0,25).map(t=>{
+  const n=Math.min(SHOWN[id]||PAGE, trades.length);
+  const body=trades.slice(0,n).map(t=>{
       const prov=t.provisional?'<span class="prov" title="provisional — settled from price action, not yet confirmed by Polymarket’s oracle">*</span>':"";
       const res=t.status==="open"?'<span class="tag open">OPEN</span>':t.status==="pending"?'<span class="tag open" title="interval closed, too close to call — awaiting the oracle">…</span>'
         :t.result==="win"?'<span class="tag win">WIN</span>'+prov:t.result==="loss"?'<span class="tag loss">LOSS</span>'+prov
@@ -144,24 +153,36 @@ function rows(trades){
         +`<td>${t.side==="up"?'<b class="up">▲</b>':'<b class="dn">▼</b>'}${t.hedge?"<small>+h</small>":""}</td>`
         +`<td>${(t.entry*100).toFixed(1)}¢</td><td>${guardChips(t)}</td><td>${res}</td>`
         +`<td>${typeof t.pnl==="number"?((t.pnl>=0?"+":"")+t.pnl.toFixed(2)):"—"}</td></tr>`;
-    }).join("")+'</tbody></table>';
+    }).join("");
+  const tbl='<div class="tscroll"><table><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th>Guards @ entry</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>'
+    +body+'</tbody></table></div>';
+  let foot="";
+  if(n<trades.length) foot+=`<button class="more" onclick="moreRows('${id}')">Show ${Math.min(PAGE,trades.length-n)} more</button>`;
+  // the list is a recent window; older trades scroll off but still count in the lifetime totals above
+  const older=(lifetimeTotal||trades.length)-trades.length;
+  foot+=`<span class="rowinfo">showing ${n} of ${trades.length}${older>0?` kept · ${older.toLocaleString()} older folded into totals`:""}</span>`;
+  return tbl+'<div class="tfoot">'+foot+'</div>';
 }
+function moreRows(id){ SHOWN[id]=(SHOWN[id]||PAGE)+PAGE; if(LAST) draw(LAST); }
+let LAST=null;
 async function render(){
   const st=await fetchState();
   if(!st){ $("dot").className="dot stale"; $("hbState").textContent="No data published yet";
     $("hbMeta").textContent="— once the bot runs with --publish, this fills in."; return; }
+  LAST=st; draw(st);
+}
+function draw(st){
   // The bot publishes every `publishEvery` seconds (sooner on a settled trade),
   // and the CDN can add a few minutes. tickCd() owns the dot/state second by
   // second: green = inside the expected window, orange = slightly overdue
   // (usually CDN lag), red = two missed publishes + slack.
   HB={heartbeat:st.heartbeat||0, pubEvery:(st.publishEvery||1800)*1000};
-  const Sh=st.summary||{}, feesTot=((Sh.strict||{}).feesPaid||0)+((Sh.loose||{}).feesPaid||0);
+  const S=st.summary||{}, feesTot=((S.strict||{}).feesPaid||0)+((S.loose||{}).feesPaid||0);
   $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10 · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
   const eng=st.btc&&st.btc.engines||{strict:{trades:[]},loose:{trades:[]}};
-  const S=st.summary||{};
   const col=(id,label,hue,need)=>`<div class="col"><h2><span style="color:${hue}">${label}</span><span>needs ${need}/10</span></h2>`
-    +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades)+`</div>`;
+    +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
   $("body").innerHTML=`<div class="books">${col("strict","Strict","var(--btc)",10)}${col("loose","Loose","var(--blue)",st.loosePass||6)}</div>`
     +guardKey()
     +`<h3 class="sec">Activity log</h3><div class="log">`

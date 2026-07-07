@@ -708,7 +708,8 @@ function renderEngineLedger(id){
   const warn=(winPct!=null&&avgE!=null&&settled.length>=3&&winPct<avgE)
     ?'<div class="note" style="margin:8px 0 0;border-left-color:var(--dn)"><b>Losing math:</b> win rate '+Math.round(winPct)+'% &lt; avg entry '+avgE.toFixed(0)+'¢ — wins often, loses money.</div>':"";
   const table=trs.length
-    ?'<div class="mc-scroll" style="margin-top:8px"><table class="trk trk-mini"><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th>Δ@in</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>'+trs.slice(0,40).map(btcEngRow).join("")+'</tbody></table></div>'
+    ?'<div class="mc-scroll" style="margin-top:8px;max-height:340px;overflow:auto"><table class="trk trk-mini"><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th>Δ@in</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>'+trs.slice(0,40).map(btcEngRow).join("")+'</tbody></table></div>'
+    +(trs.length>40?'<div class="btc-mut" style="font-size:11px;margin-top:4px">showing 40 of '+trs.length+' (this tab’s own watch session)</div>':'')
     :'<div class="btc-mut" style="font-size:12px;margin-top:8px">No '+eng.label.toLowerCase()+' trades yet.</div>';
   return '<div class="eng-col">'+head+tiles+warn+table+'</div>';
 }
