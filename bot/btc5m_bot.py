@@ -378,7 +378,9 @@ class Bot:
         if cfg["driftMax"] is not None:
             extra.append(("drift≤%.2g%%" % cfg["driftMax"], drift_pct is not None and drift_pct <= cfg["driftMax"]))
         if cfg["entryMax"] is not None:
-            extra.append(("entry≤%dc" % round(cfg["entryMax"]*100), bool(q and q["ask"] is not None and q["ask"] <= cfg["entryMax"])))
+            slip = clampf(self.st["slip"], 0, 5, 1) / 100                    # gate on the expected FILL (ask+slip),
+            extra.append(("entry≤%dc" % round(cfg["entryMax"]*100),          # so the realized price stays under the cap
+                          bool(q and q["ask"] is not None and q["ask"] + slip <= cfg["entryMax"] + 1e-9)))
         extra_ok = all(o for _, o in extra)
         can_fill = bool(q and q["ask"] is not None and left is not None and left > 0
                         and not opent and not dup and dn < prof["maxDay"] and dpnl > -loss_cap)
