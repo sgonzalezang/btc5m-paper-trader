@@ -137,7 +137,7 @@ function tiles(s){
     <div><div class="big">${s.trades}</div><div class="lab">trades</div></div>
     <div><div class="big" style="color:${wrCol}">${s.winPct!=null?Math.round(s.winPct)+"%":"—"}</div><div class="lab">win (${s.wins}/${s.settled})</div></div>
     <div><div class="big">${be}</div><div class="lab">avg entry = b/e win%</div></div>
-    <div><div class="big" style="color:${s.pnl>=0?"var(--up)":"var(--dn)"}">${s.pnl>=0?"+":""}${s.pnl.toFixed(2)}</div><div class="lab">P&amp;L $</div></div>
+    <div><div class="big" style="color:${s.pnl>=0?"var(--up)":"var(--dn)"}">${s.pnl>=0?"+":""}${s.pnl.toFixed(2)}</div><div class="lab">P&amp;L · net of $${(s.feesPaid||0).toFixed(2)} fees</div></div>
   </div>`;
 }
 // per-trade guard snapshot: which of the 10 checks were green at entry.
@@ -279,9 +279,11 @@ function layoutChart(userAction, _try){
   wrap.scrollLeft = (userAction||wasRight) ? wrap.scrollWidth : prevLeft;   // keep viewing latest unless panned
   EQ={S:S, t0:t0, t1:t1, Wpx:Wpx, vmin:vmin, vmax:vmax, H:H, padT:padT, padB:padB, engs:engs};
   wrap.onpointermove=eqHover; wrap.onpointerleave=eqHoverHide;
+  wrap.onpointerdown=eqDown; wrap.onpointerup=eqUp; wrap.onpointercancel=eqDownClear;
+  wrap.onscroll=eqHoverHide;   // scrolling changes what's under a placed tooltip → clear it
   const fT=t=>new Date(t).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
   const m=document.getElementById("eqmeta");
-  if(m) m.innerHTML=`<span>${fT(t0)}</span><span>${VIEW.daily?"daily close · 11:55pm":(VIEW.spanH?VIEW.spanH+"h/screen · swipe ←→":"full history")}</span><span>${fT(t1)}</span>`;
+  if(m) m.innerHTML=`<span>${fT(t0)}</span><span>${VIEW.daily?"daily close · 11:55pm":(VIEW.spanH?VIEW.spanH+"h/screen · swipe ←→":"full history")} · tap/hover for P&amp;L</span><span>${fT(t1)}</span>`;
 }
 let EQ=null;
 function eqHoverHide(){
@@ -289,10 +291,9 @@ function eqHoverHide(){
   const t=document.getElementById("eqtip"); if(t) t.style.display="none";
   (EQ?EQ.engs:[]).forEach(e=>{const d=document.getElementById("eqhd-"+e); if(d) d.style.display="none";});
 }
-function eqHover(ev){
-  if(ev.pointerType==="touch") return;              // touch is for swipe-scroll; hover is cursor-only
+function eqShowAt(clientX){
   const wrap=document.getElementById("eqscroll"), svg=wrap&&wrap.querySelector("svg"); if(!EQ||!svg) return;
-  const sr=svg.getBoundingClientRect(), x=ev.clientX-sr.left;
+  const sr=svg.getBoundingClientRect(), x=clientX-sr.left;
   if(x<0||x>EQ.Wpx){ eqHoverHide(); return; }
   const t=EQ.t0+(EQ.Wpx?x/EQ.Wpx:0)*(EQ.t1-EQ.t0);
   const Y=v=>EQ.padT+(1-(v-EQ.vmin)/(EQ.vmax-EQ.vmin))*(EQ.H-EQ.padT-EQ.padB);
@@ -307,9 +308,18 @@ function eqHover(ev){
   if(tip&&col){ const cr=col.getBoundingClientRect(), scr=wrap.getBoundingClientRect();
     tip.innerHTML=`<div class="eqtip-t">${new Date(t).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</div>${rows||'<div class="eqtip-t">no trades yet</div>'}`;
     tip.style.display="block";
-    let left=ev.clientX-cr.left+12; left=Math.max(4,Math.min(left,cr.width-tip.offsetWidth-4));
+    let left=clientX-cr.left+12; left=Math.max(4,Math.min(left,cr.width-tip.offsetWidth-4));
     tip.style.left=left+"px"; tip.style.top=(scr.top-cr.top+6)+"px";
   }
+}
+function eqHover(ev){ if(ev.pointerType!=="touch") eqShowAt(ev.clientX); }   // desktop: continuous hover
+// mobile: a TAP places the crosshair/tooltip (a swipe moves >8px → it scrolls instead)
+let _eqDown=null;
+function eqDown(ev){ _eqDown={x:ev.clientX, y:ev.clientY}; }
+function eqDownClear(){ _eqDown=null; }
+function eqUp(ev){
+  if(_eqDown && Math.abs(ev.clientX-_eqDown.x)<8 && Math.abs(ev.clientY-_eqDown.y)<8) eqShowAt(ev.clientX);
+  _eqDown=null;
 }
 let LAST=null;
 async function render(){
