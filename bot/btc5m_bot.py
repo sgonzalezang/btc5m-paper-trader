@@ -485,7 +485,7 @@ class Bot:
                           feeExit=round(fee_exit, 5))
                 self.log(f"[{eid.upper()}] STOP-LOSS {tr['side'].upper()} @ {(savg or q['bid'])*100:.0f}c "
                          f"P&L {'+' if pnl>=0 else ''}{pnl:.2f}"); return
-        if not tr["hedge"] and q and q["bid"] is not None:
+        if self.st.get("hedgeOn", False) and not tr["hedge"] and q and q["bid"] is not None:
             left = tr["t1"] - ns
             if q["bid"] >= prof["hedgeAt"] and left <= prof["hedgeLeft"]:
                 hstake = round(max(1, tr["stake"] * prof["hedgeFrac"]), 2)
@@ -639,6 +639,7 @@ def default_state(args):
     return {"on": True, "auto": True, "profile": "conservative", "asset": args.asset,
             "stake": args.stake, "bank": args.bank, "slip": args.slip, "loosePass": args.loose,
             "looseMust": list(getattr(args, "loose_must", None) or LOOSE_MANDATORY),
+            "hedgeOn": bool(getattr(args, "hedge", False)),   # micro-hedge OFF by default (2026-07-07: ~15% tax on edge, 1 payout in 71)
             "startedAt": now_ms(),
             "lifetime": {e: _zero_life() for e in ENGINES},   # totals for trades trimmed out of the list
             "equity": {e: [] for e in ENGINES},               # [t_ms, cumPnl] curve for trimmed trades
@@ -652,6 +653,7 @@ def sanitize(o, args):
             if isinstance(o.get(k), (int, float)): d[k] = o[k]
         if isinstance(o.get("looseMust"), list):
             d["looseMust"] = [k for k in GUARD_KEYS if k in o["looseMust"]]
+        if isinstance(o.get("hedgeOn"), bool): d["hedgeOn"] = o["hedgeOn"]
         lf = o.get("lifetime")
         if isinstance(lf, dict):
             for e in ENGINES:
@@ -699,6 +701,7 @@ def snapshot(bot):
             "bank": st["bank"], "startedAt": st.get("startedAt"),
             "slip": st["slip"], "loosePass": st["loosePass"],
             "looseMust": st.get("looseMust", list(LOOSE_MANDATORY)),
+            "hedgeOn": st.get("hedgeOn", False),
             "summary": {e: summ(e) for e in ENGINES},
             "log": bot.logs[:30],
             "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip",
@@ -810,6 +813,20 @@ def selftest():
     bv.prev_quote = {"side":"up","ask":0.58,"t":now-4000}
     vc = bv.evaluate(now,"variant")
     ok(vc["enter"] and vc["extraOk"], "variant enters when small-drift + cheap", f"drift={vc['driftPct']:.3f}% enter={vc['enter']}")
+    # hedge toggle: a pinned position in the hedge zone hedges only when hedgeOn
+    def pinned_bot(hedge_on):
+        b = Bot({}, default_state(A)); b.st["hedgeOn"] = hedge_on
+        b.mkt = dict(t0=ns-280, t1=ns+15, ev=True, evClosed=False, slug="h", tokUp="1", tokDown="2",  # 15s left
+                     upBid=0.98, upAsk=0.99, pUp=0.98, gAt=now,
+                     bookUp={"bid":0.98,"ask":0.99,"asks":[[0.99,300]],"bids":[[0.98,300]],"topAskUsd":297,"mirrorTopUsd":6,"at":now})
+        b.mkt["bookDown"] = mirror(b.mkt["bookUp"])
+        b.feed = {"src":"Coinbase","open":100000,"last":100200,"at":now,"t0":b.mkt["t0"]}
+        b.trades("loose").insert(0, dict(at=now,t0=b.mkt["t0"],t1=b.mkt["t1"],slug="h",profile="conservative",
+            asset="BTC",eng="loose",side="up",entry=0.55,ask=0.55,slip=1,stake=50,shares=90,
+            btcOpen=100000,btcEntry=100010,btcClose=None,feed="Coinbase",status="open",hedge=None,pnl=None,result=None,settledBy=None))
+        b.manage_open("loose", now); return b.trades("loose")[0]["hedge"]
+    ok(pinned_bot(False) is None, "hedge OFF → no hedge in the pin zone")
+    ok(pinned_bot(True) is not None, "hedge ON → hedges in the pin zone")
     # stop-loss
     st3 = default_state(A); b3 = Bot({}, st3)
     b3.mkt = dict(t0=ns-100, t1=ns+200, ev=True, evClosed=False, slug="s", tokUp="1", tokDown="2",
@@ -902,6 +919,7 @@ def main():
     ap.add_argument("--gas", type=float, default=GAS_USD, help="per-trade gas (USD)")
     ap.add_argument("--loose-must", default=",".join(LOOSE_MANDATORY),
                     help="guards loose must have green (comma-separated keys, or 'none')")
+    ap.add_argument("--hedge", action="store_true", help="enable the late micro-hedge (OFF by default)")
     args = ap.parse_args()
     FEE_RATE, GAS_USD = args.fee_rate, args.gas
     args.loose_must = [] if args.loose_must.strip().lower() == "none" else \
@@ -913,10 +931,11 @@ def main():
     st["asset"] = args.asset if args.asset else st["asset"]
     st["stake"], st["bank"], st["slip"], st["loosePass"] = args.stake, args.bank, args.slip, args.loose
     st["looseMust"] = args.loose_must
+    st["hedgeOn"] = bool(args.hedge)
     bot = Bot({"publishEvery": args.publish_every}, st)
     must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
     bot.log(f"bot started — {st['asset']} · {st['profile']} · loose {args.loose}/10{must_lbl} · "
-            f"variant (loose + drift≤0.02% + entry≤65c) · strict 10/10 · "
+            f"variant (loose + drift≤0.02% + entry≤65c) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
             f"${st['stake']:g} stake · +{st['slip']:g}c slip · state={args.state}")
     last_pub = 0
     last_settled = {e: sum(1 for t in bot.trades(e) if t["status"] == "settled") for e in ENGINES}

@@ -248,7 +248,7 @@ function draw(st){
   const S=st.summary||{}, feesTot=["loose","variant","strict"].reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
   const must=(st.looseMust||[]), mustAbbr=must.map(k=>(GUARDS[k]||[k])[0]).join("/");
   const mustTxt=must.length?` + ${mustAbbr} required`:"";
-  $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · real fills, fees paid $${feesTot.toFixed(2)}`;
+  $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · hedge ${st.hedgeOn?"on":"off"} · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
   const eng=st.btc&&st.btc.engines||{};
   const HUE={loose:"var(--blue)",variant:"#8f7bff",strict:"var(--btc)"};
