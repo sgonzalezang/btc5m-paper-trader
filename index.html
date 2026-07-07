@@ -183,10 +183,10 @@ function btcAsset(){ return BTC_ASSETS[STATE.btc.asset]||BTC_ASSETS.BTC; }
 const BTC_PROFILES={
   conservative:{ label:"Conservative", movePct:0.10, minMid:0.52, maxAsk:0.70,
     winLeftMax:150, winLeftMin:60, freshMs:8000, feedFreshMs:15000, maxSpread:0.03, minTopUsd:30,
-    stopPct:0.25, hedgeAt:0.95, hedgeLeft:45, hedgeFrac:0.03, maxDay:Infinity, dayLossPct:10 },
+    stopPct:0.25, hedgeAt:0.97, hedgeLeft:20, hedgeFrac:0.03, maxDay:Infinity, dayLossPct:10 },  // hedge tightened 2026-07-07 (was 0.95/45)
   aggressive:{ label:"Aggressive", movePct:0.07, minMid:0.52, maxAsk:0.70,
     winLeftMax:150, winLeftMin:60, freshMs:8000, feedFreshMs:15000, maxSpread:0.03, minTopUsd:30,
-    stopPct:0.30, hedgeAt:0.93, hedgeLeft:50, hedgeFrac:0.05, maxDay:Infinity, dayLossPct:15 }
+    stopPct:0.30, hedgeAt:0.96, hedgeLeft:25, hedgeFrac:0.05, maxDay:Infinity, dayLossPct:15 }  // was 0.93/50
 };
 // TWO paper engines run side by side over the same live data:
 //  · strict — needs ALL 10 guards green (the real momentum strategy)

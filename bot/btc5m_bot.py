@@ -40,12 +40,12 @@ ASSETS = {
 PROFILES = {
     "conservative": dict(label="Conservative", movePct=0.10, minMid=0.52, maxAsk=0.70,
         winLeftMax=150, winLeftMin=60, freshMs=8000, feedFreshMs=15000, maxSpread=0.03, minTopUsd=30,
-        stopPct=0.25, hedgeAt=0.95, hedgeLeft=45, hedgeFrac=0.03,
-        maxDay=math.inf,   # day-count cap OFF at user request 2026-07-04 "for now" — was 12
-        dayLossPct=10),
+        stopPct=0.25, hedgeAt=0.97, hedgeLeft=20, hedgeFrac=0.03,   # tightened 2026-07-07 (was 0.95/45):
+        maxDay=math.inf,   # deep-ITM-only tail hedge — fired 60x for 1 save; now fires only when pinned
+        dayLossPct=10),    # >=97c in the final 20s, where a reversal is a true shock and cover is near-full
     "aggressive": dict(label="Aggressive", movePct=0.07, minMid=0.52, maxAsk=0.70,
         winLeftMax=150, winLeftMin=60, freshMs=8000, feedFreshMs=15000, maxSpread=0.03, minTopUsd=30,
-        stopPct=0.30, hedgeAt=0.93, hedgeLeft=50, hedgeFrac=0.05,
+        stopPct=0.30, hedgeAt=0.96, hedgeLeft=25, hedgeFrac=0.05,   # tightened 2026-07-07 (was 0.93/50)
         maxDay=math.inf,   # day-count cap OFF at user request 2026-07-04 "for now" — was 20
         dayLossPct=15),
 }
