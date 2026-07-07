@@ -206,6 +206,7 @@ class Bot:
         self.sweep_at = 0
         self.res_at = 0
         self.prev_quote = None
+        self.closes = {}                      # t0 -> interval's last spot price (for provisional settle)
         self.eng = {e: {"eval": None} for e in ENGINES}
         self.logs = []
         self.err = None
@@ -306,7 +307,10 @@ class Bot:
         ns = now // 1000
         if ns >= tr["t1"]:
             tr["status"] = "pending"
-            if self.feed["t0"] == tr["t0"] and self.feed["last"] is not None: tr["btcClose"] = self.feed["last"]
+            if self.feed["t0"] == tr["t0"] and self.feed["last"] is not None:
+                tr["btcClose"] = self.feed["last"]
+            elif self.closes.get(tr["t0"]) is not None:      # feed already rolled — use stashed close
+                tr["btcClose"] = self.closes[tr["t0"]]
             self.log(f"[{eid.upper()}] interval closed — {tr['side'].upper()} awaiting resolution"); return
         if not self.mkt or self.mkt["t0"] != tr["t0"] or tr.get("asset", "BTC") != self.st["asset"]: return
         q, f = self.quote(tr["side"]), self.feed
@@ -329,29 +333,67 @@ class Bot:
                 tr["hedge"] = dict(stake=hstake, px=hpx, shares=round(hstake/hpx, 4), at=now)
                 self.log(f"[{eid.upper()}] HEDGE {'DOWN' if tr['side']=='up' else 'UP'} ${hstake:g} @ {hpx*100:.0f}c ({left}s left)")
 
-    def apply_settle(self, tr, w, by):
+    def _pnl_for(self, tr, w):
         pnl = (tr["shares"] - tr["stake"]) if tr["side"] == w else -tr["stake"]
         if tr["hedge"]:
             pnl += (tr["hedge"]["shares"] - tr["hedge"]["stake"]) if w != tr["side"] else -tr["hedge"]["stake"]
-        tr.update(pnl=round(pnl, 2), result=("win" if tr["side"] == w else "loss"), status="settled", settledBy=by)
+        return round(pnl, 2)
+
+    def apply_settle(self, tr, w, by, provisional=False):
+        pnl = self._pnl_for(tr, w)
+        tr.update(pnl=pnl, result=("win" if tr["side"] == w else "loss"),
+                  status="settled", settledBy=by, provisional=provisional)
         self.log(f"[{(tr.get('eng') or 'strict').upper()}] {'WIN' if tr['result']=='win' else 'LOSS'} "
                  f"{tr['side'].upper()} ({by}) P&L {'+' if pnl>=0 else ''}{pnl:.2f}")
 
+    # Provisional settle fires as soon as the interval's move is clearly
+    # decisive — comfortably beyond exchange-vs-oracle divergence — so a clean
+    # win/loss shows immediately instead of waiting minutes for the oracle.
+    # A near-flat close (within the margin) is "too close to call": we hold it
+    # pending for the official result. Provisional settles are always rechecked
+    # against Polymarket and confirmed or corrected below.
+    def _clear_margin(self, open_px):
+        return max(15.0, open_px * 0.0003)      # ~$19 at $64k BTC
+
     def settle_pending(self, now):
         pend = [t for e in ENGINES for t in self.trades(e) if t["status"] == "pending"]
-        if not pend: return
+        prov = [t for e in ENGINES for t in self.trades(e) if t.get("provisional")]
+        if not pend and not prov: return
         if now - self.res_at < 8000: return
         self.res_at = now
         cache = {}
+        def official(slug):
+            if slug not in cache: cache[slug] = winner_of(parse_event(gamma_by_slug(slug)))
+            return cache[slug]
+        opp = lambda s: "up" if s == "down" else "down"
+        # 1) confirm or correct earlier provisional settles against the oracle
+        for tr in prov:
+            w = official(tr["slug"])
+            if not w: continue
+            prov_w = tr["side"] if tr["result"] == "win" else opp(tr["side"])
+            if w == prov_w:
+                tr.update(settledBy="polymarket", provisional=False)
+                self.log(f"[{(tr.get('eng') or 'strict').upper()}] confirmed {tr['side'].upper()} by oracle")
+            else:
+                pnl = self._pnl_for(tr, w)
+                tr.update(pnl=pnl, result=("win" if tr["side"] == w else "loss"),
+                          settledBy="polymarket (corrected)", provisional=False)
+                self.log(f"[{(tr.get('eng') or 'strict').upper()}] CORRECTED to "
+                         f"{tr['result'].upper()} by oracle P&L {'+' if pnl>=0 else ''}{pnl:.2f}")
+        # 2) settle pending trades — oracle first, else clear price action
         for tr in pend:
-            if tr["slug"] not in cache:
-                cache[tr["slug"]] = parse_event(gamma_by_slug(tr["slug"]))
-            w = winner_of(cache[tr["slug"]])
+            w = official(tr["slug"])
             if w: self.apply_settle(tr, w, "polymarket"); continue
+            if tr["btcClose"] is None and self.closes.get(tr["t0"]) is not None:
+                tr["btcClose"] = self.closes[tr["t0"]]         # backfill if missed
             age = now/1000 - tr["t1"]
-            if age > 180 and tr["btcOpen"] is not None and tr["btcClose"] is not None and abs(tr["btcClose"]-tr["btcOpen"]) >= 2:
-                self.apply_settle(tr, "up" if tr["btcClose"] > tr["btcOpen"] else "down", "feed (provisional)")
-            elif age > 900:
+            if tr["btcOpen"] is not None and tr["btcClose"] is not None:
+                gap = tr["btcClose"] - tr["btcOpen"]
+                clear = abs(gap) >= self._clear_margin(tr["btcOpen"])
+                if clear or (age > 180 and abs(gap) >= 2):     # clear now, or marginal after a short wait
+                    self.apply_settle(tr, "up" if gap > 0 else "down", "feed (provisional)", provisional=True)
+                    continue
+            if age > 900:
                 tr.update(status="settled", result="unknown", pnl=None, settledBy="unresolved")
                 self.log(f"could not resolve {tr['slug']} — unsettled")
 
@@ -386,7 +428,14 @@ class Bot:
     def tick(self):
         try:
             ns = now_s(); t0 = (ns // IVL) * IVL; t1 = t0 + IVL
-            if not self.mkt or self.mkt["t0"] != t0: self.rollover(t0, t1)
+            if not self.mkt or self.mkt["t0"] != t0:
+                # remember the closing spot of the interval we're leaving, so a
+                # trade that flips to 'pending' this same tick can still record
+                # its btcClose after the feed has rolled to the new interval.
+                if self.feed.get("t0") is not None and self.feed.get("last") is not None:
+                    self.closes[self.feed["t0"]] = self.feed["last"]
+                    for k in sorted(self.closes)[:-20]: del self.closes[k]
+                self.rollover(t0, t1)
             m = self.mkt
             p = self.find_market(t0)
             if p and p["slug"]:

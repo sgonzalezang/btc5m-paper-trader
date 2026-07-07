@@ -36,6 +36,7 @@
   td.l{text-align:left}
   .tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px}
   .win{background:#173527;color:var(--up)}.loss{background:#3a231c;color:var(--dn)}.open{background:#2a2f24;color:#cdc06a}
+  .prov{color:#e6a03c;font-weight:700;margin-left:2px;cursor:help}
   .gd{white-space:nowrap}
   .gd i{display:inline-block;font-style:normal;font-size:9px;width:13px;height:13px;line-height:13px;text-align:center;border-radius:3px;margin:0 1px;font-weight:700;cursor:default}
   .gd .g1{background:#173527;color:var(--up)}.gd .g0{background:#3a231c;color:var(--dn)}
@@ -57,7 +58,7 @@
 <div class="wrap">
   <div class="hb" id="hb"><span class="dot" id="dot"></span><b id="hbState">Loading…</b><span class="mut" id="hbMeta"></span></div>
   <div id="body"></div>
-  <div class="note">This page is <b>read-only</b>: it only displays the JSON the bot publishes to the <code>data</code> branch — it does not trade. If the heartbeat goes <b>red / stale</b>, the bot on your Mac has stopped or lost network (check <code>launchctl list | grep btc5m</code> and <code>bot.log</code>).</div>
+  <div class="note">This page is <b>read-only</b>: it only displays the JSON the bot publishes to the <code>data</code> branch — it does not trade. A result with an orange <span class="prov">*</span> is <b>provisional</b> — settled from clear price action and shown right away, then confirmed or corrected once Polymarket’s oracle reports; <b>…</b> means the close was too close to call and it’s waiting for the oracle. If the heartbeat goes <b>red / stale</b>, the bot on your Mac has stopped or lost network (check <code>launchctl list | grep btc5m</code> and <code>bot.log</code>).</div>
 </div>
 <footer>Auto-refreshes every 60s · source: <span id="src"></span></footer>
 <script>
@@ -135,8 +136,9 @@ function rows(trades){
   if(!trades||!trades.length) return '<div class="lab" style="margin-top:8px">No trades yet.</div>';
   return '<table><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th>Guards @ entry</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>'
     + trades.slice(0,25).map(t=>{
-      const res=t.status==="open"?'<span class="tag open">OPEN</span>':t.status==="pending"?'<span class="tag open">…</span>'
-        :t.result==="win"?'<span class="tag win">WIN</span>':t.result==="loss"?'<span class="tag loss">LOSS</span>'
+      const prov=t.provisional?'<span class="prov" title="provisional — settled from price action, not yet confirmed by Polymarket’s oracle">*</span>':"";
+      const res=t.status==="open"?'<span class="tag open">OPEN</span>':t.status==="pending"?'<span class="tag open" title="interval closed, too close to call — awaiting the oracle">…</span>'
+        :t.result==="win"?'<span class="tag win">WIN</span>'+prov:t.result==="loss"?'<span class="tag loss">LOSS</span>'+prov
         :t.result==="stopped"?'<span class="tag loss">STOP</span>':'<span class="tag open">—</span>';
       return `<tr><td class="l">${new Date(t.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} <small>${esc(t.asset||"BTC")}</small></td>`
         +`<td>${t.side==="up"?'<b class="up">▲</b>':'<b class="dn">▼</b>'}${t.hedge?"<small>+h</small>":""}</td>`
