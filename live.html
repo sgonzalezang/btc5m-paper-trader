@@ -163,12 +163,13 @@ function rows(trades, id, lifetimeTotal){
       const res=t.status==="open"?'<span class="tag open">OPEN</span>':t.status==="pending"?'<span class="tag open" title="interval closed, too close to call — awaiting the oracle">…</span>'
         :t.result==="win"?'<span class="tag win">WIN</span>'+prov:t.result==="loss"?'<span class="tag loss">LOSS</span>'+prov
         :t.result==="stopped"?'<span class="tag loss">STOP</span>':'<span class="tag open">—</span>';
-      return `<tr><td class="l">${new Date(t.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} <small>${esc(t.asset||"BTC")}</small></td>`
+      const si=(typeof t.entrySec==="number")?t.entrySec:(typeof t.t0==="number"?Math.max(0,Math.round(t.at/1000-t.t0)):null);
+      return `<tr><td class="l">${new Date(t.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} <small>${esc(t.asset||"BTC")}${si!=null?` · <span title="entered ${si}s into the 5-min interval">+${si}s</span>`:""}</small></td>`
         +`<td>${t.side==="up"?'<b class="up">▲</b>':'<b class="dn">▼</b>'}${t.hedge?"<small>+h</small>":""}</td>`
         +`<td>${(t.entry*100).toFixed(1)}¢</td><td>${guardChips(t)}</td><td>${res}</td>`
         +`<td>${typeof t.pnl==="number"?((t.pnl>=0?"+":"")+t.pnl.toFixed(2)):"—"}</td></tr>`;
     }).join("");
-  const tbl='<div class="tscroll"><table><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th>Guards @ entry</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>'
+  const tbl='<div class="tscroll"><table><thead><tr><th title="interval start time · seconds into the 5-min interval when the guards fired and it entered">Time · +entry</th><th>Side</th><th>Entry</th><th>Guards @ entry</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>'
     +body+'</tbody></table></div>';
   let foot="";
   if(n<trades.length) foot+=`<button class="more" onclick="moreRows('${id}')">Show ${Math.min(PAGE,trades.length-n)} more</button>`;

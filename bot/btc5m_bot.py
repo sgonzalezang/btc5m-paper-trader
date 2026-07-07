@@ -413,7 +413,9 @@ class Bot:
         entry = min(0.99, round(avg + slip, 4))     # latency: realized avg a touch worse
         shares = round(spent/entry, 4)
         fee = taker_fee(shares, entry)
-        tr = dict(at=now_ms(), t0=m["t0"], t1=m["t1"], slug=m["slug"], profile=self.st["profile"],
+        entered = now_ms()
+        tr = dict(at=entered, t0=m["t0"], t1=m["t1"], slug=m["slug"], profile=self.st["profile"],
+                  entrySec=max(0, int(round(entered/1000 - m["t0"]))),   # seconds into the 5-min interval at fill
                   asset=self.st["asset"], eng=eid, passCount=ev["passCount"], need=ev["need"],
                   side=side, entry=entry, ask=ev["q"]["ask"], slip=slip*100,
                   stake=round(spent, 2), reqStake=req, fillFrac=round(spent/req, 3),
@@ -425,7 +427,7 @@ class Bot:
         self._trim(eid)
         part = "" if fully else f" partial {tr['fillFrac']*100:.0f}%"
         self.log(f"[{eid.upper()}] ENTER {self.st['asset']} {side.upper()} @ {entry*100:.1f}c avg "
-                 f"${spent:.0f}{part} fee ${fee:.2f} ({ev['passCount']}/10) "
+                 f"${spent:.0f}{part} fee ${fee:.2f} ({ev['passCount']}/10) +{tr['entrySec']}s into interval "
                  f"d {'+' if ev['delta']>=0 else '-'}${fmt_num(abs(ev['delta']))}")
 
     def manage_open(self, eid, now):
