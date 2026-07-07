@@ -69,11 +69,11 @@ EIP-712 order signing, latency engineering, and jurisdiction checks — build th
 if the paper ledger's win rate beats its average entry price by 5+ points over a real
 sample.
 
-## Lifetime tracking (local daemon)
+## Lifetime tracking (24/7 headless bot)
 
-`daemon/btc5m_daemon.py` runs the strict engine 24/7 on a Mac via a
-LaunchAgent (`daemon/com.sgonzalez.btc5m.plist`), so the lifetime return
-accumulates even with no browser tab open. Ledger lives in `~/.btc5m/`.
-
-    python3 daemon/btc5m_daemon.py status   # lifetime return
-    python3 daemon/btc5m_daemon.py tail     # recent trades
+`bot/btc5m_bot.py` runs BOTH engines (strict 10/10 + loose 7/10) around the
+clock as a launchd service — see `bot/README-bot.md`. It publishes its ledger
+(`state.json`) to the `data` branch; `live.html` shows both ledgers with
+per-trade guard detail, and the main page's Lifetime panel shows the strict
+engine's running return. (An earlier strict-only daemon lived in `daemon/`;
+retired 2026-07-06, recoverable from git history.)

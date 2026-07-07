@@ -639,36 +639,41 @@ function renderBtcLedger(){
   el.innerHTML='<h3 class="proj-h">Paper ledgers — strict vs loose</h3><div class="btc-books">'
     +BTC_ENGINES.map(e=>renderEngineLedger(e.id)).join("")+'</div>';
 }
-// --- Lifetime results from the 24/7 local daemon (lifetime.json, pushed by
-// the Mac whenever the strict engine's ledger changes; absent until first push)
+// --- Lifetime results from the 24/7 headless bot: it publishes state.json to
+// the repo's `data` branch (raw.githubusercontent serves it with open CORS).
 let BTC_LIFE=null;
 function renderBtcLife(){
   const el=$("btcLife"); if(!el) return;
   const L=BTC_LIFE;
   if(!L){ el.innerHTML=""; return; }
-  const n=L.wins+L.losses;
-  const wr=L.winRatePct, be=L.avgEntry!=null?L.avgEntry*100:null;
+  const s=(L.summary&&L.summary.strict)||{};
+  const trs=(L.btc&&L.btc.engines&&L.btc.engines.strict&&L.btc.engines.strict.trades)||[];
+  const liveN=trs.filter(t=>t.status==="open"||t.status==="pending").length;
+  const wr=s.winPct, be=s.avgEntry;   // avgEntry already in cents
   let wrCol="var(--ink)";
   if(wr!=null&&be!=null) wrCol=wr>=be+5?"var(--up)":(wr<be?"var(--dn)":"#cdc06a");
-  const since=new Date(L.startedAt).toLocaleDateString([],{month:"short",day:"numeric"});
-  const upd=L.updatedAt?Math.round((Date.now()-L.updatedAt)/60000):null;
-  const days=Math.max((Date.now()-L.startedAt)/86400000,0.01);
-  el.innerHTML='<h3 class="proj-h">Lifetime — strict engine · 24/7 daemon</h3>'
-    +'<div class="tr-card"><div class="tr-lab">running since '+since+' ('+days.toFixed(1)+' days) · $'+L.stake
-    +' stakes on a $'+L.bank.toLocaleString()+' bankroll'
-    +(upd!=null?(' · updated '+(upd<1?'just now':upd+' min ago')):'')
-    +(L.liveCount?(' · <b class="btc-ok">'+L.liveCount+' live</b>'):'')+'</div>'
+  const bank=L.bank!=null?L.bank:1000, pnl=s.pnl||0, ret=100*pnl/bank;
+  const t0=L.startedAt||null;
+  const since=t0?new Date(t0).toLocaleDateString([],{month:"short",day:"numeric"}):"—";
+  const days=t0?Math.max((Date.now()-t0)/86400000,0.01):null;
+  const upd=L.heartbeat?Math.round((Date.now()-L.heartbeat)/60000):null;
+  el.innerHTML='<h3 class="proj-h">Lifetime — strict engine · 24/7 bot</h3>'
+    +'<div class="tr-card"><div class="tr-lab">running since '+since+(days!=null?(' ('+days.toFixed(1)+' days)'):'')
+    +' · $'+L.stake+' stakes on a $'+bank.toLocaleString()+' bankroll'
+    +(upd!=null?(' · heartbeat '+(upd<1?'just now':upd+' min ago')):'')
+    +(liveN?(' · <b class="btc-ok">'+liveN+' live</b>'):'')+'</div>'
     +'<div class="eng-tiles" style="margin-top:8px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">'
-    +'<div><div class="et-big">'+L.settled+'</div><div class="et-lab">settled trades</div></div>'
-    +'<div><div class="et-big" style="color:'+wrCol+'">'+(wr!=null?Math.round(wr)+"%":"—")+'</div><div class="et-lab">win ('+L.wins+'/'+n+')</div></div>'
+    +'<div><div class="et-big">'+(s.settled||0)+'</div><div class="et-lab">settled trades</div></div>'
+    +'<div><div class="et-big" style="color:'+wrCol+'">'+(wr!=null?Math.round(wr)+"%":"—")+'</div><div class="et-lab">win ('+(s.wins||0)+'/'+(s.settled||0)+')</div></div>'
     +'<div><div class="et-big">'+(be!=null?be.toFixed(0)+"¢":"—")+'</div><div class="et-lab">avg entry = b/e win%</div></div>'
-    +'<div><div class="et-big" style="color:'+(L.pnl>=0?"var(--up)":"var(--dn)")+'">'+(L.pnl>=0?"+":"")+L.pnl.toFixed(2)+'</div><div class="et-lab">P&amp;L $</div></div>'
-    +'<div><div class="et-big" style="color:'+(L.returnOnBankPct>=0?"var(--up)":"var(--dn)")+'">'+(L.returnOnBankPct>=0?"+":"")+L.returnOnBankPct.toFixed(2)+'%</div><div class="et-lab">return on bankroll</div></div>'
-    +'</div></div>';
+    +'<div><div class="et-big" style="color:'+(pnl>=0?"var(--up)":"var(--dn)")+'">'+(pnl>=0?"+":"")+pnl.toFixed(2)+'</div><div class="et-lab">P&amp;L $</div></div>'
+    +'<div><div class="et-big" style="color:'+(ret>=0?"var(--up)":"var(--dn)")+'">'+(ret>=0?"+":"")+ret.toFixed(2)+'%</div><div class="et-lab">return on bankroll</div></div>'
+    +'</div>'
+    +'<div class="tr-lab" style="margin-top:6px"><a class="pmlink" href="live.html">full live ledger — both engines, guard detail →</a></div></div>';
 }
 async function btcLifeFetch(){
   try{
-    const r=await fetch("lifetime.json?ts="+Date.now(),{cache:"no-store"});
+    const r=await fetch("https://raw.githubusercontent.com/sgonzalezang/btc5m-paper-trader/data/state.json?ts="+Date.now(),{cache:"no-store"});
     if(r.ok){ BTC_LIFE=await r.json(); renderBtcLife(); }
   }catch(e){}
 }

@@ -40,10 +40,14 @@ ASSETS = {
 PROFILES = {
     "conservative": dict(label="Conservative", movePct=0.10, minMid=0.52, maxAsk=0.70,
         winLeftMax=150, winLeftMin=60, freshMs=8000, feedFreshMs=15000, maxSpread=0.03, minTopUsd=30,
-        stopPct=0.25, hedgeAt=0.95, hedgeLeft=45, hedgeFrac=0.03, maxDay=12, dayLossPct=10),
+        stopPct=0.25, hedgeAt=0.95, hedgeLeft=45, hedgeFrac=0.03,
+        maxDay=math.inf,   # day-count cap OFF at user request 2026-07-04 "for now" — was 12
+        dayLossPct=10),
     "aggressive": dict(label="Aggressive", movePct=0.07, minMid=0.52, maxAsk=0.70,
         winLeftMax=150, winLeftMin=60, freshMs=8000, feedFreshMs=15000, maxSpread=0.03, minTopUsd=30,
-        stopPct=0.30, hedgeAt=0.93, hedgeLeft=50, hedgeFrac=0.05, maxDay=20, dayLossPct=15),
+        stopPct=0.30, hedgeAt=0.93, hedgeLeft=50, hedgeFrac=0.05,
+        maxDay=math.inf,   # day-count cap OFF at user request 2026-07-04 "for now" — was 20
+        dayLossPct=15),
 }
 ENGINES = ["strict", "loose"]
 
@@ -288,7 +292,8 @@ class Bot:
                   asset=self.st["asset"], eng=eid, passCount=ev["passCount"], need=ev["need"],
                   side=ev["side"], entry=px, ask=ev["q"]["ask"], slip=slip*100, stake=stake,
                   shares=round(stake/px, 4), btcOpen=f["open"], btcEntry=f["last"], btcClose=None,
-                  feed=f["src"], status="open", hedge=None, pnl=None, result=None, settledBy=None)
+                  feed=f["src"], status="open", hedge=None, pnl=None, result=None, settledBy=None,
+                  guards=[[k, 1 if ok else 0] for k, ok in ev["checks"]])   # which of the 10 were green at entry
         self.trades(eid).insert(0, tr)
         del self.trades(eid)[250:]
         self.log(f"[{eid.upper()}] ENTER {self.st['asset']} {tr['side'].upper()} @ {px*100:.1f}c "
@@ -417,13 +422,14 @@ class Bot:
 def default_state(args):
     return {"on": True, "auto": True, "profile": "conservative", "asset": args.asset,
             "stake": args.stake, "bank": args.bank, "slip": args.slip, "loosePass": args.loose,
+            "startedAt": now_ms(),
             "engines": {e: {"trades": []} for e in ENGINES}}
 def sanitize(o, args):
     d = default_state(args)
     if isinstance(o, dict):
         for k in ("profile", "asset"):
             if o.get(k) in (PROFILES if k == "profile" else ASSETS): d[k] = o[k]
-        for k in ("stake", "bank", "slip", "loosePass"):
+        for k in ("stake", "bank", "slip", "loosePass", "startedAt"):
             if isinstance(o.get(k), (int, float)): d[k] = o[k]
         eng = o.get("engines")
         if isinstance(eng, dict):
@@ -451,6 +457,7 @@ def snapshot(bot):
     return {"version": 2, "heartbeat": now_ms(),
             "heartbeatIso": datetime.now(timezone.utc).isoformat(),
             "asset": st["asset"], "profile": st["profile"], "stake": st["stake"],
+            "bank": st["bank"], "startedAt": st.get("startedAt"),
             "slip": st["slip"], "loosePass": st["loosePass"],
             "summary": {e: summ(e) for e in ENGINES},
             "log": bot.logs[:30],

@@ -32,6 +32,9 @@
   td.l{text-align:left}
   .tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px}
   .win{background:#173527;color:var(--up)}.loss{background:#3a231c;color:var(--dn)}.open{background:#2a2f24;color:#cdc06a}
+  .gd{white-space:nowrap}
+  .gd i{display:inline-block;font-style:normal;font-size:9px;width:13px;height:13px;line-height:13px;text-align:center;border-radius:3px;margin:0 1px;font-weight:700;cursor:default}
+  .gd .g1{background:#173527;color:var(--up)}.gd .g0{background:#3a231c;color:var(--dn)}
   .up{color:var(--up)}.dn{color:var(--dn)}
   .log{font-size:12px;color:var(--mut);max-height:220px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:14px}
   .log div{padding:2px 0;border-top:1px dashed #242c36}.log div:first-child{border-top:none}
@@ -82,16 +85,26 @@ function tiles(s){
     <div><div class="big" style="color:${s.pnl>=0?"var(--up)":"var(--dn)"}">${s.pnl>=0?"+":""}${s.pnl.toFixed(2)}</div><div class="lab">P&amp;L $</div></div>
   </div>`;
 }
+// per-trade guard snapshot: which of the 10 checks were green at entry.
+// Abbreviations map to the bot's check names; hover a chip for the full name.
+const GUARD_ABBR={"Market found":"M","Window":"W","Move>=thr":"Δ","Skew>=mid":"K","Ask<=cap":"A",
+  "Spread<=max":"S","Fresh":"F","Stable2tick":"T","Depth>=min":"D","RiskCaps":"R"};
+function guardChips(t){
+  if(!Array.isArray(t.guards)||!t.guards.length) return '—';
+  return '<span class="gd">'+t.guards.map(g=>
+    `<i class="${g[1]?"g1":"g0"}" title="${esc(g[0])} ${g[1]?"✓ passed":"✗ not met"} at entry">${GUARD_ABBR[g[0]]||"?"}</i>`
+  ).join("")+'</span>';
+}
 function rows(trades){
   if(!trades||!trades.length) return '<div class="lab" style="margin-top:8px">No trades yet.</div>';
-  return '<table><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>'
+  return '<table><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th>Guards @ entry</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>'
     + trades.slice(0,25).map(t=>{
       const res=t.status==="open"?'<span class="tag open">OPEN</span>':t.status==="pending"?'<span class="tag open">…</span>'
         :t.result==="win"?'<span class="tag win">WIN</span>':t.result==="loss"?'<span class="tag loss">LOSS</span>'
         :t.result==="stopped"?'<span class="tag loss">STOP</span>':'<span class="tag open">—</span>';
       return `<tr><td class="l">${new Date(t.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} <small>${esc(t.asset||"BTC")}</small></td>`
         +`<td>${t.side==="up"?'<b class="up">▲</b>':'<b class="dn">▼</b>'}${t.hedge?"<small>+h</small>":""}</td>`
-        +`<td>${(t.entry*100).toFixed(1)}¢</td><td>${res}</td>`
+        +`<td>${(t.entry*100).toFixed(1)}¢</td><td>${guardChips(t)}</td><td>${res}</td>`
         +`<td>${typeof t.pnl==="number"?((t.pnl>=0?"+":"")+t.pnl.toFixed(2)):"—"}</td></tr>`;
     }).join("")+'</tbody></table>';
 }
@@ -102,7 +115,7 @@ async function render(){
   const hbAge=Date.now()-(st.heartbeat||0), stale=hbAge>15*60*1000;   // >15 min = something's wrong
   $("dot").className="dot "+(stale?"stale":"ok");
   $("hbState").textContent=stale?"Bot may be DOWN":"Bot alive";
-  $("hbMeta").textContent=`last heartbeat ${ago(st.heartbeat)} · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10 · $${st.stake} stake · +${st.slip}¢ slip`;
+  $("hbMeta").textContent=`last heartbeat ${ago(st.heartbeat)} · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10 · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · +${st.slip}¢ slip`;
   const eng=st.btc&&st.btc.engines||{strict:{trades:[]},loose:{trades:[]}};
   const S=st.summary||{};
   const col=(id,label,hue,need)=>`<div class="col"><h2><span style="color:${hue}">${label}</span><span>needs ${need}/10</span></h2>`
