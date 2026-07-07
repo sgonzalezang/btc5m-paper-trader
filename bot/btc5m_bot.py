@@ -174,25 +174,91 @@ def sweep(A, ns):
 def book(token_id):
     j = try_json(f"{CLOB}/book?token_id={urllib.parse.quote(token_id)}")
     if not j or (not isinstance(j.get("asks"), list) and not isinstance(j.get("bids"), list)): return None
-    ask = ask_sz = bid = bid_sz = None
-    for l in j.get("asks") or []:
-        pp, sz = num(l.get("price")), num(l.get("size"))
-        if pp is None or sz is None: continue
-        if ask is None or pp < ask: ask, ask_sz = pp, sz
-    for l in j.get("bids") or []:
-        pp, sz = num(l.get("price")), num(l.get("size"))
-        if pp is None or sz is None: continue
-        if bid is None or pp > bid: bid, bid_sz = pp, sz
-    if ask is None and bid is None: return None
-    return {"bid": bid, "ask": ask,
+    asks = sorted(([num(l.get("price")), num(l.get("size"))] for l in (j.get("asks") or [])
+                   if num(l.get("price")) is not None and num(l.get("size")) is not None), key=lambda x: x[0])
+    bids = sorted(([num(l.get("price")), num(l.get("size"))] for l in (j.get("bids") or [])
+                   if num(l.get("price")) is not None and num(l.get("size")) is not None), key=lambda x: x[0], reverse=True)
+    if not asks and not bids: return None
+    ask, ask_sz = (asks[0] if asks else (None, None))
+    bid, bid_sz = (bids[0] if bids else (None, None))
+    return {"bid": bid, "ask": ask, "asks": asks, "bids": bids,
             "topAskUsd": ask*ask_sz if ask is not None else None,
             "mirrorTopUsd": (1-bid)*bid_sz if bid is not None else None,
             "at": now_ms()}
 def mirror(b):
     if not b: return None
+    # the complement token's book is this one reflected across 0.5: a buy of the
+    # other side at price q == selling this side at 1-q, so opp ask ladder is our
+    # bid ladder reflected, and opp bid ladder is our ask ladder reflected.
+    asks = sorted([[round(1-p, 4), s] for p, s in (b.get("bids") or [])], key=lambda x: x[0])
+    bids = sorted([[round(1-p, 4), s] for p, s in (b.get("asks") or [])], key=lambda x: x[0], reverse=True)
     return {"bid": round(1-b["ask"], 4) if b["ask"] is not None else None,
             "ask": round(1-b["bid"], 4) if b["bid"] is not None else None,
+            "asks": asks, "bids": bids,
             "topAskUsd": b["mirrorTopUsd"], "mirrorTopUsd": b["topAskUsd"], "at": b["at"]}
+
+# ---------- realistic fills: walk the order book, Polymarket taker fee --------
+# Polymarket CLOB taker fee (docs.polymarket.com/trading/fees): a taker order
+# pays  fee = shares * FEE_RATE * p * (1-p)  (symmetric around 50c, peaks there;
+# crypto is the top category at 0.07). Makers (resting limit orders) pay 0 — but
+# this bot fills immediately at the offer, so it is always a taker. Gas on
+# Polygon is a fraction of a cent per trade. Both are configurable (--fee-rate,
+# --gas) and published so the numbers can be checked against a real account.
+FEE_RATE = 0.07
+GAS_USD = 0.004
+MIN_ORDER_USD = 1.0        # Polymarket minimum order size
+
+def _levels(bk, side):
+    """[[price,size],...] for 'ask' (ascending) / 'bid' (descending). Uses the
+    full ladder when present, else one synthetic top level from bid/ask+size."""
+    if not bk: return []
+    key = "asks" if side == "ask" else "bids"
+    lv = bk.get(key)
+    if isinstance(lv, list) and lv:
+        out = [[num(p), num(s)] for p, s in lv if num(p) is not None and num(s) is not None]
+    else:
+        px = bk.get("ask") if side == "ask" else bk.get("bid")
+        if px is None: return []
+        if side == "ask":
+            usd = bk.get("topAskUsd"); sz = (usd/px) if usd else 0.0
+        else:
+            usd = bk.get("mirrorTopUsd"); sz = (usd/(1-px)) if (usd and px < 1) else 0.0
+        out = [[px, sz]]
+    out.sort(key=lambda x: x[0], reverse=(side == "bid"))
+    return out
+
+def walk_buy(levels, budget_usd, limit):
+    """Spend up to budget_usd on ascending ask levels priced <= limit.
+    Returns (shares, spent_usd, avg_price|None, fully_filled)."""
+    shares = spent = 0.0
+    for p, sz in levels:
+        if p is None or sz is None or p > limit + 1e-9: break
+        cost = p * sz
+        if spent + cost <= budget_usd + 1e-9:
+            shares += sz; spent += cost
+        else:
+            take = (budget_usd - spent) / p
+            if take > 0: shares += take; spent = budget_usd
+            break
+    avg = (spent/shares) if shares > 0 else None
+    return round(shares, 6), round(spent, 6), (round(avg, 6) if avg else None), spent >= budget_usd - 1e-6
+
+def walk_sell(levels, shares, floor=0.0):
+    """Sell up to `shares` into descending bid levels priced >= floor.
+    Returns (proceeds_usd, sold_shares, avg_price|None)."""
+    proceeds = sold = 0.0
+    for p, sz in levels:
+        if p is None or sz is None or p < floor - 1e-9: break
+        take = min(sz, shares - sold)
+        if take <= 0: break
+        proceeds += take*p; sold += take
+        if sold >= shares - 1e-9: break
+    avg = (proceeds/sold) if sold > 0 else None
+    return round(proceeds, 6), round(sold, 6), (round(avg, 6) if avg else None)
+
+def taker_fee(shares, price):
+    if not shares or shares <= 0 or price is None: return 0.0
+    return round(shares * FEE_RATE * price * (1-price), 5)
 
 # ---------- the engine (pure; mirrors the JS btcEvaluate) ----------
 class Bot:
@@ -284,21 +350,42 @@ class Bot:
         self.eng[eid]["eval"] = ev
         return ev
 
+    def side_book(self, side):
+        m = self.mkt
+        return (m["bookUp"] if side == "up" else m["bookDown"]) if m else None
+
     def paper_enter(self, eid, ev):
-        m, f = self.mkt, self.feed
-        stake = clampf(self.st["stake"], 1, 1000, 5)
+        m, f, prof = self.mkt, self.feed, self.prof()
+        side = ev["side"]
+        req = clampf(self.st["stake"], 1, 1000, 5)
         slip = clampf(self.st["slip"], 0, 5, 1) / 100
-        px = min(0.99, round(ev["q"]["ask"] + slip, 4))
+        # a real limit order: willing to pay up to the ask cap (+latency slip).
+        # Walk the actual book depth for that budget — a $50 order does NOT fill
+        # at the top ask if only a few dollars rest there.
+        limit = min(0.99, prof["maxAsk"] + slip)
+        bk = self.side_book(side) or {"ask": ev["q"]["ask"], "topAskUsd": ev["q"].get("top")}
+        shares, spent, avg, fully = walk_buy(_levels(bk, "ask"), req, limit)
+        if spent < MIN_ORDER_USD or not avg:
+            self.log(f"[{eid.upper()}] SKIP {side.upper()} — book too thin at ≤{limit*100:.0f}c "
+                     f"(only ${spent:.2f} fillable of ${req:g}) ({ev['passCount']}/10)")
+            return
+        entry = min(0.99, round(avg + slip, 4))     # latency: realized avg a touch worse
+        shares = round(spent/entry, 4)
+        fee = taker_fee(shares, entry)
         tr = dict(at=now_ms(), t0=m["t0"], t1=m["t1"], slug=m["slug"], profile=self.st["profile"],
                   asset=self.st["asset"], eng=eid, passCount=ev["passCount"], need=ev["need"],
-                  side=ev["side"], entry=px, ask=ev["q"]["ask"], slip=slip*100, stake=stake,
-                  shares=round(stake/px, 4), btcOpen=f["open"], btcEntry=f["last"], btcClose=None,
+                  side=side, entry=entry, ask=ev["q"]["ask"], slip=slip*100,
+                  stake=round(spent, 2), reqStake=req, fillFrac=round(spent/req, 3),
+                  shares=shares, feeEntry=fee, feeExit=0.0, gas=GAS_USD,
+                  btcOpen=f["open"], btcEntry=f["last"], btcClose=None,
                   feed=f["src"], status="open", hedge=None, pnl=None, result=None, settledBy=None,
-                  guards=[[k, 1 if ok else 0] for k, ok in ev["checks"]])   # which of the 10 were green at entry
+                  guards=[[k, 1 if ok else 0] for k, ok in ev["checks"]])
         self.trades(eid).insert(0, tr)
         del self.trades(eid)[250:]
-        self.log(f"[{eid.upper()}] ENTER {self.st['asset']} {tr['side'].upper()} @ {px*100:.1f}c "
-                 f"({ev['passCount']}/10) ${stake:g} d {'+' if ev['delta']>=0 else '-'}${fmt_num(abs(ev['delta']))}")
+        part = "" if fully else f" partial {tr['fillFrac']*100:.0f}%"
+        self.log(f"[{eid.upper()}] ENTER {self.st['asset']} {side.upper()} @ {entry*100:.1f}c avg "
+                 f"${spent:.0f}{part} fee ${fee:.2f} ({ev['passCount']}/10) "
+                 f"d {'+' if ev['delta']>=0 else '-'}${fmt_num(abs(ev['delta']))}")
 
     def manage_open(self, eid, now):
         tr = self.open_trade(eid)
@@ -314,29 +401,39 @@ class Bot:
             self.log(f"[{eid.upper()}] interval closed — {tr['side'].upper()} awaiting resolution"); return
         if not self.mkt or self.mkt["t0"] != tr["t0"] or tr.get("asset", "BTC") != self.st["asset"]: return
         q, f = self.quote(tr["side"]), self.feed
+        sbk, obk = self.side_book(tr["side"]), self.side_book("down" if tr["side"] == "up" else "up")
+        slip = clampf(self.st["slip"], 0, 5, 1) / 100
         if f["last"] is not None and tr["btcEntry"] is not None and q and q["bid"] is not None:
             adverse = (tr["btcEntry"] - f["last"]) if tr["side"] == "up" else (f["last"] - tr["btcEntry"])
             if adverse >= tr["btcEntry"] * prof["stopPct"] / 100:
-                pnl = tr["shares"] * q["bid"] - tr["stake"]
-                if tr["hedge"]:
-                    hb = max(0.01, 1 - (q["ask"] if q["ask"] is not None else q["bid"]))
-                    pnl += tr["hedge"]["shares"] * hb - tr["hedge"]["stake"]
-                tr.update(pnl=round(pnl, 2), result="stopped", status="settled", settledBy="stop-loss")
-                self.log(f"[{eid.upper()}] STOP-LOSS {tr['side'].upper()} @ {q['bid']*100:.0f}c bid "
+                # sell the position into the real bid ladder (a touch worse for latency)
+                proceeds, sold, savg = walk_sell(_levels(sbk or {"bid": q["bid"]}, "bid"), tr["shares"])
+                fee_exit = taker_fee(sold, max(0.01, (savg or q["bid"]) - slip))
+                pnl = proceeds - tr["stake"] - tr.get("feeEntry", 0) - fee_exit - tr.get("gas", 0)
+                if tr["hedge"]:                       # close the hedge into its own bid ladder
+                    hp, hs, ha = walk_sell(_levels(obk or {"bid": round(1-(q["ask"] or q["bid"]), 4)}, "bid"), tr["hedge"]["shares"])
+                    pnl += hp - tr["hedge"]["stake"] - taker_fee(hs, ha) - tr["hedge"].get("fee", 0)
+                tr.update(pnl=round(pnl, 2), result="stopped", status="settled", settledBy="stop-loss",
+                          feeExit=round(fee_exit, 5))
+                self.log(f"[{eid.upper()}] STOP-LOSS {tr['side'].upper()} @ {(savg or q['bid'])*100:.0f}c "
                          f"P&L {'+' if pnl>=0 else ''}{pnl:.2f}"); return
         if not tr["hedge"] and q and q["bid"] is not None:
             left = tr["t1"] - ns
             if q["bid"] >= prof["hedgeAt"] and left <= prof["hedgeLeft"]:
                 hstake = round(max(1, tr["stake"] * prof["hedgeFrac"]), 2)
-                hslip = clampf(self.st["slip"], 0, 5, 1) / 100
-                hpx = max(0.01, min(0.99, round(1 - q["bid"] + hslip, 4)))
-                tr["hedge"] = dict(stake=hstake, px=hpx, shares=round(hstake/hpx, 4), at=now)
-                self.log(f"[{eid.upper()}] HEDGE {'DOWN' if tr['side']=='up' else 'UP'} ${hstake:g} @ {hpx*100:.0f}c ({left}s left)")
+                hbk = obk or {"ask": round(1-q["bid"], 4)}
+                hsh, hsp, havg, _ = walk_buy(_levels(hbk, "ask"), hstake, 0.99)
+                if hsp >= 0.5 and havg:
+                    hpx = min(0.99, round(havg + slip, 4)); hsh = round(hsp/hpx, 4)
+                    tr["hedge"] = dict(stake=round(hsp, 2), px=hpx, shares=hsh, fee=taker_fee(hsh, hpx), at=now)
+                    self.log(f"[{eid.upper()}] HEDGE {'DOWN' if tr['side']=='up' else 'UP'} ${hsp:.2g} @ {hpx*100:.0f}c ({left}s left)")
 
     def _pnl_for(self, tr, w):
         pnl = (tr["shares"] - tr["stake"]) if tr["side"] == w else -tr["stake"]
         if tr["hedge"]:
             pnl += (tr["hedge"]["shares"] - tr["hedge"]["stake"]) if w != tr["side"] else -tr["hedge"]["stake"]
+            pnl -= tr["hedge"].get("fee", 0)
+        pnl -= tr.get("feeEntry", 0) + tr.get("feeExit", 0) + tr.get("gas", 0)
         return round(pnl, 2)
 
     def apply_settle(self, tr, w, by, provisional=False):
@@ -498,14 +595,17 @@ def snapshot(bot):
         settled = [t for t in trs if t["result"] in ("win", "loss", "stopped")]
         wins = sum(1 for t in settled if t["result"] == "win")
         pnl = round(sum((t["pnl"] or 0) for t in settled), 2)
+        fees = round(sum(t.get("feeEntry", 0)+t.get("feeExit", 0)+t.get("gas", 0)
+                         + (t["hedge"].get("fee", 0) if t.get("hedge") else 0) for t in trs), 2)
         priced = [t["entry"] for t in trs if isinstance(t.get("entry"), (int, float))]
         avg_e = round(sum(priced)/len(priced)*100, 1) if priced else None
         return dict(trades=len(trs), settled=len(settled), wins=wins,
                     winPct=(round(wins/len(settled)*100, 1) if settled else None),
-                    avgEntry=avg_e, pnl=pnl, need=bot.eng_pass(eid))
+                    avgEntry=avg_e, pnl=pnl, feesPaid=fees, need=bot.eng_pass(eid))
     return {"version": 2, "heartbeat": now_ms(),
             "heartbeatIso": datetime.now(timezone.utc).isoformat(),
             "publishEvery": bot.cfg.get("publishEvery", 1800),
+            "feeRate": FEE_RATE, "gas": GAS_USD,
             "asset": st["asset"], "profile": st["profile"], "stake": st["stake"],
             "bank": st["bank"], "startedAt": st.get("startedAt"),
             "slip": st["slip"], "loosePass": st["loosePass"],
@@ -596,8 +696,9 @@ def selftest():
     b3.feed["last"] = 100130 - 260   # 0.26% retrace > 0.25% stop
     b3.manage_open("strict", now)
     t3 = b3.trades("strict")[0]
-    exp = round((5/0.62)*0.45 - 5, 2)
-    ok(t3["result"] == "stopped" and abs(t3["pnl"]-exp) < 0.011, "stop-loss exits at bid", f"{t3['pnl']} vs {exp}")
+    sh3 = round(5/0.62, 4)
+    exp = round(sh3*0.45 - 5 - taker_fee(sh3, 0.44), 2)   # sell into 45c bid, minus exit taker fee
+    ok(t3["result"] == "stopped" and abs(t3["pnl"]-exp) < 0.03, "stop-loss walks bid ladder + fee", f"{t3['pnl']} vs {exp}")
     # settlement win P&L (with hedge)
     st4 = default_state(A); b4 = Bot({}, st4)
     b4.trades("strict").insert(0, dict(at=now,t0=1,t1=2,slug="x",profile="conservative",asset="BTC",eng="strict",
@@ -607,6 +708,22 @@ def selftest():
     t4 = b4.trades("strict")[0]
     exp4 = round(5/0.67 - 5 - 1, 2)
     ok(t4["result"] == "win" and abs(t4["pnl"]-exp4) < 0.011, "settle win incl hedge loss", f"{t4['pnl']} vs {exp4}")
+    # --- realistic fills: depth walking + taker fee ---
+    # deep book: $50 fills near the top ask
+    sh, sp, avg, full = walk_buy([[0.60, 500], [0.62, 500]], 50, 0.71)
+    ok(full and abs(avg-0.60) < 1e-6, "deep book fills at top ask", f"avg={avg}")
+    # thin book: top level only $6, next level higher — $50 walks up and averages worse
+    sh, sp, avg, full = walk_buy([[0.60, 10], [0.66, 200]], 50, 0.71)
+    ok(full and 0.60 < avg < 0.66, "thin top → fill walks up the book", f"avg={avg}")
+    # too thin under the limit → partial fill only
+    sh, sp, avg, full = walk_buy([[0.60, 10], [0.90, 500]], 50, 0.71)
+    ok(not full and abs(sp-6.0) < 1e-6, "book too thin under limit → partial", f"spent={sp}")
+    # sell walks the bid ladder
+    pr, sold, savg = walk_sell([[0.50, 10], [0.48, 100]], 60)
+    ok(abs(pr-(0.50*10+0.48*50)) < 1e-6 and abs(sold-60) < 1e-6, "sell walks bid ladder", f"proceeds={pr}")
+    # taker fee: shares*rate*p*(1-p), symmetric around 0.5
+    ok(abs(taker_fee(100, 0.5) - 100*FEE_RATE*0.25) < 1e-9, "taker fee peaks at 50c")
+    ok(abs(taker_fee(100, 0.3) - taker_fee(100, 0.7)) < 1e-9, "taker fee symmetric 30c=70c")
     # winner detection + feed parse
     ok(winner_of({"closed":True,"resolved":True,"pUp":1.0,"pDown":0.0}) == "up", "winner_of reads resolved up")
     fl = _pick_open_last([(ns-60,None,99998),(ns,100000,100050)], ns)
@@ -626,6 +743,7 @@ def selftest():
 
 
 def main():
+    global FEE_RATE, GAS_USD
     ap = argparse.ArgumentParser(description="Polymarket 5-minute crypto PAPER trader (headless).")
     ap.add_argument("--asset", default="BTC", choices=list(ASSETS))
     ap.add_argument("--profile", default="conservative", choices=list(PROFILES))
@@ -640,7 +758,10 @@ def main():
     ap.add_argument("--branch", default="data")
     ap.add_argument("--repo-dir", default=os.path.dirname(os.path.abspath(__file__)))
     ap.add_argument("--publish-every", type=int, default=1800, help="min seconds between publishes")
+    ap.add_argument("--fee-rate", type=float, default=FEE_RATE, help="Polymarket taker fee rate (crypto 0.07)")
+    ap.add_argument("--gas", type=float, default=GAS_USD, help="per-trade gas (USD)")
     args = ap.parse_args()
+    FEE_RATE, GAS_USD = args.fee_rate, args.gas
     if args.selftest: sys.exit(selftest())
 
     st = load_state(args.state, args)
@@ -667,6 +788,18 @@ def main():
                            if b else "none")
         print(f"  CLOB book Up : {bk(bu)}")
         print(f"  CLOB book Dn : {bk(bd)}")
+        # realistic-fill preview: what a full-stake order actually does to the book
+        for e in ENGINES:
+            ev = bot.eng[e]["eval"]
+            if ev and ev.get("side") and (m or {}).get("book"+ev["side"].capitalize()):
+                prof = bot.prof(); bk_e = bot.side_book(ev["side"])
+                lim = min(0.99, prof["maxAsk"] + clampf(st["slip"],0,5,1)/100)
+                sh, sp, avg, full = walk_buy(_levels(bk_e, "ask"), st["stake"], lim)
+                if avg:
+                    fee = taker_fee(round(sp/min(0.99,avg),4), avg)
+                    print(f"  fill ${st['stake']:g} {ev['side'].upper():4}: avg {avg*100:.1f}c, "
+                          f"{sp/st['stake']*100:.0f}% filled, taker fee ${fee:.2f}"
+                          + ("" if full else "  ← book too thin for full size"))
         for e in ENGINES:
             ev = bot.eng[e]["eval"]
             print(f"  {e:<6} eval  : {ev['passCount']}/10 guards, needs {ev['need']}, enter={ev['enter']}" if ev else f"  {e}: no eval")

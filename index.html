@@ -669,7 +669,8 @@ function renderBtcLife(){
     +'<div><div class="et-big" style="color:'+(pnl>=0?"var(--up)":"var(--dn)")+'">'+(pnl>=0?"+":"")+pnl.toFixed(2)+'</div><div class="et-lab">P&amp;L $</div></div>'
     +'<div><div class="et-big" style="color:'+(ret>=0?"var(--up)":"var(--dn)")+'">'+(ret>=0?"+":"")+ret.toFixed(2)+'%</div><div class="et-lab">return on bankroll</div></div>'
     +'</div>'
-    +'<div class="tr-lab" style="margin-top:6px"><a class="pmlink" href="live.html">full live ledger — both engines, guard detail →</a></div></div>';
+    +'<div class="tr-lab" style="margin-top:6px">'+(s.feesPaid!=null?('net of Polymarket taker fees + gas (paid $'+s.feesPaid.toFixed(2)+') · real order-book depth fills · '):'')
+    +'<a class="pmlink" href="live.html">full live ledger — both engines, guard detail →</a></div></div>';
 }
 async function btcLifeFetch(){
   // raw CDN lags pushes by up to ~5 min; also ask the GitHub API (fresher,

@@ -58,7 +58,7 @@
 <div class="wrap">
   <div class="hb" id="hb"><span class="dot" id="dot"></span><b id="hbState">Loading…</b><span class="mut" id="hbMeta"></span></div>
   <div id="body"></div>
-  <div class="note">This page is <b>read-only</b>: it only displays the JSON the bot publishes to the <code>data</code> branch — it does not trade. A result with an orange <span class="prov">*</span> is <b>provisional</b> — settled from clear price action and shown right away, then confirmed or corrected once Polymarket’s oracle reports; <b>…</b> means the close was too close to call and it’s waiting for the oracle. If the heartbeat goes <b>red / stale</b>, the bot on your Mac has stopped or lost network (check <code>launchctl list | grep btc5m</code> and <code>bot.log</code>).</div>
+  <div class="note">This page is <b>read-only</b>: it only displays the JSON the bot publishes to the <code>data</code> branch — it does not trade. <b>Fills are modeled realistically</b>: every order walks the live order-book depth (a big order in a thin book fills worse, or only partially), and each entry/exit pays Polymarket’s crypto <b>taker fee</b> (≈7%·p·(1−p) per share) plus gas — all P&L is net of these. A result with an orange <span class="prov">*</span> is <b>provisional</b> — settled from clear price action and shown right away, then confirmed or corrected once Polymarket’s oracle reports; <b>…</b> means the close was too close to call and it’s waiting for the oracle. If the heartbeat goes <b>red / stale</b>, the bot on your Mac has stopped or lost network (check <code>launchctl list | grep btc5m</code> and <code>bot.log</code>).</div>
 </div>
 <footer>Auto-refreshes every 60s · source: <span id="src"></span></footer>
 <script>
@@ -155,7 +155,8 @@ async function render(){
   // second: green = inside the expected window, orange = slightly overdue
   // (usually CDN lag), red = two missed publishes + slack.
   HB={heartbeat:st.heartbeat||0, pubEvery:(st.publishEvery||1800)*1000};
-  $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10 · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · +${st.slip}¢ slip`;
+  const Sh=st.summary||{}, feesTot=((Sh.strict||{}).feesPaid||0)+((Sh.loose||{}).feesPaid||0);
+  $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10 · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
   const eng=st.btc&&st.btc.engines||{strict:{trades:[]},loose:{trades:[]}};
   const S=st.summary||{};
