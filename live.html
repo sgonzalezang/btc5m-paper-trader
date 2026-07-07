@@ -24,6 +24,9 @@
   .hb b{color:var(--ink)}.hb .mut{color:var(--mut);font-size:13px}
   .books{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   @media(max-width:820px){.books{grid-template-columns:1fr}}
+  .books-single{margin-top:16px}
+  .books-single .col{opacity:.9}
+  .books-single h2 span:first-child{font-size:14px}
   .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
   .col h2{margin:0 0 8px;font-size:16px;border-bottom:2px solid var(--line);padding-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
   .col h2 span{font-size:12px;color:var(--mut)}
@@ -47,6 +50,7 @@
   .eqsvg{width:100%;height:auto;display:block;margin-top:6px}
   .eqport{fill:none;stroke:var(--ink);stroke-width:2.2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqloose{fill:none;stroke:var(--blue);stroke-width:1.3;opacity:.65;vector-effect:non-scaling-stroke}
+  .eqvariant{fill:none;stroke:#8f7bff;stroke-width:1.3;opacity:.75;vector-effect:non-scaling-stroke}
   .eqstrict{fill:none;stroke:var(--btc);stroke-width:1.3;opacity:.65;vector-effect:non-scaling-stroke}
   .eqzero{stroke:var(--mut);stroke-dasharray:3 3;stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
   .eqarea{stroke:none}.eqarea.pos{fill:var(--up);opacity:.10}.eqarea.neg{fill:var(--dn);opacity:.10}
@@ -54,7 +58,7 @@
   .eqmeta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--mut);margin-top:4px;flex-wrap:wrap}
   .eqnow.pos{color:var(--up);font-weight:700}.eqnow.neg{color:var(--dn);font-weight:700}
   .eqlegend{font-size:11px;color:var(--mut);font-weight:400}
-  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-s{color:var(--btc)}
+  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-v{color:#8f7bff}.lg-s{color:var(--btc)}
   .gd{white-space:nowrap}
   .gd i{display:inline-block;font-style:normal;font-size:9px;width:13px;height:13px;line-height:13px;text-align:center;border-radius:3px;margin:0 1px;font-weight:700;cursor:default}
   .gd .g1{background:#173527;color:var(--up)}.gd .g0{background:#3a231c;color:var(--dn)}
@@ -194,18 +198,20 @@ function eqSeries(st, id){
   return pts;
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
+const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},variant:{label:"variant",lg:"lg-v",cls:"eqvariant"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
 function equityChart(st){
-  const s=eqSeries(st,"strict"), l=eqSeries(st,"loose");
-  const times=Array.from(new Set([...s,...l].map(p=>p[0]))).sort((a,b)=>a-b);
-  const combined=times.map(t=>[t,+(stepVal(s,t)+stepVal(l,t)).toFixed(2)]);
+  const engs=["loose","variant","strict"];
+  const S={}; engs.forEach(e=>S[e]=eqSeries(st,e));
+  const times=Array.from(new Set(engs.flatMap(e=>S[e].map(p=>p[0])))).sort((a,b)=>a-b);
+  const combined=times.map(t=>[t,+engs.reduce((a,e)=>a+stepVal(S[e],t),0).toFixed(2)]);
   const legend='<span class="eqlegend"><b class="lg-p">━</b> portfolio'
-    +(l.length?' &nbsp;<b class="lg-l">━</b> loose':'')+(s.length?' &nbsp;<b class="lg-s">━</b> strict':'')+'</span>';
+    +engs.filter(e=>S[e].length).map(e=>` &nbsp;<b class="${ENGMETA[e].lg}">━</b> ${ENGMETA[e].label}`).join("")+'</span>';
   if(combined.length<2)
     return '<div class="col" style="margin-bottom:16px"><h2>Portfolio P&amp;L over time '+legend+'</h2>'
       +'<div class="lab" style="padding:12px 2px">The curve appears once at least 2 trades have settled — it will grow with every trade.</div></div>';
   const W=800,H=220,padL=8,padR=8,padT=14,padB=6;
   const ts=combined.map(p=>p[0]), t0=Math.min(...ts), t1=Math.max(...ts);
-  const vs=[...combined,...l,...s].map(p=>p[1]);
+  const vs=[...combined,...engs.flatMap(e=>S[e])].map(p=>p[1]);
   let vmin=Math.min(0,...vs), vmax=Math.max(0,...vs); if(vmin===vmax){vmin-=1;vmax+=1;}
   const gp=(vmax-vmin)*0.08; vmin-=gp; vmax+=gp;
   const X=t=>padL+(t1===t0?0.5:(t-t0)/(t1-t0))*(W-padL-padR);
@@ -220,7 +226,7 @@ function equityChart(st){
   return '<div class="col" style="margin-bottom:16px"><h2>Portfolio P&amp;L over time '+legend+'</h2>'
     +`<svg viewBox="0 0 ${W} ${H}" class="eqsvg" preserveAspectRatio="none">`
     +`<line class="eqzero" x1="${padL}" y1="${z.toFixed(1)}" x2="${W-padR}" y2="${z.toFixed(1)}"/>`
-    +area+poly(s,"eqstrict")+poly(l,"eqloose")+poly(combined,"eqport")
+    +area+poly(S.strict,"eqstrict")+poly(S.variant,"eqvariant")+poly(S.loose,"eqloose")+poly(combined,"eqport")
     +`<circle class="eqdot ${end>=0?"pos":"neg"}" cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="3.4"/></svg>`
     +`<div class="eqmeta"><span>${fT(t0)}</span>`
     +`<span>peak ${D(peak)} · low ${D(trough)} · <span class="eqnow ${end>=0?"pos":"neg"}">now ${D(end)}</span></span>`
@@ -239,17 +245,27 @@ function draw(st){
   // second: green = inside the expected window, orange = slightly overdue
   // (usually CDN lag), red = two missed publishes + slack.
   HB={heartbeat:st.heartbeat||0, pubEvery:(st.publishEvery||1800)*1000};
-  const S=st.summary||{}, feesTot=((S.strict||{}).feesPaid||0)+((S.loose||{}).feesPaid||0);
+  const S=st.summary||{}, feesTot=["loose","variant","strict"].reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
   const must=(st.looseMust||[]), mustAbbr=must.map(k=>(GUARDS[k]||[k])[0]).join("/");
   const mustTxt=must.length?` + ${mustAbbr} required`:"";
   $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
-  const eng=st.btc&&st.btc.engines||{strict:{trades:[]},loose:{trades:[]}};
-  const needLbl=(id,need)=> id==="loose"&&must.length ? `needs ${need}/10 + <b title="mandatory: ${must.map(k=>(GUARDS[k]||['',k])[1]).join('; ')}">${esc(mustAbbr)}</b>` : `needs ${need}/10`;
-  const col=(id,label,hue,need)=>`<div class="col"><h2><span style="color:${hue}">${label}</span><span>${needLbl(id,need)}</span></h2>`
+  const eng=st.btc&&st.btc.engines||{};
+  const HUE={loose:"var(--blue)",variant:"#8f7bff",strict:"var(--btc)"};
+  const LABEL={loose:"Loose",variant:"Variant",strict:"Strict"};
+  const needLbl=(id)=>{
+    const need=(S[id]||{}).need||(id==="strict"?10:st.loosePass);
+    if(id==="strict") return `needs 10/10`;
+    let l=`needs ${need}/10`;
+    if(must.length) l+=` + <b title="mandatory: ${must.map(k=>(GUARDS[k]||['',k])[1]).join('; ')}">${esc(mustAbbr)}</b>`;
+    if(id==="variant") l+=` + <b title="variant only enters when the early drift is ≤0.02% of the interval open (buy the lean, don't chase) AND the price is ≤65¢ (keep breakeven reasonable)">filters</b>`;
+    return l;
+  };
+  const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span><span>${needLbl(id)}</span></h2>`
     +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
   $("body").innerHTML=equityChart(st)
-    +`<div class="books">${col("strict","Strict","var(--btc)",10)}${col("loose","Loose","var(--blue)",st.loosePass||6)}</div>`
+    +`<div class="books">${col("loose")}${col("variant")}</div>`      /* the race, side by side */
+    +`<div class="books-single">${col("strict")}</div>`               /* control engine, below */
     +guardKey(must)
     +`<h3 class="sec">Activity log</h3><div class="log">`
     +((st.log||[]).map(l=>`<div><b>${new Date(l.t).toLocaleTimeString()}</b> — ${esc(l.msg)}</div>`).join("")||"<div>No activity.</div>")+`</div>`;

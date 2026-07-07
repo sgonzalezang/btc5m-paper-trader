@@ -49,7 +49,20 @@ PROFILES = {
         maxDay=math.inf,   # day-count cap OFF at user request 2026-07-04 "for now" — was 20
         dayLossPct=15),
 }
-ENGINES = ["strict", "loose"]
+# Engines run side by side over the same live data, in page-priority order.
+#  loose   — 7/10 + Stable2tick (the current live strategy)
+#  variant — loose PLUS two data-validated gates: only enter when the early
+#            drift is small (<=0.02% of open, i.e. buy the lean before it's
+#            priced in, don't chase a half-formed move) and the price is not
+#            rich (ask <=65c, keeping the required win-rate reasonable). Both
+#            gates held up on independent halves of the 68-trade honest sample.
+#  strict  — all 10 guards (has not fired in practice; kept as a control)
+ENGINES = ["loose", "variant", "strict"]
+ENGINE_CFG = {
+    "loose":   dict(label="Loose",   tunable=True,  driftMax=None, entryMax=None),
+    "variant": dict(label="Variant", tunable=True,  driftMax=0.02, entryMax=0.65),
+    "strict":  dict(label="Strict",  tunable=False, driftMax=None, entryMax=None),
+}
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
 # backtest (2026-07-06, 21 honest trades) showed loose entries that skipped
 # Stable2tick — filling on a jumpy/stale quote — lost badly (-26pp edge), while
@@ -291,8 +304,8 @@ class Bot:
     # --- config accessors ---
     def prof(self): return PROFILES[self.st["profile"]]
     def asset(self): return ASSETS[self.st["asset"]]
-    def eng_pass(self, eid): return int(clampf(self.st["loosePass"], 1, 10, 6)) if eid == "loose" else 10
-    def eng_must(self, eid): return tuple(self.st.get("looseMust", LOOSE_MANDATORY)) if eid == "loose" else ()
+    def eng_pass(self, eid): return int(clampf(self.st["loosePass"], 1, 10, 6)) if ENGINE_CFG[eid]["tunable"] else 10
+    def eng_must(self, eid): return tuple(self.st.get("looseMust", LOOSE_MANDATORY)) if ENGINE_CFG[eid]["tunable"] else ()
     def trades(self, eid): return self.st["engines"][eid]["trades"]
     def open_trade(self, eid): return next((t for t in self.trades(eid) if t["status"] == "open"), None)
     def trade_for(self, eid, t0):
@@ -358,11 +371,21 @@ class Bot:
         okmap = {k: o for k, o in checks}
         must_ok = all(okmap.get(k, False) for k in must)   # mandatory guards must be green
         allp = passc == len(checks)
+        # engine-specific extra gates (variant): early-drift ceiling + entry-price cap
+        cfg = ENGINE_CFG[eid]
+        drift_pct = (abs(delta) / f["open"] * 100) if (delta is not None and f["open"]) else None
+        extra = []
+        if cfg["driftMax"] is not None:
+            extra.append(("drift≤%.2g%%" % cfg["driftMax"], drift_pct is not None and drift_pct <= cfg["driftMax"]))
+        if cfg["entryMax"] is not None:
+            extra.append(("entry≤%dc" % round(cfg["entryMax"]*100), bool(q and q["ask"] is not None and q["ask"] <= cfg["entryMax"])))
+        extra_ok = all(o for _, o in extra)
         can_fill = bool(q and q["ask"] is not None and left is not None and left > 0
                         and not opent and not dup and dn < prof["maxDay"] and dpnl > -loss_cap)
         ev = dict(t=now, side=side, delta=delta, q=q, mid=mid, spread=spread, left=left,
                   checks=checks, passCount=passc, need=need, must=list(must), mustOk=must_ok,
-                  all=allp, enter=(passc >= need and must_ok and can_fill))
+                  driftPct=drift_pct, extra=extra, extraOk=extra_ok,
+                  all=allp, enter=(passc >= need and must_ok and extra_ok and can_fill))
         self.eng[eid]["eval"] = ev
         return ev
 
@@ -420,7 +443,7 @@ class Bot:
                   side=side, entry=entry, ask=ev["q"]["ask"], slip=slip*100,
                   stake=round(spent, 2), reqStake=req, fillFrac=round(spent/req, 3),
                   shares=shares, feeEntry=fee, feeExit=0.0, gas=GAS_USD,
-                  btcOpen=f["open"], btcEntry=f["last"], btcClose=None,
+                  btcOpen=f["open"], btcEntry=f["last"], btcClose=None, driftPct=ev.get("driftPct"),
                   feed=f["src"], status="open", hedge=None, pnl=None, result=None, settledBy=None,
                   guards=[[k, 1 if ok else 0] for k, ok in ev["checks"]])
         self.trades(eid).insert(0, tr)
@@ -583,7 +606,7 @@ class Bot:
                          upBid=p["upBid"], upAsk=p["upAsk"], pUp=p["pUp"], gAt=now_ms())
             self.feed_tick(t0)
             delta = (self.feed["last"]-self.feed["open"]) if (self.feed["open"] is not None and self.feed["last"] is not None) else None
-            opent = self.open_trade("strict") or self.open_trade("loose")
+            opent = next((self.open_trade(e) for e in ENGINES if self.open_trade(e)), None)
             side = opent["side"] if opent else (None if not delta else ("up" if delta > 0 else "down"))
             if side and m["ev"]:
                 tok = m["tokUp"] if side == "up" else m["tokDown"]
@@ -764,6 +787,27 @@ def selftest():
     bm.prev_quote = {"side":"up","ask":0.66,"t":now-4000}                                # stable now → Stable green
     eB = bm.evaluate(now, "loose")
     ok(eB["mustOk"] and eB["enter"], "loose enters when Stable2tick green", f"pass={eB['passCount']} enter={eB['enter']}")
+    # variant engine: loose + drift<=0.02% + entry<=65c gates
+    bv = Bot({}, default_state(A))
+    def mkmkt(ask, bid):
+        mk = dict(t0=ns-210, t1=ns+400, ev=True, evClosed=False, slug="v", tokUp="1", tokDown="2",  # window red
+                  upBid=bid, upAsk=ask, pUp=(ask+bid)/2, gAt=now,
+                  bookUp={"bid":bid,"ask":ask,"asks":[[ask,300]],"bids":[[bid,300]],"topAskUsd":ask*300,"mirrorTopUsd":(1-bid)*300,"at":now})
+        mk["bookDown"] = mirror(mk["bookUp"]); return mk
+    bv.mkt = mkmkt(0.58, 0.57)                                                            # cheap entry
+    bv.feed = {"src":"Coinbase","open":100000,"last":100050,"at":now,"t0":bv.mkt["t0"]}   # BIG drift 0.05%
+    bv.prev_quote = {"side":"up","ask":0.58,"t":now-4000}
+    la, va = bv.evaluate(now,"loose"), bv.evaluate(now,"variant")
+    ok(la["enter"] and not va["enter"] and not va["extraOk"], "variant blocks big early drift",
+       f"drift={va['driftPct']:.3f}% loose={la['enter']} var={va['enter']}")
+    bv.mkt = mkmkt(0.68, 0.67); bv.feed["last"] = 100010                                  # small drift, RICH entry 68c
+    bv.prev_quote = {"side":"up","ask":0.68,"t":now-4000}
+    lb, vb = bv.evaluate(now,"loose"), bv.evaluate(now,"variant")
+    ok(lb["enter"] and not vb["enter"], "variant blocks rich entry (>65c)", f"loose={lb['enter']} var={vb['enter']}")
+    bv.mkt = mkmkt(0.58, 0.57); bv.feed["last"] = 100010                                  # small drift, cheap entry
+    bv.prev_quote = {"side":"up","ask":0.58,"t":now-4000}
+    vc = bv.evaluate(now,"variant")
+    ok(vc["enter"] and vc["extraOk"], "variant enters when small-drift + cheap", f"drift={vc['driftPct']:.3f}% enter={vc['enter']}")
     # stop-loss
     st3 = default_state(A); b3 = Bot({}, st3)
     b3.mkt = dict(t0=ns-100, t1=ns+200, ev=True, evClosed=False, slug="s", tokUp="1", tokDown="2",
@@ -869,7 +913,8 @@ def main():
     st["looseMust"] = args.loose_must
     bot = Bot({"publishEvery": args.publish_every}, st)
     must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
-    bot.log(f"bot started — {st['asset']} · {st['profile']} · strict 10/10 + loose {args.loose}/10{must_lbl} · "
+    bot.log(f"bot started — {st['asset']} · {st['profile']} · loose {args.loose}/10{must_lbl} · "
+            f"variant (loose + drift≤0.02% + entry≤65c) · strict 10/10 · "
             f"${st['stake']:g} stake · +{st['slip']:g}c slip · state={args.state}")
     last_pub = 0
     last_settled = {e: sum(1 for t in bot.trades(e) if t["status"] == "settled") for e in ENGINES}
