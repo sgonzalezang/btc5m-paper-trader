@@ -174,6 +174,21 @@ function guardKey(must){
     +'<div class="gkey">'+Object.entries(GUARDS).map(([k,G])=>
       `<span><i class="gd"><i class="g1">${G[0]}</i></i> ${esc(G[1])}${abbr.includes(G[0])?' <b title="loose engine requires this guard green to enter">★</b>':''}</span>`).join("")+'</div></div>';
 }
+function missesPanel(st){
+  const m=st.misses||[];
+  if(!m.length) return '';
+  const rows=m.slice(0,25).map(x=>{
+    const iv=new Date(x.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    const meta=ENGMETA[x.eng]||{label:x.eng,lg:''};
+    const eng=`<b class="${meta.lg}">${meta.label.charAt(0).toUpperCase()+meta.label.slice(1)}</b>`;
+    const side=x.side==="up"?'<b class="up">▲ up</b>':x.side==="down"?'<b class="dn">▼ down</b>':'—';
+    const tag=x.level===4?'<span class="tag open">no fill</span>':'<span class="tag loss">skipped</span>';
+    return `<div><span class="mut">${iv}</span> ${eng} ${side} · <span class="mut">${x.passc}/10 signal · ${esc(x.note)}</span> ${tag}</div>`;
+  }).join('');
+  return '<h3 class="sec">Missed / skipped markets</h3>'
+    +'<div class="mut" style="font-size:12px;margin:-2px 0 4px">Markets where an engine had a valid ≥7/10 signal but didn’t enter — blocked by the stability guard, the ≤65¢ cap / a filter, or no book liquidity to fill.</div>'
+    +'<div class="log">'+rows+'</div>';
+}
 const PAGE=25;                       // rows revealed per "show more"
 const SHOWN={strict:PAGE, loose:PAGE};
 function rows(trades, id, lifetimeTotal){
@@ -215,7 +230,7 @@ function eqSeries(st, id){
   return pts;
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
-const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},variant:{label:"variant",lg:"lg-v",cls:"eqvariant"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
+const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},capless:{label:"capless",lg:"lg-v",cls:"eqvariant"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
 const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
 // timeframe: spanH = hours of history shown per screen width (wider SVG scrolls
 // horizontally — finger-swipe on mobile); null = fit-all. daily = one point per
@@ -239,7 +254,7 @@ function dailyClose(series){
   return out;
 }
 function equityChart(st){
-  const engs=["loose","variant","strict"];
+  const engs=["loose","capless","strict"];
   const S={}; engs.forEach(e=>S[e]=eqSeries(st,e));
   const legend='<span class="eqlegend">'+engs.filter(e=>S[e].length).map(e=>{const n=S[e][S[e].length-1][1];
     return `<b class="${ENGMETA[e].lg}">━</b> ${ENGMETA[e].label} <b class="${n>=0?'eqpos':'eqneg'}">${D$(n)}</b>`;
@@ -255,7 +270,7 @@ function layoutChart(userAction, _try){
   const wrap=document.getElementById("eqscroll"); if(!wrap||!LAST) return;
   const cw=wrap.clientWidth||Math.round(wrap.getBoundingClientRect().width);
   if(!cw){ if((_try||0)<20) setTimeout(()=>layoutChart(userAction,(_try||0)+1), 40); return; }  // wait for layout to flush
-  const engs=["loose","variant","strict"];
+  const engs=["loose","capless","strict"];
   const S={}; engs.forEach(e=>{let s=eqSeries(LAST,e); if(VIEW.daily) s=dailyClose(s); S[e]=s;});
   const all=engs.flatMap(e=>S[e]);
   if(all.length<2){ wrap.innerHTML='<div class="lab" style="padding:12px 2px">'+(VIEW.daily?'Need at least 2 daily closes — check back after a day or two.':'Each engine’s line appears once it has 2+ trades.')+'</div>'; return; }
@@ -339,14 +354,14 @@ function draw(st){
   // second: green = inside the expected window, orange = slightly overdue
   // (usually CDN lag), red = two missed publishes + slack.
   HB={heartbeat:st.heartbeat||0, pubEvery:(st.publishEvery||1800)*1000};
-  const S=st.summary||{}, feesTot=["loose","variant","strict"].reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
+  const S=st.summary||{}, feesTot=["loose","capless","strict"].reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
   const must=(st.looseMust||[]), mustAbbr=must.map(k=>(GUARDS[k]||[k])[0]).join("/");
   const mustTxt=must.length?` + ${mustAbbr} required`:"";
   $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · hedge ${st.hedgeOn?"on":"off"} · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
   const eng=st.btc&&st.btc.engines||{};
-  const HUE={loose:"var(--blue)",variant:"#8f7bff",strict:"var(--btc)"};
-  const LABEL={loose:"Loose",variant:"Variant",strict:"Strict"};
+  const HUE={loose:"var(--blue)",capless:"#8f7bff",strict:"var(--btc)"};
+  const LABEL={loose:"Loose",capless:"Capless",strict:"Strict"};
   const needLbl=(id)=>{
     const need=(S[id]||{}).need||(id==="strict"?10:st.loosePass);
     if(id==="strict") return `needs 10/10`;
@@ -360,9 +375,10 @@ function draw(st){
   const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span><span>${needLbl(id)}</span></h2>`
     +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
   $("body").innerHTML=equityChart(st)
-    +`<div class="books">${col("loose")}${col("variant")}</div>`      /* the race, side by side */
+    +`<div class="books">${col("loose")}${col("capless")}</div>`      /* the race, side by side */
     +`<div class="books-single">${col("strict")}</div>`               /* control engine, below */
     +guardKey(must)
+    +missesPanel(st)
     +`<h3 class="sec">Activity log</h3><div class="log">`
     +((st.log||[]).map(l=>`<div><b>${new Date(l.t).toLocaleTimeString()}</b> — ${esc(l.msg)}</div>`).join("")||"<div>No activity.</div>")+`</div>`;
   layoutChart();   // fill the chart SVG now that #eqscroll exists and has a width

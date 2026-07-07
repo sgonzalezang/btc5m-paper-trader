@@ -50,17 +50,15 @@ PROFILES = {
         dayLossPct=math.inf),  # loss stop OFF for paper analytics
 }
 # Engines run side by side over the same live data, in page-priority order.
-#  loose   — 7/10 + Stable2tick (the current live strategy)
-#  variant — loose PLUS two data-validated gates: only enter when the early
-#            drift is small (<=0.02% of open, i.e. buy the lean before it's
-#            priced in, don't chase a half-formed move) and the price is not
-#            rich (ask <=65c, keeping the required win-rate reasonable). Both
-#            gates held up on independent halves of the 68-trade honest sample.
+#  loose   — 7/10 + Stable2tick, fills <=65c (the Monte-Carlo-optimal cap)
+#  capless — identical to loose but WITHOUT the 65c cap (fills to 70c). The only
+#            difference from loose is the cap, so loose-vs-capless isolates
+#            exactly what the 65c cap costs/saves, live.
 #  strict  — all 10 guards (has not fired in practice; kept as a control)
-ENGINES = ["loose", "variant", "strict"]
+ENGINES = ["loose", "capless", "strict"]
 ENGINE_CFG = {
-    "loose":   dict(label="Loose",   tunable=True,  driftMax=None, entryMax=0.65),   # cap added 2026-07-07: MC showed >=66c net-negative, 70c+ a disaster
-    "variant": dict(label="Variant", tunable=True,  driftMax=0.02, entryMax=0.65),   # loose + the drift filter (now the ONLY difference is drift)
+    "loose":   dict(label="Loose",   tunable=True,  driftMax=None, entryMax=0.65),   # cap 2026-07-07: MC showed >=66c net-negative, 70c+ a disaster
+    "capless": dict(label="Capless", tunable=True,  driftMax=None, entryMax=None),   # loose with NO cap — fills up to the 70c profile ask cap
     "strict":  dict(label="Strict",  tunable=False, driftMax=None, entryMax=None),
 }
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
@@ -297,8 +295,9 @@ class Bot:
         self.res_at = 0
         self.prev_quote = None
         self.closes = {}                      # t0 -> interval's last spot price (for provisional settle)
-        self.eng = {e: {"eval": None} for e in ENGINES}
+        self.eng = {e: {"eval": None, "miss": None} for e in ENGINES}
         self.logs = []
+        self.misses = []                      # recent "close but no entry" markets (published for the page)
         self.err = None
 
     # --- config accessors ---
@@ -434,7 +433,7 @@ class Bot:
         if spent < MIN_ORDER_USD or not avg:
             self.log(f"[{eid.upper()}] SKIP {side.upper()} — book too thin at ≤{limit*100:.0f}c "
                      f"(only ${spent:.2f} fillable of ${req:g}) ({ev['passCount']}/10)")
-            return
+            return False
         entry = min(0.99, round(avg + slip, 4))     # latency: realized avg a touch worse
         shares = round(spent/entry, 4)
         fee = taker_fee(shares, entry)
@@ -454,6 +453,29 @@ class Bot:
         self.log(f"[{eid.upper()}] ENTER {self.st['asset']} {side.upper()} @ {entry*100:.1f}c avg "
                  f"${spent:.0f}{part} fee ${fee:.2f} ({ev['passCount']}/10) +{tr['entrySec']}s into interval "
                  f"d {'+' if ev['delta']>=0 else '-'}${fmt_num(abs(ev['delta']))}")
+        return True
+
+    # Track WHY an engine didn't enter this interval — only the "close" misses
+    # worth surfacing: it reached its threshold but was blocked by the stability
+    # guard, a filter, or (like the empty-book case) had no liquidity to fill.
+    def _track_miss(self, eid, ev, entered):
+        if entered: self.eng[eid]["miss"] = None; return
+        passc, need = ev["passCount"], ev["need"]
+        if ev["enter"]:                                        # signal+filters ok, but fill was skipped
+            cap = ENGINE_CFG[eid]["entryMax"] or self.prof()["maxAsk"]
+            lvl, note = 4, "book too thin to fill ≤%d¢" % round(cap*100)
+        elif passc >= need and ev.get("mustOk") and not ev.get("extraOk"):
+            why = []
+            for lbl, o in ev.get("extra", []):
+                if not o: why.append("price >65¢" if "entry" in lbl else ("drift too big" if "drift" in lbl else lbl))
+            lvl, note = 3, "filter: " + ", ".join(why)
+        elif passc >= need and not ev.get("mustOk"):
+            lvl, note = 2, "unstable quote (stability guard red)"
+        else:
+            return                                             # weak signal (<need) — the boring norm, skip
+        cur = self.eng[eid].get("miss")
+        if not cur or lvl >= cur["level"]:
+            self.eng[eid]["miss"] = {"level": lvl, "side": ev.get("side"), "passc": passc, "need": need, "note": note}
 
     def manage_open(self, eid, now):
         tr = self.open_trade(eid)
@@ -585,7 +607,14 @@ class Bot:
                 if r["open"] is not None: self.feed["open"] = r["open"]
                 self.feed["last"] = r["last"]; self.feed["at"] = now_ms(); return
     def rollover(self, t0, t1):
-        for e in ENGINES: self.eng[e]["eval"] = None
+        prev = self.mkt
+        if prev and prev.get("t0") is not None:            # finalize the interval that just ended
+            for e in ENGINES:
+                if self.trade_for(e, prev["t0"]): continue  # entered → not a miss
+                miss = self.eng[e].get("miss")
+                if miss and miss["level"] >= 2:
+                    self.misses.insert(0, dict(t0=prev["t0"], eng=e, **miss)); del self.misses[40:]
+        for e in ENGINES: self.eng[e] = {"eval": None, "miss": None}
         self.prev_quote = None
         self.mkt = dict(t0=t0, t1=t1, ev=False, evClosed=False, slug=self.asset()["slug"]+str(t0+self.slug_off),
                         tokUp=None, tokDown=None, upBid=None, upAsk=None, pUp=None, gAt=0, bookUp=None, bookDown=None)
@@ -620,7 +649,9 @@ class Bot:
             now = now_ms()
             for e in ENGINES:
                 ev = self.evaluate(now, e)
-                if ev["enter"] and self.st.get("auto", True): self.paper_enter(e, ev)
+                entered = False
+                if ev["enter"] and self.st.get("auto", True): entered = bool(self.paper_enter(e, ev))
+                self._track_miss(e, ev, entered)
                 self.manage_open(e, now)
             cs = None if not delta else ("up" if delta > 0 else "down")
             cq = self.quote(cs) if cs else None
@@ -707,6 +738,7 @@ def snapshot(bot):
                      "open": bot.feed.get("open"), "t0": bot.feed.get("t0"), "at": bot.feed.get("at")},
             "summary": {e: summ(e) for e in ENGINES},
             "log": bot.logs[:30],
+            "misses": bot.misses[:30],
             "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip",
                                        "loosePass", "looseMust", "startedAt", "lifetime", "equity", "engines")}}
 def save_state(path, bot):
@@ -797,27 +829,24 @@ def selftest():
     bm.prev_quote = {"side":"up","ask":0.58,"t":now-4000}                                # stable now → Stable green
     eB = bm.evaluate(now, "loose")
     ok(eB["mustOk"] and eB["enter"], "loose enters when Stable2tick green", f"pass={eB['passCount']} enter={eB['enter']}")
-    # variant engine: loose + drift<=0.02% + entry<=65c gates
+    # capless engine: identical to loose but NO 65c cap — the only difference is the cap
     bv = Bot({}, default_state(A))
     def mkmkt(ask, bid):
         mk = dict(t0=ns-210, t1=ns+400, ev=True, evClosed=False, slug="v", tokUp="1", tokDown="2",  # window red
                   upBid=bid, upAsk=ask, pUp=(ask+bid)/2, gAt=now,
                   bookUp={"bid":bid,"ask":ask,"asks":[[ask,300]],"bids":[[bid,300]],"topAskUsd":ask*300,"mirrorTopUsd":(1-bid)*300,"at":now})
         mk["bookDown"] = mirror(mk["bookUp"]); return mk
-    bv.mkt = mkmkt(0.58, 0.57)                                                            # cheap entry
-    bv.feed = {"src":"Coinbase","open":100000,"last":100050,"at":now,"t0":bv.mkt["t0"]}   # BIG drift 0.05%
-    bv.prev_quote = {"side":"up","ask":0.58,"t":now-4000}
-    la, va = bv.evaluate(now,"loose"), bv.evaluate(now,"variant")
-    ok(la["enter"] and not va["enter"] and not va["extraOk"], "variant blocks big early drift",
-       f"drift={va['driftPct']:.3f}% loose={la['enter']} var={va['enter']}")
-    bv.mkt = mkmkt(0.68, 0.67); bv.feed["last"] = 100010                                  # small drift, RICH entry 68c
+    bv.mkt = mkmkt(0.68, 0.67); bv.feed = {"src":"Coinbase","open":100000,"last":100010,"at":now,"t0":bv.mkt["t0"]}  # RICH 68c, tiny move
     bv.prev_quote = {"side":"up","ask":0.68,"t":now-4000}
-    lb, vb = bv.evaluate(now,"loose"), bv.evaluate(now,"variant")
-    ok(not lb["enter"] and not vb["enter"], "loose+variant both block rich entry (>65c)", f"loose={lb['enter']} var={vb['enter']}")
-    bv.mkt = mkmkt(0.58, 0.57); bv.feed["last"] = 100010                                  # small drift, cheap entry
-    bv.prev_quote = {"side":"up","ask":0.58,"t":now-4000}
-    vc = bv.evaluate(now,"variant")
-    ok(vc["enter"] and vc["extraOk"], "variant enters when small-drift + cheap", f"drift={vc['driftPct']:.3f}% enter={vc['enter']}")
+    lb, cb = bv.evaluate(now,"loose"), bv.evaluate(now,"capless")
+    ok(not lb["enter"] and cb["enter"], "capless takes a 68c fill that loose's 65c cap blocks", f"loose={lb['enter']} capless={cb['enter']}")
+    bv.mkt = mkmkt(0.58, 0.57); bv.prev_quote = {"side":"up","ask":0.58,"t":now-4000}     # cheap 58c
+    lc, cc = bv.evaluate(now,"loose"), bv.evaluate(now,"capless")
+    ok(lc["enter"] and cc["enter"], "loose and capless both take a cheap fill", f"loose={lc['enter']} capless={cc['enter']}")
+    # miss tracking: an enter that can't fill (thin book) records a level-4 miss
+    bmz = Bot({}, default_state(A)); bmz.eng["loose"]={"eval":None,"miss":None}
+    bmz._track_miss("loose", {"enter":True,"side":"up","passCount":8,"need":7,"mustOk":True,"extraOk":True,"extra":[],"checks":[]}, False)
+    ok(bmz.eng["loose"]["miss"] and bmz.eng["loose"]["miss"]["level"]==4, "thin-book skip records a miss")
     # hedge toggle: a pinned position in the hedge zone hedges only when hedgeOn
     def pinned_bot(hedge_on):
         b = Bot({}, default_state(A)); b.st["hedgeOn"] = hedge_on
@@ -940,7 +969,7 @@ def main():
     bot = Bot({"publishEvery": args.publish_every}, st)
     must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
     bot.log(f"bot started — {st['asset']} · {st['profile']} · loose {args.loose}/10{must_lbl} + fill≤65c · "
-            f"variant (+ drift≤0.02%) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
+            f"capless (loose, no cap, fills≤70c) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
             f"${st['stake']:g} stake · +{st['slip']:g}c slip · state={args.state}")
     last_pub = 0
     last_settled = {e: sum(1 for t in bot.trades(e) if t["status"] == "settled") for e in ENGINES}
