@@ -972,7 +972,11 @@ def main():
             f"capless (loose, no cap, fills≤70c) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
             f"${st['stake']:g} stake · +{st['slip']:g}c slip · state={args.state}")
     last_pub = 0
-    last_settled = {e: sum(1 for t in bot.trades(e) if t["status"] == "settled") for e in ENGINES}
+    def positions_sig():   # changes when any trade opens, settles, or goes pending → publish promptly
+        return {e: (sum(1 for t in bot.trades(e) if t["status"] == "settled"),
+                    (bot.open_trade(e) or {}).get("at"),
+                    sum(1 for t in bot.trades(e) if t["status"] == "pending")) for e in ENGINES}
+    last_sig = positions_sig()
     if args.once:
         # self-verifying smoke test: fetch one tick and report exactly what
         # each live source returned, so you can confirm data is flowing.
@@ -1013,11 +1017,10 @@ def main():
         bot.tick()
         save_state(args.state, bot)
         if args.publish:
-            settled_now = {e: sum(1 for t in bot.trades(e) if t["status"] == "settled") for e in ENGINES}
-            trade_event = settled_now != last_settled
-            if trade_event or (time.time() - last_pub) >= args.publish_every:
+            sig_now = positions_sig()
+            if sig_now != last_sig or (time.time() - last_pub) >= args.publish_every:
                 if publish(args.state, args.branch, args.repo_dir):
-                    last_pub = time.time(); last_settled = settled_now
+                    last_pub = time.time(); last_sig = sig_now
         time.sleep(TICK_S)
 
 

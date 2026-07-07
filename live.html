@@ -19,6 +19,14 @@
       border-left:4px solid var(--btc);border-radius:10px;padding:10px 14px;margin:-4px 0 14px;box-shadow:var(--shadow);font-size:13px}
   .btcbar .btcpx{font-size:18px;color:var(--btc);font-variant-numeric:tabular-nums}
   .btcbar .up{color:var(--up)}.btcbar .dn{color:var(--dn)}.btcbar b{font-variant-numeric:tabular-nums}
+  .livebar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);
+      border-left:4px solid var(--line);border-radius:10px;padding:8px 14px;margin:-4px 0 14px;box-shadow:var(--shadow);font-size:13px}
+  .livebar.on{border-left-color:var(--up)}
+  .livebar .up{color:var(--up)}.livebar .dn{color:var(--dn)}
+  .livedot{width:9px;height:9px;border-radius:50%;background:var(--up);animation:hbpulse 2s ease-out infinite;flex:none}
+  .livedot.off{background:var(--mut);animation:none}
+  .h2h{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 14px;margin:0 0 14px;font-size:13px;box-shadow:var(--shadow)}
+  .h2h .eqpos{color:var(--up)}.h2h .eqneg{color:var(--dn)}
   .dot{width:12px;height:12px;border-radius:50%;background:var(--mut);flex:none}
   @keyframes hbpulse{0%{box-shadow:0 0 0 0 rgba(52,192,124,.55)}70%{box-shadow:0 0 0 9px rgba(52,192,124,0)}100%{box-shadow:0 0 0 0 rgba(52,192,124,0)}}
   @keyframes hbpulse-late{0%{box-shadow:0 0 0 0 rgba(230,160,60,.6)}70%{box-shadow:0 0 0 9px rgba(230,160,60,0)}100%{box-shadow:0 0 0 0 rgba(230,160,60,0)}}
@@ -96,6 +104,7 @@
 <div class="wrap">
   <div class="hb" id="hb"><span class="dot" id="dot"></span><b id="hbState">Loading…</b><span class="mut" id="hbMeta"></span></div>
   <div class="btcbar" id="btcbar"><span class="mut">BTC price loading…</span></div>
+  <div class="livebar" id="livetrade"></div>
   <div id="body"></div>
   <div class="note">This page is <b>read-only</b>: it only displays the JSON the bot publishes to the <code>data</code> branch — it does not trade. <b>Fills are modeled realistically</b>: every order walks the live order-book depth (a big order in a thin book fills worse, or only partially), and each entry/exit pays Polymarket’s crypto <b>taker fee</b> (≈7%·p·(1−p) per share) plus gas — all P&L is net of these. A result with an orange <span class="prov">*</span> is <b>provisional</b> — settled from clear price action and shown right away, then confirmed or corrected once Polymarket’s oracle reports; <b>…</b> means the close was too close to call and it’s waiting for the oracle. If the heartbeat goes <b>red / stale</b>, the bot on your Mac has stopped or lost network (check <code>launchctl list | grep btc5m</code> and <code>bot.log</code>).</div>
 </div>
@@ -173,6 +182,27 @@ function guardKey(must){
     +(must.length?` · ★ = loose must have this green`:"")+'</span></h2>'
     +'<div class="gkey">'+Object.entries(GUARDS).map(([k,G])=>
       `<span><i class="gd"><i class="g1">${G[0]}</i></i> ${esc(G[1])}${abbr.includes(G[0])?' <b title="loose engine requires this guard green to enter">★</b>':''}</span>`).join("")+'</div></div>';
+}
+// head-to-head from the common start: the first market both loose & capless
+// could enter (= capless's first trade). Both rebased to $0 from that anchor.
+function headToHead(st){
+  const eng=(st.btc&&st.btc.engines)||{};
+  const cap=((eng.capless||{}).trades||[]).filter(t=>typeof t.at==="number");
+  if(!cap.length) return `<div class="h2h"><b>Head-to-head</b> <span class="mut">— starts when Capless takes its first trade (fresh comparison, both from $0)</span></div>`;
+  const anchor=Math.min(...cap.map(t=>t.at));
+  const stat=id=>{
+    const trs=((eng[id]||{}).trades||[]).filter(t=>t.at>=anchor && ["win","loss","stopped"].includes(t.result) && typeof t.pnl==="number");
+    const w=trs.filter(t=>t.result==="win").length, pnl=trs.reduce((a,t)=>a+t.pnl,0);
+    return {n:trs.length, w:w, l:trs.length-w, pnl:pnl};
+  };
+  const L=stat("loose"), C=stat("capless");
+  const cell=(id,s)=>{const m=ENGMETA[id]; return `<b class="${m.lg}">${m.label.charAt(0).toUpperCase()+m.label.slice(1)}</b> `
+    +`<b class="${s.pnl>=0?'eqpos':'eqneg'}">${s.pnl>=0?'+$':'-$'}${Math.abs(s.pnl).toFixed(2)}</b> `
+    +`<span class="mut">(${s.w}/${s.n})</span>`;};
+  const diff=L.pnl-C.pnl;
+  return `<div class="h2h"><b>Head-to-head</b> <span class="mut">since ${new Date(anchor).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})} · both from $0:</span> `
+    +`${cell("loose",L)} &nbsp;vs&nbsp; ${cell("capless",C)} `
+    +`<span class="mut">· cap ${diff>=0?'saving':'costing'} <b class="${diff>=0?'eqpos':'eqneg'}">${diff>=0?'+$':'-$'}${Math.abs(diff).toFixed(2)}</b></span></div>`;
 }
 function missesPanel(st){
   const m=st.misses||[];
@@ -375,6 +405,7 @@ function draw(st){
   const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span><span>${needLbl(id)}</span></h2>`
     +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
   $("body").innerHTML=equityChart(st)
+    +headToHead(st)
     +`<div class="books">${col("loose")}${col("capless")}</div>`      /* the race, side by side */
     +`<div class="books-single">${col("strict")}</div>`               /* control engine, below */
     +guardKey(must)
@@ -443,8 +474,34 @@ function drawBtcBar(){
     +`<span class="mut">${esc(f.src||"Coinbase")} spot · this 5-min interval:</span> ${dtxt||'<span class="mut">—</span>'}`
     +`<span class="mut">· ${mmss} to close${stale}${f.live?"":' · <b class="dn">live feed blocked</b>'}</span>`;
 }
-render(); setInterval(render, 60000); setInterval(tickCd, 1000);
-tickBtc(); setInterval(tickBtc, 6000); setInterval(drawBtcBar, 1000);
+// --- live-trade indicator: which engine currently holds an open position ----
+function drawLiveTrade(){
+  const el=$("livetrade"); if(!el) return;
+  const eng=(LAST&&LAST.btc&&LAST.btc.engines)||{};
+  const engs=["loose","capless","strict"];
+  const now=Math.floor(Date.now()/1000);
+  let parts=[];
+  engs.forEach(id=>{
+    const trs=(eng[id]||{}).trades||[];
+    const t=trs.find(x=>x.status==="open")||trs.find(x=>x.status==="pending");
+    if(!t) return;
+    const meta=ENGMETA[id]||{label:id,lg:""};
+    const nm=`<b class="${meta.lg}">${meta.label.charAt(0).toUpperCase()+meta.label.slice(1)}</b>`;
+    const side=t.side==="up"?'<b class="up">▲ UP</b>':'<b class="dn">▼ DOWN</b>';
+    if(t.status==="pending")
+      parts.push(`${nm} ${side} @ ${(t.entry*100).toFixed(1)}¢ <span class="mut">· interval closed, awaiting settle</span>`);
+    else{
+      const left=Math.max(0,(t.t1||0)-now), mm=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");
+      parts.push(`${nm} ${side} @ ${(t.entry*100).toFixed(1)}¢ <span class="mut">· ${t.passCount}/10 · ${mm} left</span>`);
+    }
+  });
+  el.className = parts.length ? "livebar on" : "livebar";
+  el.innerHTML = parts.length
+    ? `<span class="livedot"></span><b>IN TRADE</b> ${parts.join(' &nbsp;·&nbsp; ')}`
+    : `<span class="livedot off"></span><span class="mut">No open position — waiting for the next signal.</span>`;
+}
+render(); setInterval(render, 30000); setInterval(tickCd, 1000); setInterval(drawLiveTrade, 1000);
+tickBtc(); setInterval(tickBtc, 6000); setInterval(drawBtcBar, 1000); drawLiveTrade();
 </script>
 </body>
 </html>
