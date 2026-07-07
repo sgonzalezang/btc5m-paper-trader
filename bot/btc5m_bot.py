@@ -456,6 +456,7 @@ def snapshot(bot):
                     avgEntry=avg_e, pnl=pnl, need=bot.eng_pass(eid))
     return {"version": 2, "heartbeat": now_ms(),
             "heartbeatIso": datetime.now(timezone.utc).isoformat(),
+            "publishEvery": bot.cfg.get("publishEvery", 1800),
             "asset": st["asset"], "profile": st["profile"], "stake": st["stake"],
             "bank": st["bank"], "startedAt": st.get("startedAt"),
             "slip": st["slip"], "loosePass": st["loosePass"],
@@ -597,7 +598,7 @@ def main():
     st["profile"] = args.profile
     st["asset"] = args.asset if args.asset else st["asset"]
     st["stake"], st["bank"], st["slip"], st["loosePass"] = args.stake, args.bank, args.slip, args.loose
-    bot = Bot({}, st)
+    bot = Bot({"publishEvery": args.publish_every}, st)
     bot.log(f"bot started — {st['asset']} · {st['profile']} · strict 10/10 + loose {args.loose}/10 · "
             f"${st['stake']:g} stake · +{st['slip']:g}c slip · state={args.state}")
     last_pub = 0

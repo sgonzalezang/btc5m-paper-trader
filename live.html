@@ -144,10 +144,15 @@ async function render(){
   const st=await fetchState();
   if(!st){ $("dot").className="dot stale"; $("hbState").textContent="No data published yet";
     $("hbMeta").textContent="— once the bot runs with --publish, this fills in."; return; }
-  const hbAge=Date.now()-(st.heartbeat||0), stale=hbAge>15*60*1000;   // >15 min = something's wrong
+  // The bot publishes every `publishEvery` seconds (sooner on a settled trade),
+  // and the CDN can add a few minutes. Stale = two missed publishes + slack.
+  const pubEvery=(st.publishEvery||1800)*1000;
+  const hbAge=Date.now()-(st.heartbeat||0), stale=hbAge>2*pubEvery+5*60*1000;
+  HB={heartbeat:st.heartbeat||0, pubEvery};
   $("dot").className="dot "+(stale?"stale":"ok");
   $("hbState").textContent=stale?"Bot may be DOWN":"Bot alive";
-  $("hbMeta").textContent=`last heartbeat ${ago(st.heartbeat)} · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10 · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · +${st.slip}¢ slip`;
+  $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10 · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · +${st.slip}¢ slip`;
+  tickCd();
   const eng=st.btc&&st.btc.engines||{strict:{trades:[]},loose:{trades:[]}};
   const S=st.summary||{};
   const col=(id,label,hue,need)=>`<div class="col"><h2><span style="color:${hue}">${label}</span><span>needs ${need}/10</span></h2>`
@@ -157,7 +162,18 @@ async function render(){
     +`<h3 class="sec">Activity log</h3><div class="log">`
     +((st.log||[]).map(l=>`<div><b>${new Date(l.t).toLocaleTimeString()}</b> — ${esc(l.msg)}</div>`).join("")||"<div>No activity.</div>")+`</div>`;
 }
-render(); setInterval(render, 60000);
+// live countdown to the next expected snapshot: publish cadence + ~75s of
+// CDN/refresh slack past the last heartbeat. Settles publish sooner.
+let HB=null;
+function tickCd(){
+  const el=$("cd"); if(!el||!HB){ return; }
+  const due=HB.heartbeat+HB.pubEvery+75000, left=due-Date.now();
+  if(left>0){
+    const m=Math.floor(left/60000), s=Math.floor(left%60000/1000);
+    el.textContent=`next update ≤ ${m}:${String(s).padStart(2,"0")} (sooner on a settle)`;
+  } else el.textContent="fresh snapshot due any moment…";
+}
+render(); setInterval(render, 60000); setInterval(tickCd, 1000);
 </script>
 </body>
 </html>

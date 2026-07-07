@@ -20,5 +20,5 @@ exec caffeinate -i /usr/bin/env python3 btc5m_bot.py \
   --publish \
   --branch data \
   --repo-dir "$REPO" \
-  --publish-every 1800 \
+  --publish-every 300 \
   >> "$(pwd)/bot.log" 2>&1
