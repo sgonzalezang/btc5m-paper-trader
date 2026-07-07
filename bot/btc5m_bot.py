@@ -50,6 +50,17 @@ PROFILES = {
         dayLossPct=15),
 }
 ENGINES = ["strict", "loose"]
+# Guards the loose engine must have GREEN regardless of its N/10 count. The
+# backtest (2026-07-06, 21 honest trades) showed loose entries that skipped
+# Stable2tick — filling on a jumpy/stale quote — lost badly (-26pp edge), while
+# requiring it turned the engine from -168 to +9. It's also principled: never
+# fill on an unstable quote. Configurable via --loose-must (comma-separated
+# guard keys, or "none").
+LOOSE_MANDATORY = ("Stable2tick",)
+GUARD_KEYS = ("Market found", "Window", "Move>=thr", "Skew>=mid", "Ask<=cap",
+              "Spread<=max", "Fresh", "Stable2tick", "Depth>=min", "RiskCaps")
+GUARD_ABBR = {"Market found": "M", "Window": "W", "Move>=thr": "Δ", "Skew>=mid": "K", "Ask<=cap": "A",
+              "Spread<=max": "S", "Fresh": "F", "Stable2tick": "T", "Depth>=min": "D", "RiskCaps": "R"}
 
 # ---------- small helpers ----------
 def now_ms(): return int(time.time() * 1000)
@@ -281,6 +292,7 @@ class Bot:
     def prof(self): return PROFILES[self.st["profile"]]
     def asset(self): return ASSETS[self.st["asset"]]
     def eng_pass(self, eid): return int(clampf(self.st["loosePass"], 1, 10, 6)) if eid == "loose" else 10
+    def eng_must(self, eid): return tuple(self.st.get("looseMust", LOOSE_MANDATORY)) if eid == "loose" else ()
     def trades(self, eid): return self.st["engines"][eid]["trades"]
     def open_trade(self, eid): return next((t for t in self.trades(eid) if t["status"] == "open"), None)
     def trade_for(self, eid, t0):
@@ -342,11 +354,15 @@ class Bot:
         ]
         passc = sum(1 for _, ok in checks if ok)
         need = self.eng_pass(eid)
+        must = self.eng_must(eid)
+        okmap = {k: o for k, o in checks}
+        must_ok = all(okmap.get(k, False) for k in must)   # mandatory guards must be green
         allp = passc == len(checks)
         can_fill = bool(q and q["ask"] is not None and left is not None and left > 0
                         and not opent and not dup and dn < prof["maxDay"] and dpnl > -loss_cap)
         ev = dict(t=now, side=side, delta=delta, q=q, mid=mid, spread=spread, left=left,
-                  checks=checks, passCount=passc, need=need, all=allp, enter=(passc >= need and can_fill))
+                  checks=checks, passCount=passc, need=need, must=list(must), mustOk=must_ok,
+                  all=allp, enter=(passc >= need and must_ok and can_fill))
         self.eng[eid]["eval"] = ev
         return ev
 
@@ -590,6 +606,7 @@ def _zero_life(): return dict(trimmed=0, settled=0, wins=0, losses=0, stopped=0,
 def default_state(args):
     return {"on": True, "auto": True, "profile": "conservative", "asset": args.asset,
             "stake": args.stake, "bank": args.bank, "slip": args.slip, "loosePass": args.loose,
+            "looseMust": list(getattr(args, "loose_must", None) or LOOSE_MANDATORY),
             "startedAt": now_ms(),
             "lifetime": {e: _zero_life() for e in ENGINES},   # totals for trades trimmed out of the list
             "engines": {e: {"trades": []} for e in ENGINES}}
@@ -600,6 +617,8 @@ def sanitize(o, args):
             if o.get(k) in (PROFILES if k == "profile" else ASSETS): d[k] = o[k]
         for k in ("stake", "bank", "slip", "loosePass", "startedAt"):
             if isinstance(o.get(k), (int, float)): d[k] = o[k]
+        if isinstance(o.get("looseMust"), list):
+            d["looseMust"] = [k for k in GUARD_KEYS if k in o["looseMust"]]
         lf = o.get("lifetime")
         if isinstance(lf, dict):
             for e in ENGINES:
@@ -640,10 +659,11 @@ def snapshot(bot):
             "asset": st["asset"], "profile": st["profile"], "stake": st["stake"],
             "bank": st["bank"], "startedAt": st.get("startedAt"),
             "slip": st["slip"], "loosePass": st["loosePass"],
+            "looseMust": st.get("looseMust", list(LOOSE_MANDATORY)),
             "summary": {e: summ(e) for e in ENGINES},
             "log": bot.logs[:30],
             "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip",
-                                       "loosePass", "startedAt", "lifetime", "engines")}}
+                                       "loosePass", "looseMust", "startedAt", "lifetime", "engines")}}
 def save_state(path, bot):
     tmp = path + ".tmp"
     with open(tmp, "w") as f: json.dump(snapshot(bot), f, separators=(",", ":"))
@@ -715,6 +735,21 @@ def selftest():
     ok(not es["enter"] and es["passCount"] < 10, "strict rejects sub-10/10", str(es["passCount"]))
     ok(el["enter"] == (el["passCount"] >= 6), "loose enters iff >=6/10",
        f"{el['passCount']}/10 enter={el['enter']}")
+    # loose mandatory guard (Stable2tick): 7/10 with a jumpy quote must NOT enter
+    bm = Bot({}, default_state(A))
+    base = dict(t0=ns-210, t1=ns+400, ev=True, evClosed=False, slug="m", tokUp="1", tokDown="2",  # t1 far → Window red
+                upBid=0.64, upAsk=0.66, pUp=0.65, gAt=now,
+                bookUp={"bid":0.64,"ask":0.66,"asks":[[0.66,300]],"bids":[[0.64,300]],"topAskUsd":198,"mirrorTopUsd":108,"at":now})
+    base["bookDown"]=mirror(base["bookUp"])
+    bm.mkt = base
+    bm.feed = {"src":"Coinbase","open":100000,"last":100010,"at":now,"t0":base["t0"]}   # tiny move → Move red
+    bm.prev_quote = {"side":"up","ask":0.40,"t":now-4000}                                # ask jumped 26c → Stable red
+    eA = bm.evaluate(now, "loose")
+    ok(eA["passCount"] >= 6 and not eA["mustOk"] and not eA["enter"],
+       "loose blocks entry when Stable2tick red", f"pass={eA['passCount']} mustOk={eA['mustOk']}")
+    bm.prev_quote = {"side":"up","ask":0.66,"t":now-4000}                                # stable now → Stable green
+    eB = bm.evaluate(now, "loose")
+    ok(eB["mustOk"] and eB["enter"], "loose enters when Stable2tick green", f"pass={eB['passCount']} enter={eB['enter']}")
     # stop-loss
     st3 = default_state(A); b3 = Bot({}, st3)
     b3.mkt = dict(t0=ns-100, t1=ns+200, ev=True, evClosed=False, slug="s", tokUp="1", tokDown="2",
@@ -802,16 +837,22 @@ def main():
     ap.add_argument("--publish-every", type=int, default=1800, help="min seconds between publishes")
     ap.add_argument("--fee-rate", type=float, default=FEE_RATE, help="Polymarket taker fee rate (crypto 0.07)")
     ap.add_argument("--gas", type=float, default=GAS_USD, help="per-trade gas (USD)")
+    ap.add_argument("--loose-must", default=",".join(LOOSE_MANDATORY),
+                    help="guards loose must have green (comma-separated keys, or 'none')")
     args = ap.parse_args()
     FEE_RATE, GAS_USD = args.fee_rate, args.gas
+    args.loose_must = [] if args.loose_must.strip().lower() == "none" else \
+                      [k for k in GUARD_KEYS if k in [x.strip() for x in args.loose_must.split(",")]]
     if args.selftest: sys.exit(selftest())
 
     st = load_state(args.state, args)
     st["profile"] = args.profile
     st["asset"] = args.asset if args.asset else st["asset"]
     st["stake"], st["bank"], st["slip"], st["loosePass"] = args.stake, args.bank, args.slip, args.loose
+    st["looseMust"] = args.loose_must
     bot = Bot({"publishEvery": args.publish_every}, st)
-    bot.log(f"bot started — {st['asset']} · {st['profile']} · strict 10/10 + loose {args.loose}/10 · "
+    must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
+    bot.log(f"bot started — {st['asset']} · {st['profile']} · strict 10/10 + loose {args.loose}/10{must_lbl} · "
             f"${st['stake']:g} stake · +{st['slip']:g}c slip · state={args.state}")
     last_pub = 0
     last_settled = {e: sum(1 for t in bot.trades(e) if t["status"] == "settled") for e in ENGINES}

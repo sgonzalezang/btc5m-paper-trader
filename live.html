@@ -134,10 +134,13 @@ function guardChips(t){
     return `<i class="${g[1]?"g1":"g0"}" title="${esc(G[1])} — ${g[1]?"✓ met":"✗ not met"} at entry">${G[0]}</i>`;
   }).join("")+'</span>';
 }
-function guardKey(){
-  return '<div class="col" style="margin-top:16px"><h2>Guard key <span>green = met at entry · red = not met · hover any chip</span></h2>'
-    +'<div class="gkey">'+Object.values(GUARDS).map(G=>
-      `<span><i class="gd"><i class="g1">${G[0]}</i></i> ${esc(G[1])}</span>`).join("")+'</div></div>';
+function guardKey(must){
+  must=must||[];
+  const abbr=must.map(k=>(GUARDS[k]||[k])[0]);
+  return '<div class="col" style="margin-top:16px"><h2>Guard key <span>green = met at entry · red = not met · hover any chip'
+    +(must.length?` · ★ = loose must have this green`:"")+'</span></h2>'
+    +'<div class="gkey">'+Object.entries(GUARDS).map(([k,G])=>
+      `<span><i class="gd"><i class="g1">${G[0]}</i></i> ${esc(G[1])}${abbr.includes(G[0])?' <b title="loose engine requires this guard green to enter">★</b>':''}</span>`).join("")+'</div></div>';
 }
 const PAGE=25;                       // rows revealed per "show more"
 const SHOWN={strict:PAGE, loose:PAGE};
@@ -178,13 +181,16 @@ function draw(st){
   // (usually CDN lag), red = two missed publishes + slack.
   HB={heartbeat:st.heartbeat||0, pubEvery:(st.publishEvery||1800)*1000};
   const S=st.summary||{}, feesTot=((S.strict||{}).feesPaid||0)+((S.loose||{}).feesPaid||0);
-  $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10 · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · real fills, fees paid $${feesTot.toFixed(2)}`;
+  const must=(st.looseMust||[]), mustAbbr=must.map(k=>(GUARDS[k]||[k])[0]).join("/");
+  const mustTxt=must.length?` + ${mustAbbr} required`:"";
+  $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
   const eng=st.btc&&st.btc.engines||{strict:{trades:[]},loose:{trades:[]}};
-  const col=(id,label,hue,need)=>`<div class="col"><h2><span style="color:${hue}">${label}</span><span>needs ${need}/10</span></h2>`
+  const needLbl=(id,need)=> id==="loose"&&must.length ? `needs ${need}/10 + <b title="mandatory: ${must.map(k=>(GUARDS[k]||['',k])[1]).join('; ')}">${esc(mustAbbr)}</b>` : `needs ${need}/10`;
+  const col=(id,label,hue,need)=>`<div class="col"><h2><span style="color:${hue}">${label}</span><span>${needLbl(id,need)}</span></h2>`
     +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
   $("body").innerHTML=`<div class="books">${col("strict","Strict","var(--btc)",10)}${col("loose","Loose","var(--blue)",st.loosePass||6)}</div>`
-    +guardKey()
+    +guardKey(must)
     +`<h3 class="sec">Activity log</h3><div class="log">`
     +((st.log||[]).map(l=>`<div><b>${new Date(l.t).toLocaleTimeString()}</b> — ${esc(l.msg)}</div>`).join("")||"<div>No activity.</div>")+`</div>`;
 }
