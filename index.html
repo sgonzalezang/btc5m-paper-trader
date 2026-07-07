@@ -672,10 +672,19 @@ function renderBtcLife(){
     +'<div class="tr-lab" style="margin-top:6px"><a class="pmlink" href="live.html">full live ledger — both engines, guard detail →</a></div></div>';
 }
 async function btcLifeFetch(){
+  // raw CDN lags pushes by up to ~5 min; also ask the GitHub API (fresher,
+  // rate-limited — fine at this 5-min cadence) and keep the newest heartbeat.
+  let best=null;
   try{
     const r=await fetch("https://raw.githubusercontent.com/sgonzalezang/btc5m-paper-trader/data/state.json?ts="+Date.now(),{cache:"no-store"});
-    if(r.ok){ BTC_LIFE=await r.json(); renderBtcLife(); }
+    if(r.ok) best=await r.json();
   }catch(e){}
+  try{
+    const r=await fetch("https://api.github.com/repos/sgonzalezang/btc5m-paper-trader/contents/state.json?ref=data",
+      {cache:"no-store",headers:{Accept:"application/vnd.github.raw"}});
+    if(r.ok){ const s=await r.json(); if(!best||(s.heartbeat||0)>(best.heartbeat||0)) best=s; }
+  }catch(e){}
+  if(best){ BTC_LIFE=best; renderBtcLife(); }
 }
 function renderEngineLedger(id){
   const eng=btcEngById(id), trs=btcTrades(id), need=btcEngPass(id);

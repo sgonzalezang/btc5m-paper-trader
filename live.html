@@ -69,13 +69,27 @@ const $=id=>document.getElementById(id);
 const esc=s=>(s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 function ago(ms){ if(!ms)return "never"; let s=Math.max(0,Math.floor((Date.now()-ms)/1000));
   if(s<60)return s+"s ago"; if(s<3600)return Math.floor(s/60)+"m ago"; return Math.floor(s/3600)+"h "+Math.floor(s%3600/60)+"m ago"; }
+// raw.githubusercontent lags up to ~5 min behind a push; the GitHub API is
+// fresher but rate-limited (60/hr unauthenticated), so it is polled at most
+// once per 5 min and the newest-heartbeat snapshot wins.
+const API=`https://api.github.com/repos/${OWNER}/${REPO}/contents/state.json?ref=${BRANCH}`;
+let lastApiAt=0;
 async function fetchState(){
+  let best=null;
   for(const w of PROXIES){
     try{ const r=await fetch(w(RAW+"?t="+Date.now()),{cache:"no-store"});
-      if(r.ok){ $("src").textContent="raw.githubusercontent.com/"+OWNER+"/"+REPO+" ("+BRANCH+")"; return JSON.parse(await r.text()); } }
+      if(r.ok){ best=JSON.parse(await r.text()); break; } }
     catch(e){}
   }
-  return null;
+  if(Date.now()-lastApiAt>5*60*1000){
+    lastApiAt=Date.now();
+    try{ const r=await fetch(API,{cache:"no-store",headers:{Accept:"application/vnd.github.raw"}});
+      if(r.ok){ const s=JSON.parse(await r.text());
+        if(!best||(s.heartbeat||0)>(best.heartbeat||0)) best=s; } }
+    catch(e){}
+  }
+  if(best) $("src").textContent=OWNER+"/"+REPO+" ("+BRANCH+" branch)";
+  return best;
 }
 function tiles(s){
   const be = s.avgEntry!=null?s.avgEntry+"¢":"—";
