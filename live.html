@@ -35,6 +35,8 @@
   .gd{white-space:nowrap}
   .gd i{display:inline-block;font-style:normal;font-size:9px;width:13px;height:13px;line-height:13px;text-align:center;border-radius:3px;margin:0 1px;font-weight:700;cursor:default}
   .gd .g1{background:#173527;color:var(--up)}.gd .g0{background:#3a231c;color:var(--dn)}
+  .gkey{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:4px 14px;font-size:12px;color:var(--mut);margin-top:4px}
+  .gkey span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .up{color:var(--up)}.dn{color:var(--dn)}
   .log{font-size:12px;color:var(--mut);max-height:220px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:14px}
   .log div{padding:2px 0;border-top:1px dashed #242c36}.log div:first-child{border-top:none}
@@ -86,14 +88,30 @@ function tiles(s){
   </div>`;
 }
 // per-trade guard snapshot: which of the 10 checks were green at entry.
-// Abbreviations map to the bot's check names; hover a chip for the full name.
-const GUARD_ABBR={"Market found":"M","Window":"W","Move>=thr":"Δ","Skew>=mid":"K","Ask<=cap":"A",
-  "Spread<=max":"S","Fresh":"F","Stable2tick":"T","Depth>=min":"D","RiskCaps":"R"};
+// One map drives both the chips and the key below the ledgers, so they
+// can't drift apart. Keys are the bot's check names.
+const GUARDS={
+  "Market found":["M","market found on Polymarket"],
+  "Window":["W","entry window — 60–150s left in the interval"],
+  "Move>=thr":["Δ","BTC moved ≥ 0.1% of interval open"],
+  "Skew>=mid":["K","skew agrees — crowd prices side ≥ 52¢"],
+  "Ask<=cap":["A","ask ≤ 70¢ price cap"],
+  "Spread<=max":["S","spread ≤ 3¢"],
+  "Fresh":["F","quotes fresh (book 8s / feed 15s)"],
+  "Stable2tick":["T","quote stable vs previous tick (≤15¢)"],
+  "Depth>=min":["D","top-ask depth ≥ $30"],
+  "RiskCaps":["R","risk caps — no open/dup trade, under daily loss stop"]};
 function guardChips(t){
   if(!Array.isArray(t.guards)||!t.guards.length) return '—';
-  return '<span class="gd">'+t.guards.map(g=>
-    `<i class="${g[1]?"g1":"g0"}" title="${esc(g[0])} ${g[1]?"✓ passed":"✗ not met"} at entry">${GUARD_ABBR[g[0]]||"?"}</i>`
-  ).join("")+'</span>';
+  return '<span class="gd">'+t.guards.map(g=>{
+    const G=GUARDS[g[0]]||["?",g[0]];
+    return `<i class="${g[1]?"g1":"g0"}" title="${esc(G[1])} — ${g[1]?"✓ met":"✗ not met"} at entry">${G[0]}</i>`;
+  }).join("")+'</span>';
+}
+function guardKey(){
+  return '<div class="col" style="margin-top:16px"><h2>Guard key <span>green = met at entry · red = not met · hover any chip</span></h2>'
+    +'<div class="gkey">'+Object.values(GUARDS).map(G=>
+      `<span><i class="gd"><i class="g1">${G[0]}</i></i> ${esc(G[1])}</span>`).join("")+'</div></div>';
 }
 function rows(trades){
   if(!trades||!trades.length) return '<div class="lab" style="margin-top:8px">No trades yet.</div>';
@@ -121,6 +139,7 @@ async function render(){
   const col=(id,label,hue,need)=>`<div class="col"><h2><span style="color:${hue}">${label}</span><span>needs ${need}/10</span></h2>`
     +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades)+`</div>`;
   $("body").innerHTML=`<div class="books">${col("strict","Strict","var(--btc)",10)}${col("loose","Loose","var(--blue)",st.loosePass||6)}</div>`
+    +guardKey()
     +`<h3 class="sec">Activity log</h3><div class="log">`
     +((st.log||[]).map(l=>`<div><b>${new Date(l.t).toLocaleTimeString()}</b> — ${esc(l.msg)}</div>`).join("")||"<div>No activity.</div>")+`</div>`;
 }
