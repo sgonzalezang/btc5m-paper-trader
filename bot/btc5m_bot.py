@@ -182,12 +182,13 @@ def book(token_id):
     if ask is None and bid is None: return None
     return {"bid": bid, "ask": ask,
             "topAskUsd": ask*ask_sz if ask is not None else None,
-            "mirrorTopUsd": (1-bid)*bid_sz if bid is not None else None}
+            "mirrorTopUsd": (1-bid)*bid_sz if bid is not None else None,
+            "at": now_ms()}
 def mirror(b):
     if not b: return None
     return {"bid": round(1-b["ask"], 4) if b["ask"] is not None else None,
             "ask": round(1-b["bid"], 4) if b["bid"] is not None else None,
-            "topAskUsd": b["mirrorTopUsd"], "mirrorTopUsd": b["topAskUsd"]}
+            "topAskUsd": b["mirrorTopUsd"], "mirrorTopUsd": b["topAskUsd"], "at": b["at"]}
 
 # ---------- the engine (pure; mirrors the JS btcEvaluate) ----------
 class Bot:
