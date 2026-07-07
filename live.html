@@ -47,7 +47,13 @@
   .more{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer}
   .more:hover{border-color:var(--btc)}
   .rowinfo{font-size:11px;color:var(--mut)}
-  .eqsvg{width:100%;height:auto;display:block;margin-top:6px}
+  .eqctrl{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 2px}
+  .eqctrl button{background:var(--panel2);color:var(--mut);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:12px;cursor:pointer;font-variant-numeric:tabular-nums}
+  .eqctrl button:hover{border-color:var(--btc)}
+  .eqctrl button.on{background:var(--btc);color:#0d1116;border-color:var(--btc);font-weight:700}
+  .eqscroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;margin-top:4px;border-radius:8px}
+  .eqsvg{display:block}
+  .eqgrid{stroke:var(--line);stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
   .eqloose{fill:none;stroke:var(--blue);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqvariant{fill:none;stroke:#8f7bff;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqstrict{fill:none;stroke:var(--btc);stroke-width:1.6;opacity:.7;vector-effect:non-scaling-stroke;stroke-linejoin:round}
@@ -200,40 +206,73 @@ function eqSeries(st, id){
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
 const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},variant:{label:"variant",lg:"lg-v",cls:"eqvariant"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
+const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
+// timeframe: spanH = hours of history shown per screen width (wider SVG scrolls
+// horizontally — finger-swipe on mobile); null = fit-all. daily = one point per
+// local day sampled at 11:55pm ("daily close" before the next day's markets).
+let VIEW={spanH:null, daily:false};
+const SPANS=[["3h",3],["6h",6],["12h",12],["24h",24],["3d",72],["7d",168],["All",null]];
+function eqSyncCtrl(){
+  var bs=document.querySelectorAll('.eqctrl button');
+  for(var i=0;i<bs.length;i++){ var b=bs[i];
+    b.classList.toggle('on', b.dataset.daily ? VIEW.daily : (!VIEW.daily && String(b.dataset.span)===String(VIEW.spanH))); }
+}
+function setSpan(h){ VIEW.spanH=h; VIEW.daily=false; eqSyncCtrl(); layoutChart(true); }
+function toggleDaily(){ VIEW.daily=!VIEW.daily; eqSyncCtrl(); layoutChart(true); }
+function dailyClose(series){
+  if(series.length<1) return series.slice();
+  const out=[]; let cur=new Date(series[0][0]); cur.setHours(23,55,0,0);
+  if(cur.getTime()<series[0][0]) cur.setDate(cur.getDate()+1);
+  const end=series[series.length-1][0];
+  while(cur.getTime()<end){ out.push([cur.getTime(), stepVal(series,cur.getTime())]); cur.setDate(cur.getDate()+1); }
+  out.push(series[series.length-1]);                       // latest (partial day)
+  return out;
+}
 function equityChart(st){
-  // Each engine is its OWN book — separate cumulative-P&L line, no summed
-  // portfolio (loose and variant take different trades; combining them hides
-  // the comparison). They race from 0 on the same time axis.
-  const D=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
-  const fT=t=>new Date(t).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
   const engs=["loose","variant","strict"];
   const S={}; engs.forEach(e=>S[e]=eqSeries(st,e));
-  const withData=engs.filter(e=>S[e].length);
-  const legend='<span class="eqlegend">'+withData.map(e=>{const n=S[e][S[e].length-1][1];
-    return `<b class="${ENGMETA[e].lg}">━</b> ${ENGMETA[e].label} <b class="${n>=0?'eqpos':'eqneg'}">${D(n)}</b>`;
+  const legend='<span class="eqlegend">'+engs.filter(e=>S[e].length).map(e=>{const n=S[e][S[e].length-1][1];
+    return `<b class="${ENGMETA[e].lg}">━</b> ${ENGMETA[e].label} <b class="${n>=0?'eqpos':'eqneg'}">${D$(n)}</b>`;
   }).join(' &nbsp; ')+'</span>';
-  const drawable=engs.filter(e=>S[e].length>=2);
-  if(!drawable.length)
-    return '<div class="col" style="margin-bottom:16px"><h2>Engine P&amp;L — separate books '+legend+'</h2>'
-      +'<div class="lab" style="padding:12px 2px">Each engine’s line appears once it has 2+ settled trades.</div></div>';
-  const W=800,H=220,padL=8,padR=8,padT=14,padB=6;
-  const allpts=engs.flatMap(e=>S[e]);
-  const ts=allpts.map(p=>p[0]), t0=Math.min(...ts), t1=Math.max(...ts);
-  const vs=allpts.map(p=>p[1]);
-  let vmin=Math.min(0,...vs), vmax=Math.max(0,...vs); if(vmin===vmax){vmin-=1;vmax+=1;}
-  const gp=(vmax-vmin)*0.08; vmin-=gp; vmax+=gp;
-  const X=t=>padL+(t1===t0?0.5:(t-t0)/(t1-t0))*(W-padL-padR);
-  const Y=v=>padT+(1-(v-vmin)/(vmax-vmin))*(H-padT-padB);
-  const poly=(pts,cls)=>pts.length<2?"":`<polyline class="${cls}" points="${pts.map(p=>X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)).join(" ")}"/>`;
-  const z=Y(0);
-  const lines=engs.map(e=>poly(S[e],ENGMETA[e].cls)).join("");
-  const dots=drawable.map(e=>{const p=S[e][S[e].length-1];
-    return `<circle class="${ENGMETA[e].cls.replace('eq','eqd-')}" cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3.2"/>`;}).join("");
+  const ctrl='<div class="eqctrl">'+SPANS.map(sp=>`<button data-span="${sp[1]}" class="${VIEW.spanH===sp[1]&&!VIEW.daily?'on':''}" onclick="setSpan(${sp[1]})">${sp[0]}</button>`).join('')
+    +`<button data-daily="1" class="${VIEW.daily?'on':''}" onclick="toggleDaily()" title="one point per day at 11:55pm local (daily close)">Daily</button></div>`;
+  // SVG is filled by layoutChart() after insert (needs the container width)
   return '<div class="col" style="margin-bottom:16px"><h2>Engine P&amp;L — separate books '+legend+'</h2>'
-    +`<svg viewBox="0 0 ${W} ${H}" class="eqsvg" preserveAspectRatio="none">`
-    +`<line class="eqzero" x1="${padL}" y1="${z.toFixed(1)}" x2="${W-padR}" y2="${z.toFixed(1)}"/>`
-    +lines+dots+`</svg>`
-    +`<div class="eqmeta"><span>${fT(t0)}</span><span>cumulative P&amp;L per engine · each starts at $0</span><span>${fT(t1)}</span></div></div>`;
+    +ctrl+'<div class="eqscroll" id="eqscroll"><div class="lab" style="padding:12px 2px">…</div></div>'
+    +'<div class="eqmeta" id="eqmeta"></div></div>';
+}
+function layoutChart(userAction, _try){
+  const wrap=document.getElementById("eqscroll"); if(!wrap||!LAST) return;
+  const cw=wrap.clientWidth||Math.round(wrap.getBoundingClientRect().width);
+  if(!cw){ if((_try||0)<20) setTimeout(()=>layoutChart(userAction,(_try||0)+1), 40); return; }  // wait for layout to flush
+  const engs=["loose","variant","strict"];
+  const S={}; engs.forEach(e=>{let s=eqSeries(LAST,e); if(VIEW.daily) s=dailyClose(s); S[e]=s;});
+  const all=engs.flatMap(e=>S[e]);
+  if(all.length<2){ wrap.innerHTML='<div class="lab" style="padding:12px 2px">'+(VIEW.daily?'Need at least 2 daily closes — check back after a day or two.':'Each engine’s line appears once it has 2+ trades.')+'</div>'; return; }
+  const ts=all.map(p=>p[0]), t0=Math.min(...ts), t1=Math.max(...ts);
+  const totalH=(t1-t0)/3600e3, H=220, padT=14, padB=8;
+  const Wpx = VIEW.spanH ? Math.max(cw, Math.round(cw*totalH/VIEW.spanH)) : cw;   // wider than screen → scroll
+  const vs=all.map(p=>p[1]); let vmin=Math.min(0,...vs), vmax=Math.max(0,...vs); if(vmin===vmax){vmin-=1;vmax+=1;}
+  const gp=(vmax-vmin)*0.08; vmin-=gp; vmax+=gp;
+  const X=t=> t1===t0?Wpx/2 : (t-t0)/(t1-t0)*Wpx;
+  const Y=v=> padT+(1-(v-vmin)/(vmax-vmin))*(H-padT-padB);
+  const poly=(pts,cls)=>pts.length<2?"":`<polyline class="${cls}" points="${pts.map(p=>X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)).join(" ")}"/>`;
+  const dot=e=>{const p=S[e][S[e].length-1]; return (p&&S[e].length>=2)?`<circle class="${ENGMETA[e].cls.replace('eq','eqd-')}" cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3"/>`:"";};
+  // faint vertical line at each local midnight (day boundaries) when it won't be too dense
+  let grid="";
+  const days=(t1-t0)/864e5;
+  if(days<=60){ let d=new Date(t0); d.setHours(0,0,0,0); if(d.getTime()<t0) d.setDate(d.getDate()+1);
+    for(;d.getTime()<=t1;d.setDate(d.getDate()+1)){ const x=X(d.getTime()).toFixed(1); grid+=`<line class="eqgrid" x1="${x}" y1="0" x2="${x}" y2="${H}"/>`; } }
+  const z=Y(0);
+  const svg=`<svg class="eqsvg" width="${Wpx}" height="${H}" viewBox="0 0 ${Wpx} ${H}" preserveAspectRatio="none" style="width:${Wpx}px;height:${H}px">`
+    +grid+`<line class="eqzero" x1="0" y1="${z.toFixed(1)}" x2="${Wpx}" y2="${z.toFixed(1)}"/>`
+    +engs.map(e=>poly(S[e],ENGMETA[e].cls)).join("")+engs.map(dot).join("")+`</svg>`;
+  const wasRight = wrap.scrollWidth-wrap.clientWidth-wrap.scrollLeft < 6, prevLeft=wrap.scrollLeft;
+  wrap.innerHTML=svg;
+  wrap.scrollLeft = (userAction||wasRight) ? wrap.scrollWidth : prevLeft;   // keep viewing latest unless panned
+  const fT=t=>new Date(t).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+  const m=document.getElementById("eqmeta");
+  if(m) m.innerHTML=`<span>${fT(t0)}</span><span>${VIEW.daily?"daily close · 11:55pm":(VIEW.spanH?VIEW.spanH+"h/screen · swipe ←→":"full history")}</span><span>${fT(t1)}</span>`;
 }
 let LAST=null;
 async function render(){
@@ -272,7 +311,9 @@ function draw(st){
     +guardKey(must)
     +`<h3 class="sec">Activity log</h3><div class="log">`
     +((st.log||[]).map(l=>`<div><b>${new Date(l.t).toLocaleTimeString()}</b> — ${esc(l.msg)}</div>`).join("")||"<div>No activity.</div>")+`</div>`;
+  layoutChart();   // fill the chart SVG now that #eqscroll exists and has a width
 }
+let _eqrz; addEventListener("resize",()=>{ clearTimeout(_eqrz); _eqrz=setTimeout(()=>layoutChart(),150); });
 // live countdown + traffic-light dot, re-evaluated every second:
 //   green (pulsing)  — next snapshot still due: countdown shown
 //   orange (pulsing) — slightly overdue / between updates (usually CDN lag)
