@@ -59,8 +59,8 @@ PROFILES = {
 #  strict  — all 10 guards (has not fired in practice; kept as a control)
 ENGINES = ["loose", "variant", "strict"]
 ENGINE_CFG = {
-    "loose":   dict(label="Loose",   tunable=True,  driftMax=None, entryMax=None),
-    "variant": dict(label="Variant", tunable=True,  driftMax=0.02, entryMax=0.65),
+    "loose":   dict(label="Loose",   tunable=True,  driftMax=None, entryMax=0.65),   # cap added 2026-07-07: MC showed >=66c net-negative, 70c+ a disaster
+    "variant": dict(label="Variant", tunable=True,  driftMax=0.02, entryMax=0.65),   # loose + the drift filter (now the ONLY difference is drift)
     "strict":  dict(label="Strict",  tunable=False, driftMax=None, entryMax=None),
 }
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
@@ -702,6 +702,7 @@ def snapshot(bot):
             "slip": st["slip"], "loosePass": st["loosePass"],
             "looseMust": st.get("looseMust", list(LOOSE_MANDATORY)),
             "hedgeOn": st.get("hedgeOn", False),
+            "engineCfg": {e: {"entryMax": ENGINE_CFG[e]["entryMax"], "driftMax": ENGINE_CFG[e]["driftMax"]} for e in ENGINES},
             "feed": {"src": bot.feed.get("src"), "price": bot.feed.get("last"),
                      "open": bot.feed.get("open"), "t0": bot.feed.get("t0"), "at": bot.feed.get("at")},
             "summary": {e: summ(e) for e in ENGINES},
@@ -769,11 +770,13 @@ def selftest():
     tr = bot.trades("strict")[0]
     ok(abs(tr["entry"] - 0.67) < 1e-9, "entry = 66c ask + 1c slip", str(tr["entry"]))
     ok(abs(tr["shares"] - 5/0.67) < 1e-3, "shares = stake/fill")
-    # loose threshold: an 8/10 scenario should NOT enter strict but SHOULD enter loose
+    # loose threshold: an 8/10 scenario (cheap fill) should NOT enter strict but SHOULD enter loose
     st2 = default_state(A); b2 = Bot({}, st2)
-    b2.mkt = dict(bot.mkt); b2.mkt["upAsk"]=0.80; b2.mkt["bookUp"]={"bid":0.78,"ask":0.82,"topAskUsd":160,"mirrorTopUsd":40,"at":now}
-    b2.mkt["bookDown"]=mirror(b2.mkt["bookUp"]); b2.mkt["t1"]=ns+400   # ask>cap AND outside window → ~8/10
-    b2.feed = dict(bot.feed); b2.prev_quote = {"side":"up","ask":0.82,"t":now-4000}
+    b2.mkt = dict(bot.mkt); b2.mkt["upBid"]=0.57; b2.mkt["upAsk"]=0.58
+    b2.mkt["bookUp"]={"bid":0.57,"ask":0.58,"asks":[[0.58,300]],"bids":[[0.57,300]],"topAskUsd":174,"mirrorTopUsd":129,"at":now}
+    b2.mkt["bookDown"]=mirror(b2.mkt["bookUp"]); b2.mkt["t1"]=ns+400   # window red
+    b2.feed = dict(bot.feed); b2.feed["last"]=100010                  # tiny move → Move red → 8/10 (window+move red)
+    b2.prev_quote = {"side":"up","ask":0.58,"t":now-4000}             # stable
     es = b2.evaluate(now, "strict"); el = b2.evaluate(now, "loose")
     ok(es["passCount"] == el["passCount"], "both engines see same guard count", str(es["passCount"]))
     ok(not es["enter"] and es["passCount"] < 10, "strict rejects sub-10/10", str(es["passCount"]))
@@ -782,16 +785,16 @@ def selftest():
     # loose mandatory guard (Stable2tick): 7/10 with a jumpy quote must NOT enter
     bm = Bot({}, default_state(A))
     base = dict(t0=ns-210, t1=ns+400, ev=True, evClosed=False, slug="m", tokUp="1", tokDown="2",  # t1 far → Window red
-                upBid=0.64, upAsk=0.66, pUp=0.65, gAt=now,
-                bookUp={"bid":0.64,"ask":0.66,"asks":[[0.66,300]],"bids":[[0.64,300]],"topAskUsd":198,"mirrorTopUsd":108,"at":now})
+                upBid=0.57, upAsk=0.58, pUp=0.575, gAt=now,                                        # cheap fill (under 65c cap)
+                bookUp={"bid":0.57,"ask":0.58,"asks":[[0.58,300]],"bids":[[0.57,300]],"topAskUsd":174,"mirrorTopUsd":129,"at":now})
     base["bookDown"]=mirror(base["bookUp"])
     bm.mkt = base
     bm.feed = {"src":"Coinbase","open":100000,"last":100010,"at":now,"t0":base["t0"]}   # tiny move → Move red
-    bm.prev_quote = {"side":"up","ask":0.40,"t":now-4000}                                # ask jumped 26c → Stable red
+    bm.prev_quote = {"side":"up","ask":0.40,"t":now-4000}                                # ask jumped → Stable red
     eA = bm.evaluate(now, "loose")
     ok(eA["passCount"] >= 6 and not eA["mustOk"] and not eA["enter"],
        "loose blocks entry when Stable2tick red", f"pass={eA['passCount']} mustOk={eA['mustOk']}")
-    bm.prev_quote = {"side":"up","ask":0.66,"t":now-4000}                                # stable now → Stable green
+    bm.prev_quote = {"side":"up","ask":0.58,"t":now-4000}                                # stable now → Stable green
     eB = bm.evaluate(now, "loose")
     ok(eB["mustOk"] and eB["enter"], "loose enters when Stable2tick green", f"pass={eB['passCount']} enter={eB['enter']}")
     # variant engine: loose + drift<=0.02% + entry<=65c gates
@@ -810,7 +813,7 @@ def selftest():
     bv.mkt = mkmkt(0.68, 0.67); bv.feed["last"] = 100010                                  # small drift, RICH entry 68c
     bv.prev_quote = {"side":"up","ask":0.68,"t":now-4000}
     lb, vb = bv.evaluate(now,"loose"), bv.evaluate(now,"variant")
-    ok(lb["enter"] and not vb["enter"], "variant blocks rich entry (>65c)", f"loose={lb['enter']} var={vb['enter']}")
+    ok(not lb["enter"] and not vb["enter"], "loose+variant both block rich entry (>65c)", f"loose={lb['enter']} var={vb['enter']}")
     bv.mkt = mkmkt(0.58, 0.57); bv.feed["last"] = 100010                                  # small drift, cheap entry
     bv.prev_quote = {"side":"up","ask":0.58,"t":now-4000}
     vc = bv.evaluate(now,"variant")
@@ -936,8 +939,8 @@ def main():
     st["hedgeOn"] = bool(args.hedge)
     bot = Bot({"publishEvery": args.publish_every}, st)
     must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
-    bot.log(f"bot started — {st['asset']} · {st['profile']} · loose {args.loose}/10{must_lbl} · "
-            f"variant (loose + drift≤0.02% + entry≤65c) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
+    bot.log(f"bot started — {st['asset']} · {st['profile']} · loose {args.loose}/10{must_lbl} + fill≤65c · "
+            f"variant (+ drift≤0.02%) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
             f"${st['stake']:g} stake · +{st['slip']:g}c slip · state={args.state}")
     last_pub = 0
     last_settled = {e: sum(1 for t in bot.trades(e) if t["status"] == "settled") for e in ENGINES}

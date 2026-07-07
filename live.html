@@ -350,9 +350,11 @@ function draw(st){
   const needLbl=(id)=>{
     const need=(S[id]||{}).need||(id==="strict"?10:st.loosePass);
     if(id==="strict") return `needs 10/10`;
+    const cfg=(st.engineCfg||{})[id]||{};
     let l=`needs ${need}/10`;
     if(must.length) l+=` + <b title="mandatory: ${must.map(k=>(GUARDS[k]||['',k])[1]).join('; ')}">${esc(mustAbbr)}</b>`;
-    if(id==="variant") l+=` + <b title="variant only enters when the early drift is ≤0.02% of the interval open (buy the lean, don't chase) AND the price is ≤65¢ (keep breakeven reasonable)">filters</b>`;
+    if(cfg.entryMax!=null) l+=` + <b title="only fills at ≤${Math.round(cfg.entryMax*100)}¢ — the Monte Carlo showed fills ≥66¢ are net-negative">≤${Math.round(cfg.entryMax*100)}¢</b>`;
+    if(cfg.driftMax!=null) l+=` + <b title="only enters when early drift ≤${cfg.driftMax}% of the interval open (buy the lean, don't chase)">drift</b>`;
     return l;
   };
   const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span><span>${needLbl(id)}</span></h2>`
