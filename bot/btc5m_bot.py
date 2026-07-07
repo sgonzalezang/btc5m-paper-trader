@@ -736,6 +736,9 @@ def snapshot(bot):
             "engineCfg": {e: {"entryMax": ENGINE_CFG[e]["entryMax"], "driftMax": ENGINE_CFG[e]["driftMax"]} for e in ENGINES},
             "feed": {"src": bot.feed.get("src"), "price": bot.feed.get("last"),
                      "open": bot.feed.get("open"), "t0": bot.feed.get("t0"), "at": bot.feed.get("at")},
+            "market": ({"slug": bot.mkt.get("slug"), "t0": bot.mkt.get("t0"),
+                        "up": bot.mkt.get("pUp"), "upBid": bot.mkt.get("upBid"), "upAsk": bot.mkt.get("upAsk")}
+                       if bot.mkt and bot.mkt.get("ev") else None),
             "summary": {e: summ(e) for e in ENGINES},
             "log": bot.logs[:30],
             "misses": bot.misses[:30],

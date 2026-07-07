@@ -19,6 +19,7 @@
       border-left:4px solid var(--btc);border-radius:10px;padding:10px 14px;margin:-4px 0 14px;box-shadow:var(--shadow);font-size:13px}
   .btcbar .btcpx{font-size:18px;color:var(--btc);font-variant-numeric:tabular-nums}
   .btcbar .up{color:var(--up)}.btcbar .dn{color:var(--dn)}.btcbar b{font-variant-numeric:tabular-nums}
+  .pml{color:var(--ink);text-decoration:none;border-bottom:1px dashed var(--mut)}.pml:hover{border-bottom-color:var(--btc)}
   .livebar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);
       border-left:4px solid var(--line);border-radius:10px;padding:8px 14px;margin:-4px 0 14px;box-shadow:var(--shadow);font-size:13px}
   .livebar.on{border-left-color:var(--up)}
@@ -458,6 +459,26 @@ async function fetchBtc(){
   return null;
 }
 async function tickBtc(){ const b=await fetchBtc(); if(b) BTCP=b; drawBtcBar(); }
+// --- live Polymarket contract prices for the CURRENT interval ("price to beat")
+const parr=x=>{ if(Array.isArray(x)) return x; if(typeof x==="string"){ try{const a=JSON.parse(x); return Array.isArray(a)?a:null;}catch(e){return null;} } return null; };
+const pnum=x=>{ if(x==null||x==="") return null; const v=+x; return isNaN(v)?null:v; };
+let MKTP=null;
+async function fetchMarket(){
+  const t0=Math.floor(Date.now()/1000/300)*300, slug="btc-updown-5m-"+t0;
+  const url="https://gamma-api.polymarket.com/events?slug="+encodeURIComponent(slug);
+  for(const w of PROXIES){
+    try{ const r=await fetch(w(url),{cache:"no-store"}); if(!r.ok) continue; const j=await r.json();
+      const ev=Array.isArray(j)&&j.length?j[0]:null, mk=ev&&ev.markets&&ev.markets[0]; if(!mk) continue;
+      const outs=parr(mk.outcomes), prices=parr(mk.outcomePrices);
+      let iUp=outs?outs.findIndex(o=>/up/i.test(o)):-1; if(iUp<0) iUp=0;
+      const up=prices?pnum(prices[iUp]):null, dn=prices?pnum(prices[iUp===0?1:0]):(up!=null?+(1-up).toFixed(4):null);
+      if(up==null&&dn==null) continue;
+      return {slug, t0, up, dn, live:true};
+    }catch(e){}
+  }
+  return null;
+}
+async function tickMarket(){ const m=await fetchMarket(); if(m) MKTP=m; drawBtcBar(); }
 function drawBtcBar(){
   const el=$("btcbar"); if(!el) return;
   let f=BTCP;
@@ -465,14 +486,23 @@ function drawBtcBar(){
     f={price:LAST.feed.price, open:LAST.feed.open, t0:LAST.feed.t0, t1:(LAST.feed.t0||0)+300, src:LAST.feed.src||"feed", live:false, stamp:LAST.feed.at};
   if(!f){ el.innerHTML='<span class="mut">BTC price unavailable</span>'; return; }
   const px=f.price, d=(f.open!=null)?px-f.open:null, pct=(d!=null&&f.open)?d/f.open*100:null;
-  const now=Math.floor(Date.now()/1000), left=Math.max(0,(f.t1||0)-now);
+  const now=Math.floor(Date.now()/1000), t0now=Math.floor(now/300)*300, left=Math.max(0,(f.t1||0)-now);
   const mmss=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");
   const dcls=d==null?"mut":(d>0?"up":d<0?"dn":"mut"), arrow=d==null?"":(d>0?"▲":d<0?"▼":"");
   const dtxt=d==null?"":`<b class="${dcls}">${arrow} ${d>=0?"+":"−"}$${Math.abs(d).toFixed(2)}${pct!=null?` (${pct>=0?"+":""}${pct.toFixed(3)}%)`:""}</b>`;
   const stale=(!f.live && f.stamp)?` · <span class="mut">as of ${ago(f.stamp)}</span>`:"";
+  // contract prices for the CURRENT interval — live client fetch, else bot's published market
+  let mkt=MKTP;
+  if((!mkt||mkt.t0!==t0now) && LAST && LAST.market && LAST.market.t0===t0now)
+    mkt={slug:LAST.market.slug, t0:LAST.market.t0, up:LAST.market.up, dn:(LAST.market.up!=null?+(1-LAST.market.up).toFixed(4):null), live:false};
+  let ctr="";
+  if(mkt && mkt.t0===t0now && (mkt.up!=null||mkt.dn!=null)){
+    const up=mkt.up!=null?(mkt.up*100).toFixed(0):"—", dn=mkt.dn!=null?(mkt.dn*100).toFixed(0):"—";
+    ctr=` &nbsp;·&nbsp; <a class="pml" target="_blank" rel="noopener" href="https://polymarket.com/event/${esc(mkt.slug)}" title="price to beat: buy a side at its ¢ price; it needs to win >that % to profit">contract <b class="up">▲${up}¢</b> / <b class="dn">▼${dn}¢</b> ↗</a>`;
+  }
   el.innerHTML=`<b class="btcpx">₿ $${px.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</b>`
-    +`<span class="mut">${esc(f.src||"Coinbase")} spot · this 5-min interval:</span> ${dtxt||'<span class="mut">—</span>'}`
-    +`<span class="mut">· ${mmss} to close${stale}${f.live?"":' · <b class="dn">live feed blocked</b>'}</span>`;
+    +`<span class="mut">${esc(f.src||"Coinbase")} spot · this 5-min:</span> ${dtxt||'<span class="mut">—</span>'}`
+    +`<span class="mut">· ${mmss} to close${stale}${f.live?"":' · <b class="dn">live feed blocked</b>'}</span>${ctr}`;
 }
 // --- live-trade indicator: which engine currently holds an open position ----
 function drawLiveTrade(){
@@ -502,6 +532,7 @@ function drawLiveTrade(){
 }
 render(); setInterval(render, 30000); setInterval(tickCd, 1000); setInterval(drawLiveTrade, 1000);
 tickBtc(); setInterval(tickBtc, 6000); setInterval(drawBtcBar, 1000); drawLiveTrade();
+tickMarket(); setInterval(tickMarket, 8000);
 </script>
 </body>
 </html>
