@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC 5m Bot — Live Ledger (read-only)</title>
+<style>
+  :root{--bg:#12161c;--panel:#1a2029;--panel2:#20272f;--ink:#e8ebef;--mut:#8b96a3;--line:#2a323d;
+        --btc:#f7931a;--blue:#6fb2ff;--up:#34c07c;--dn:#e06c4f;--shadow:0 2px 10px rgba(0,0,0,.35)}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.4}
+  header{background:#0d1116;border-bottom:3px solid var(--btc);padding:16px;box-shadow:var(--shadow)}
+  header h1{margin:0;font-size:20px}header h1 .b{color:var(--btc)}
+  header .sub{color:var(--mut);font-size:13px;margin-top:3px}
+  .wrap{max-width:1100px;margin:0 auto;padding:14px 12px 60px}
+  .hb{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);
+      border-radius:10px;padding:12px 14px;margin:14px 0;box-shadow:var(--shadow)}
+  .dot{width:12px;height:12px;border-radius:50%;background:var(--mut)}
+  .dot.ok{background:var(--up);box-shadow:0 0 8px var(--up)}.dot.stale{background:var(--dn);box-shadow:0 0 8px var(--dn)}
+  .hb b{color:var(--ink)}.hb .mut{color:var(--mut);font-size:13px}
+  .books{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:820px){.books{grid-template-columns:1fr}}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
+  .col h2{margin:0 0 8px;font-size:16px;border-bottom:2px solid var(--line);padding-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
+  .col h2 span{font-size:12px;color:var(--mut)}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+  .tiles>div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 4px}
+  .big{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}.lab{font-size:10px;color:var(--mut);margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+  th{background:var(--panel2);color:var(--mut);padding:5px 4px;font-size:11px;text-transform:uppercase}
+  td{padding:5px 4px;border-top:1px solid var(--line);text-align:center}
+  td.l{text-align:left}
+  .tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px}
+  .win{background:#173527;color:var(--up)}.loss{background:#3a231c;color:var(--dn)}.open{background:#2a2f24;color:#cdc06a}
+  .up{color:var(--up)}.dn{color:var(--dn)}
+  .log{font-size:12px;color:var(--mut);max-height:220px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:14px}
+  .log div{padding:2px 0;border-top:1px dashed #242c36}.log div:first-child{border-top:none}
+  .note{background:#1c222b;border:1px solid #33404f;border-left:4px solid var(--btc);border-radius:8px;padding:10px 12px;font-size:13px;color:#c3ccd6;margin:14px 0}
+  h3.sec{color:var(--btc);border-left:4px solid var(--btc);padding-left:9px;font-size:15px;margin:20px 0 8px}
+  footer{text-align:center;color:var(--mut);font-size:12px;padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="b">₿</span> BTC 5m Bot — Live Ledger <span class="b">· read-only</span></h1>
+  <div class="sub">Snapshot published by the headless paper bot · strict 10/10 vs loose N/10 · simulated, not financial advice</div>
+</header>
+<div class="wrap">
+  <div class="hb" id="hb"><span class="dot" id="dot"></span><b id="hbState">Loading…</b><span class="mut" id="hbMeta"></span></div>
+  <div id="body"></div>
+  <div class="note">This page is <b>read-only</b>: it only displays the JSON the bot publishes to the <code>data</code> branch — it does not trade. If the heartbeat goes <b>red / stale</b>, the bot on your Mac has stopped or lost network (check <code>launchctl list | grep btc5m</code> and <code>bot.log</code>).</div>
+</div>
+<footer>Auto-refreshes every 60s · source: <span id="src"></span></footer>
+<script>
+"use strict";
+// ==== EDIT if your repo differs ====
+const OWNER="sgonzalezang", REPO="btc5m-paper-trader", BRANCH="data";
+// raw.githubusercontent serves the data branch with permissive CORS; a public
+// proxy chain is the fallback if a network blocks it.
+const RAW=`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/state.json`;
+const PROXIES=[u=>u, u=>"https://api.codetabs.com/v1/proxy/?quest="+encodeURIComponent(u),
+  u=>"https://corsproxy.io/?url="+encodeURIComponent(u)];
+const $=id=>document.getElementById(id);
+const esc=s=>(s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+function ago(ms){ if(!ms)return "never"; let s=Math.max(0,Math.floor((Date.now()-ms)/1000));
+  if(s<60)return s+"s ago"; if(s<3600)return Math.floor(s/60)+"m ago"; return Math.floor(s/3600)+"h "+Math.floor(s%3600/60)+"m ago"; }
+async function fetchState(){
+  for(const w of PROXIES){
+    try{ const r=await fetch(w(RAW+"?t="+Date.now()),{cache:"no-store"});
+      if(r.ok){ $("src").textContent="raw.githubusercontent.com/"+OWNER+"/"+REPO+" ("+BRANCH+")"; return JSON.parse(await r.text()); } }
+    catch(e){}
+  }
+  return null;
+}
+function tiles(s){
+  const be = s.avgEntry!=null?s.avgEntry+"¢":"—";
+  let wrCol="var(--ink)"; if(s.winPct!=null&&s.avgEntry!=null) wrCol=s.winPct>=s.avgEntry+5?"var(--up)":(s.winPct<s.avgEntry?"var(--dn)":"#cdc06a");
+  return `<div class="tiles">
+    <div><div class="big">${s.trades}</div><div class="lab">trades</div></div>
+    <div><div class="big" style="color:${wrCol}">${s.winPct!=null?Math.round(s.winPct)+"%":"—"}</div><div class="lab">win (${s.wins}/${s.settled})</div></div>
+    <div><div class="big">${be}</div><div class="lab">avg entry = b/e win%</div></div>
+    <div><div class="big" style="color:${s.pnl>=0?"var(--up)":"var(--dn)"}">${s.pnl>=0?"+":""}${s.pnl.toFixed(2)}</div><div class="lab">P&amp;L $</div></div>
+  </div>`;
+}
+function rows(trades){
+  if(!trades||!trades.length) return '<div class="lab" style="margin-top:8px">No trades yet.</div>';
+  return '<table><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>'
+    + trades.slice(0,25).map(t=>{
+      const res=t.status==="open"?'<span class="tag open">OPEN</span>':t.status==="pending"?'<span class="tag open">…</span>'
+        :t.result==="win"?'<span class="tag win">WIN</span>':t.result==="loss"?'<span class="tag loss">LOSS</span>'
+        :t.result==="stopped"?'<span class="tag loss">STOP</span>':'<span class="tag open">—</span>';
+      return `<tr><td class="l">${new Date(t.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} <small>${esc(t.asset||"BTC")}</small></td>`
+        +`<td>${t.side==="up"?'<b class="up">▲</b>':'<b class="dn">▼</b>'}${t.hedge?"<small>+h</small>":""}</td>`
+        +`<td>${(t.entry*100).toFixed(1)}¢</td><td>${res}</td>`
+        +`<td>${typeof t.pnl==="number"?((t.pnl>=0?"+":"")+t.pnl.toFixed(2)):"—"}</td></tr>`;
+    }).join("")+'</tbody></table>';
+}
+async function render(){
+  const st=await fetchState();
+  if(!st){ $("dot").className="dot stale"; $("hbState").textContent="No data published yet";
+    $("hbMeta").textContent="— once the bot runs with --publish, this fills in."; return; }
+  const hbAge=Date.now()-(st.heartbeat||0), stale=hbAge>15*60*1000;   // >15 min = something's wrong
+  $("dot").className="dot "+(stale?"stale":"ok");
+  $("hbState").textContent=stale?"Bot may be DOWN":"Bot alive";
+  $("hbMeta").textContent=`last heartbeat ${ago(st.heartbeat)} · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10 · $${st.stake} stake · +${st.slip}¢ slip`;
+  const eng=st.btc&&st.btc.engines||{strict:{trades:[]},loose:{trades:[]}};
+  const S=st.summary||{};
+  const col=(id,label,hue,need)=>`<div class="col"><h2><span style="color:${hue}">${label}</span><span>needs ${need}/10</span></h2>`
+    +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades)+`</div>`;
+  $("body").innerHTML=`<div class="books">${col("strict","Strict","var(--btc)",10)}${col("loose","Loose","var(--blue)",st.loosePass||6)}</div>`
+    +`<h3 class="sec">Activity log</h3><div class="log">`
+    +((st.log||[]).map(l=>`<div><b>${new Date(l.t).toLocaleTimeString()}</b> — ${esc(l.msg)}</div>`).join("")||"<div>No activity.</div>")+`</div>`;
+}
+render(); setInterval(render, 60000);
+</script>
+</body>
+</html>

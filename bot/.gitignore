@@ -1,0 +1,6 @@
+# bot runtime artifacts — never commit these
+state.json
+state.json.tmp
+bot.log
+__pycache__/
+*.pyc
