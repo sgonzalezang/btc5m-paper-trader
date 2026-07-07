@@ -48,10 +48,11 @@
   .more:hover{border-color:var(--btc)}
   .rowinfo{font-size:11px;color:var(--mut)}
   .eqsvg{width:100%;height:auto;display:block;margin-top:6px}
-  .eqport{fill:none;stroke:var(--ink);stroke-width:2.2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
-  .eqloose{fill:none;stroke:var(--blue);stroke-width:1.3;opacity:.65;vector-effect:non-scaling-stroke}
-  .eqvariant{fill:none;stroke:#8f7bff;stroke-width:1.3;opacity:.75;vector-effect:non-scaling-stroke}
-  .eqstrict{fill:none;stroke:var(--btc);stroke-width:1.3;opacity:.65;vector-effect:non-scaling-stroke}
+  .eqloose{fill:none;stroke:var(--blue);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+  .eqvariant{fill:none;stroke:#8f7bff;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+  .eqstrict{fill:none;stroke:var(--btc);stroke-width:1.6;opacity:.7;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+  .eqd-loose{fill:var(--blue)}.eqd-variant{fill:#8f7bff}.eqd-strict{fill:var(--btc)}
+  .eqpos{color:var(--up)}.eqneg{color:var(--dn)}
   .eqzero{stroke:var(--mut);stroke-dasharray:3 3;stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
   .eqarea{stroke:none}.eqarea.pos{fill:var(--up);opacity:.10}.eqarea.neg{fill:var(--dn);opacity:.10}
   .eqdot.pos{fill:var(--up)}.eqdot.neg{fill:var(--dn)}
@@ -200,37 +201,39 @@ function eqSeries(st, id){
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
 const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},variant:{label:"variant",lg:"lg-v",cls:"eqvariant"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
 function equityChart(st){
+  // Each engine is its OWN book — separate cumulative-P&L line, no summed
+  // portfolio (loose and variant take different trades; combining them hides
+  // the comparison). They race from 0 on the same time axis.
+  const D=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
+  const fT=t=>new Date(t).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
   const engs=["loose","variant","strict"];
   const S={}; engs.forEach(e=>S[e]=eqSeries(st,e));
-  const times=Array.from(new Set(engs.flatMap(e=>S[e].map(p=>p[0])))).sort((a,b)=>a-b);
-  const combined=times.map(t=>[t,+engs.reduce((a,e)=>a+stepVal(S[e],t),0).toFixed(2)]);
-  const legend='<span class="eqlegend"><b class="lg-p">━</b> portfolio'
-    +engs.filter(e=>S[e].length).map(e=>` &nbsp;<b class="${ENGMETA[e].lg}">━</b> ${ENGMETA[e].label}`).join("")+'</span>';
-  if(combined.length<2)
-    return '<div class="col" style="margin-bottom:16px"><h2>Portfolio P&amp;L over time '+legend+'</h2>'
-      +'<div class="lab" style="padding:12px 2px">The curve appears once at least 2 trades have settled — it will grow with every trade.</div></div>';
+  const withData=engs.filter(e=>S[e].length);
+  const legend='<span class="eqlegend">'+withData.map(e=>{const n=S[e][S[e].length-1][1];
+    return `<b class="${ENGMETA[e].lg}">━</b> ${ENGMETA[e].label} <b class="${n>=0?'eqpos':'eqneg'}">${D(n)}</b>`;
+  }).join(' &nbsp; ')+'</span>';
+  const drawable=engs.filter(e=>S[e].length>=2);
+  if(!drawable.length)
+    return '<div class="col" style="margin-bottom:16px"><h2>Engine P&amp;L — separate books '+legend+'</h2>'
+      +'<div class="lab" style="padding:12px 2px">Each engine’s line appears once it has 2+ settled trades.</div></div>';
   const W=800,H=220,padL=8,padR=8,padT=14,padB=6;
-  const ts=combined.map(p=>p[0]), t0=Math.min(...ts), t1=Math.max(...ts);
-  const vs=[...combined,...engs.flatMap(e=>S[e])].map(p=>p[1]);
+  const allpts=engs.flatMap(e=>S[e]);
+  const ts=allpts.map(p=>p[0]), t0=Math.min(...ts), t1=Math.max(...ts);
+  const vs=allpts.map(p=>p[1]);
   let vmin=Math.min(0,...vs), vmax=Math.max(0,...vs); if(vmin===vmax){vmin-=1;vmax+=1;}
   const gp=(vmax-vmin)*0.08; vmin-=gp; vmax+=gp;
   const X=t=>padL+(t1===t0?0.5:(t-t0)/(t1-t0))*(W-padL-padR);
   const Y=v=>padT+(1-(v-vmin)/(vmax-vmin))*(H-padT-padB);
   const poly=(pts,cls)=>pts.length<2?"":`<polyline class="${cls}" points="${pts.map(p=>X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)).join(" ")}"/>`;
-  const z=Y(0), end=combined[combined.length-1][1], ex=X(t1), ey=Y(end);
-  const peak=Math.max(...combined.map(p=>p[1])), trough=Math.min(...combined.map(p=>p[1]));
-  const area=`<path class="eqarea ${end>=0?"pos":"neg"}" d="M${X(combined[0][0]).toFixed(1)},${z.toFixed(1)} L`
-    +combined.map(p=>X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)).join(" L")+` L${ex.toFixed(1)},${z.toFixed(1)} Z"/>`;
-  const D=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
-  const fT=t=>new Date(t).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
-  return '<div class="col" style="margin-bottom:16px"><h2>Portfolio P&amp;L over time '+legend+'</h2>'
+  const z=Y(0);
+  const lines=engs.map(e=>poly(S[e],ENGMETA[e].cls)).join("");
+  const dots=drawable.map(e=>{const p=S[e][S[e].length-1];
+    return `<circle class="${ENGMETA[e].cls.replace('eq','eqd-')}" cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3.2"/>`;}).join("");
+  return '<div class="col" style="margin-bottom:16px"><h2>Engine P&amp;L — separate books '+legend+'</h2>'
     +`<svg viewBox="0 0 ${W} ${H}" class="eqsvg" preserveAspectRatio="none">`
     +`<line class="eqzero" x1="${padL}" y1="${z.toFixed(1)}" x2="${W-padR}" y2="${z.toFixed(1)}"/>`
-    +area+poly(S.strict,"eqstrict")+poly(S.variant,"eqvariant")+poly(S.loose,"eqloose")+poly(combined,"eqport")
-    +`<circle class="eqdot ${end>=0?"pos":"neg"}" cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="3.4"/></svg>`
-    +`<div class="eqmeta"><span>${fT(t0)}</span>`
-    +`<span>peak ${D(peak)} · low ${D(trough)} · <span class="eqnow ${end>=0?"pos":"neg"}">now ${D(end)}</span></span>`
-    +`<span>${fT(t1)}</span></div></div>`;
+    +lines+dots+`</svg>`
+    +`<div class="eqmeta"><span>${fT(t0)}</span><span>cumulative P&amp;L per engine · each starts at $0</span><span>${fT(t1)}</span></div></div>`;
 }
 let LAST=null;
 async function render(){

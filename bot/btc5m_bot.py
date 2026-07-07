@@ -42,12 +42,12 @@ PROFILES = {
         winLeftMax=150, winLeftMin=60, freshMs=8000, feedFreshMs=15000, maxSpread=0.03, minTopUsd=30,
         stopPct=0.25, hedgeAt=0.97, hedgeLeft=20, hedgeFrac=0.03,   # tightened 2026-07-07 (was 0.95/45):
         maxDay=math.inf,   # deep-ITM-only tail hedge — fired 60x for 1 save; now fires only when pinned
-        dayLossPct=25),    # daily loss stop 25% of bank (per user 2026-07-07; was 10% from ported profiles)
-    "aggressive": dict(label="Aggressive", movePct=0.07, minMid=0.52, maxAsk=0.70,
+        dayLossPct=math.inf),  # daily loss stop OFF (2026-07-07): censors data during losing regimes, biases
+    "aggressive": dict(label="Aggressive", movePct=0.07, minMid=0.52, maxAsk=0.70,  # analytics; add back only for live
         winLeftMax=150, winLeftMin=60, freshMs=8000, feedFreshMs=15000, maxSpread=0.03, minTopUsd=30,
         stopPct=0.30, hedgeAt=0.96, hedgeLeft=25, hedgeFrac=0.05,   # tightened 2026-07-07 (was 0.93/50)
         maxDay=math.inf,   # day-count cap OFF at user request 2026-07-04 "for now" — was 20
-        dayLossPct=25),    # 25% of bank (was 15)
+        dayLossPct=math.inf),  # loss stop OFF for paper analytics
 }
 # Engines run side by side over the same live data, in page-priority order.
 #  loose   — 7/10 + Stable2tick (the current live strategy)
@@ -874,14 +874,14 @@ def selftest():
     ok(fl and fl["open"] == 100000 and fl["last"] == 100050, "feed picks interval open+last")
     fl2 = _pick_open_last([(ns-60,99990,99998)], ns)   # t0 candle missing → prev close is open
     ok(fl2 and fl2["open"] == 99998, "feed falls back to prev close for open")
-    # day loss cap gate
+    # daily loss cap is OFF (paper analytics): a big day loss must NOT block entry
     st5 = default_state(A); b5 = Bot({}, st5)
     b5.trades("strict").insert(0, dict(at=now,t0=1,t1=2,slug="x",profile="conservative",asset="BTC",eng="strict",
         side="up",entry=0.6,ask=0.6,slip=0,stake=5,shares=8,btcOpen=1,btcEntry=1,btcClose=None,feed="x",
-        status="settled",hedge=None,pnl=-30,result="loss",settledBy="t"))   # -30 > 25% of 100 bank
+        status="settled",hedge=None,pnl=-999,result="loss",settledBy="t"))   # huge day loss
     b5.mkt = dict(bot.mkt); b5.feed = dict(bot.feed); b5.prev_quote = {"side":"up","ask":0.66,"t":now-4000}
     e5 = b5.evaluate(now, "strict")
-    ok(not e5["enter"] and not e5["checks"][9][1], "daily loss cap blocks entry")
+    ok(e5["checks"][9][1] and e5["enter"], "daily loss cap OFF — big loss does not halt entry")
     # lifetime totals survive trimming (24/7: trades scroll off but totals stay whole)
     b6 = Bot({}, default_state(A)); b6.KEEP = 2
     for i, (res, pnl, entry) in enumerate([("win",10,0.6),("loss",-50,0.7),("win",20,0.65),("win",5,0.55)]):
