@@ -702,6 +702,8 @@ def snapshot(bot):
             "slip": st["slip"], "loosePass": st["loosePass"],
             "looseMust": st.get("looseMust", list(LOOSE_MANDATORY)),
             "hedgeOn": st.get("hedgeOn", False),
+            "feed": {"src": bot.feed.get("src"), "price": bot.feed.get("last"),
+                     "open": bot.feed.get("open"), "t0": bot.feed.get("t0"), "at": bot.feed.get("at")},
             "summary": {e: summ(e) for e in ENGINES},
             "log": bot.logs[:30],
             "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip",

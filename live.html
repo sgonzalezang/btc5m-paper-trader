@@ -15,6 +15,10 @@
   .wrap{max-width:1100px;margin:0 auto;padding:14px 12px 60px}
   .hb{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);
       border-radius:10px;padding:12px 14px;margin:14px 0;box-shadow:var(--shadow)}
+  .btcbar{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;background:var(--panel);border:1px solid var(--line);
+      border-left:4px solid var(--btc);border-radius:10px;padding:10px 14px;margin:-4px 0 14px;box-shadow:var(--shadow);font-size:13px}
+  .btcbar .btcpx{font-size:18px;color:var(--btc);font-variant-numeric:tabular-nums}
+  .btcbar .up{color:var(--up)}.btcbar .dn{color:var(--dn)}.btcbar b{font-variant-numeric:tabular-nums}
   .dot{width:12px;height:12px;border-radius:50%;background:var(--mut);flex:none}
   @keyframes hbpulse{0%{box-shadow:0 0 0 0 rgba(52,192,124,.55)}70%{box-shadow:0 0 0 9px rgba(52,192,124,0)}100%{box-shadow:0 0 0 0 rgba(52,192,124,0)}}
   @keyframes hbpulse-late{0%{box-shadow:0 0 0 0 rgba(230,160,60,.6)}70%{box-shadow:0 0 0 9px rgba(230,160,60,0)}100%{box-shadow:0 0 0 0 rgba(230,160,60,0)}}
@@ -91,6 +95,7 @@
 </header>
 <div class="wrap">
   <div class="hb" id="hb"><span class="dot" id="dot"></span><b id="hbState">Loading…</b><span class="mut" id="hbMeta"></span></div>
+  <div class="btcbar" id="btcbar"><span class="mut">BTC price loading…</span></div>
   <div id="body"></div>
   <div class="note">This page is <b>read-only</b>: it only displays the JSON the bot publishes to the <code>data</code> branch — it does not trade. <b>Fills are modeled realistically</b>: every order walks the live order-book depth (a big order in a thin book fills worse, or only partially), and each entry/exit pays Polymarket’s crypto <b>taker fee</b> (≈7%·p·(1−p) per share) plus gas — all P&L is net of these. A result with an orange <span class="prov">*</span> is <b>provisional</b> — settled from clear price action and shown right away, then confirmed or corrected once Polymarket’s oracle reports; <b>…</b> means the close was too close to call and it’s waiting for the oracle. If the heartbeat goes <b>red / stale</b>, the bot on your Mac has stopped or lost network (check <code>launchctl list | grep btc5m</code> and <code>bot.log</code>).</div>
 </div>
@@ -383,7 +388,45 @@ function tickCd(){
     if(el) el.textContent=`update overdue by ${mmss(-left)} — usually CDN lag`;
   }
 }
+// --- live BTC price (Coinbase spot = the bot's primary feed source) ---------
+// Fetched client-side every ~6s so it ticks between the bot's 5-min publishes;
+// falls back to the bot's last published feed if the direct fetch is blocked.
+let BTCP=null;
+async function fetchBtc(){
+  const now=Math.floor(Date.now()/1000), t0=Math.floor(now/300)*300;
+  const start=new Date((t0-120)*1000).toISOString(), end=new Date((now+60)*1000).toISOString();
+  const url="https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60&start="+encodeURIComponent(start)+"&end="+encodeURIComponent(end);
+  for(const w of PROXIES){
+    try{ const r=await fetch(w(url),{cache:"no-store"}); if(!r.ok) continue; const j=await r.json();
+      if(!Array.isArray(j)) continue;
+      let open=null,last=null,lastT=-1,pc=null,pcT=-1;
+      j.forEach(row=>{ if(!Array.isArray(row)||row.length<5) return; const tt=+row[0],o=+row[3],c=+row[4];
+        if(tt===t0) open=o; if(tt<t0&&tt>pcT){pcT=tt;pc=c;} if(tt>lastT){lastT=tt;last=c;} });
+      if(open==null&&pc!=null) open=pc;
+      if(last!=null) return {price:last, open:open, t0:t0, t1:t0+300, src:"Coinbase", live:true};
+    }catch(e){}
+  }
+  return null;
+}
+async function tickBtc(){ const b=await fetchBtc(); if(b) BTCP=b; drawBtcBar(); }
+function drawBtcBar(){
+  const el=$("btcbar"); if(!el) return;
+  let f=BTCP;
+  if(!f && LAST && LAST.feed && LAST.feed.price!=null)   // fallback: bot's last published feed
+    f={price:LAST.feed.price, open:LAST.feed.open, t0:LAST.feed.t0, t1:(LAST.feed.t0||0)+300, src:LAST.feed.src||"feed", live:false, stamp:LAST.feed.at};
+  if(!f){ el.innerHTML='<span class="mut">BTC price unavailable</span>'; return; }
+  const px=f.price, d=(f.open!=null)?px-f.open:null, pct=(d!=null&&f.open)?d/f.open*100:null;
+  const now=Math.floor(Date.now()/1000), left=Math.max(0,(f.t1||0)-now);
+  const mmss=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");
+  const dcls=d==null?"mut":(d>0?"up":d<0?"dn":"mut"), arrow=d==null?"":(d>0?"▲":d<0?"▼":"");
+  const dtxt=d==null?"":`<b class="${dcls}">${arrow} ${d>=0?"+":"−"}$${Math.abs(d).toFixed(2)}${pct!=null?` (${pct>=0?"+":""}${pct.toFixed(3)}%)`:""}</b>`;
+  const stale=(!f.live && f.stamp)?` · <span class="mut">as of ${ago(f.stamp)}</span>`:"";
+  el.innerHTML=`<b class="btcpx">₿ $${px.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</b>`
+    +`<span class="mut">${esc(f.src||"Coinbase")} spot · this 5-min interval:</span> ${dtxt||'<span class="mut">—</span>'}`
+    +`<span class="mut">· ${mmss} to close${stale}${f.live?"":' · <b class="dn">live feed blocked</b>'}</span>`;
+}
 render(); setInterval(render, 60000); setInterval(tickCd, 1000);
+tickBtc(); setInterval(tickBtc, 6000); setInterval(drawBtcBar, 1000);
 </script>
 </body>
 </html>
