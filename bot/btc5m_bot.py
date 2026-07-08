@@ -49,21 +49,25 @@ PROFILES = {
         maxDay=math.inf,   # day-count cap OFF at user request 2026-07-04 "for now" — was 20
         dayLossPct=math.inf),  # loss stop OFF for paper analytics
 }
-# Engines run side by side over the same live data, in page-priority order.
-#  loose   — 7/10 + Stable2tick, fills <=65c (the Monte-Carlo-optimal cap)
-#  capless — identical to loose but WITHOUT the 65c cap (fills to 70c). Isolates
-#            exactly what the 65c cap costs/saves, live.
-#  calm    — loose (+65c cap) PLUS a volatility gate: only enters when BTC's
-#            trailing 10-min range is tight (<=0.25%). The edge is a low-vol
-#            mean-reversion bet, so this tests whether sitting out choppy/
-#            trending regimes improves it. Isolates the volatility filter.
-#  strict  — all 10 guards (fires almost never; kept as a control)
-ENGINES = ["loose", "capless", "calm", "strict"]
+# Engines run side by side over the same live data — a NESTED ABLATION where each
+# engine differs from the previous by exactly one gate (reset 2026-07-08, all 0/0):
+#  loose   — 7/10 + Stable2tick, fills <=65c. The unchanged CONTROL.
+#  floor   — loose PLUS a drift floor (|move at entry| >= 0.02% of open). Tests
+#            cutting the no-signal churn: on 1,150 full-market intervals, sub-2bps
+#            drift holds to close only 53-56% (coin flip minus fees), yet was ~50%
+#            of loose's volume. loose vs floor isolates the floor's effect.
+#  band    — floor PLUS a drift ceiling (<= 0.04%). Tests adverse selection: big
+#            movers still priced <=65c are cheap because the book disagrees —
+#            recorded -9.86/t on >=4bps fills. floor vs band isolates the ceiling.
+#  strict  — all 10 guards (fires almost never; kept as a legacy control)
+# (retired 2026-07-08: capless — answered, >65c entries lose; calm — vol gate
+#  formally dead, z=-1.1 on 1,057 intervals. Both recoverable from git history.)
+ENGINES = ["loose", "floor", "band", "strict"]
 ENGINE_CFG = {
-    "loose":   dict(label="Loose",   tunable=True,  driftMax=None, entryMax=0.65, volMax=None),
-    "capless": dict(label="Capless", tunable=True,  driftMax=None, entryMax=None,  volMax=None),
-    "calm":    dict(label="Calm",    tunable=True,  driftMax=None, entryMax=0.65, volMax=0.25),
-    "strict":  dict(label="Strict",  tunable=False, driftMax=None, entryMax=None,  volMax=None),
+    "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None),
+    "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None),
+    "band":   dict(label="Band",   tunable=True,  driftMin=0.02, driftMax=0.04, entryMax=0.65, volMax=None),
+    "strict": dict(label="Strict", tunable=False, driftMin=None, driftMax=None, entryMax=None,  volMax=None),
 }
 VOL_WIN_MS = 600000   # trailing window for the volatility measure (10 min)
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
@@ -77,6 +81,11 @@ GUARD_KEYS = ("Market found", "Window", "Move>=thr", "Skew>=mid", "Ask<=cap",
               "Spread<=max", "Fresh", "Stable2tick", "Depth>=min", "RiskCaps")
 GUARD_ABBR = {"Market found": "M", "Window": "W", "Move>=thr": "Δ", "Skew>=mid": "K", "Ask<=cap": "A",
               "Spread<=max": "S", "Fresh": "F", "Stable2tick": "T", "Depth>=min": "D", "RiskCaps": "R"}
+# short, human labels for a red guard when explaining a "close miss" on the page
+MISS_LBL = {"Market found": "no market", "Window": "wrong timing", "Move>=thr": "no move",
+            "Skew>=mid": "crowd disagrees", "Ask<=cap": "priced over cap", "Spread<=max": "wide spread",
+            "Fresh": "stale quote", "Stable2tick": "unstable quote", "Depth>=min": "thin book",
+            "RiskCaps": "already in a trade"}
 
 # ---------- small helpers ----------
 def now_ms(): return int(time.time() * 1000)
@@ -302,7 +311,7 @@ class Bot:
         self.closes = {}                      # t0 -> interval's last spot price (for provisional settle)
         self.eng = {e: {"eval": None, "miss": None} for e in ENGINES}
         self.logs = []
-        self.misses = []                      # recent "close but no entry" markets (published for the page)
+        self.misses = self.st.setdefault("misses", [])   # "close but no entry" markets; persisted so the record survives restarts
         self.pxwin = []                       # rolling [t_ms, price] for the volatility measure
         self.vol = None                       # trailing 10-min BTC range as % (None until enough samples)
         self.err = None
@@ -391,7 +400,9 @@ class Bot:
         cfg = ENGINE_CFG[eid]
         drift_pct = (abs(delta) / f["open"] * 100) if (delta is not None and f["open"]) else None
         extra = []
-        if cfg["driftMax"] is not None:
+        if cfg.get("driftMin") is not None:   # momentum floor: no entry on sub-signal noise
+            extra.append(("drift≥%.2g%%" % cfg["driftMin"], drift_pct is not None and drift_pct >= cfg["driftMin"]))
+        if cfg["driftMax"] is not None:       # ceiling: big movers still priced cheap = adverse selection
             extra.append(("drift≤%.2g%%" % cfg["driftMax"], drift_pct is not None and drift_pct <= cfg["driftMax"]))
         if cfg["entryMax"] is not None:
             slip = clampf(self.st["slip"], 0, 5, 1) / 100                    # gate on the expected FILL (ask+slip),
@@ -413,11 +424,11 @@ class Bot:
         m = self.mkt
         return (m["bookUp"] if side == "up" else m["bookDown"]) if m else None
 
-    KEEP = 250   # trades kept per engine in the list; older ones fold into lifetime totals
+    KEEP = 600   # trades kept per engine in the scrollable list; older ones fold into the forever lifetime totals + equity curve
     @staticmethod
     def _trade_fees(t):
         return t.get("feeEntry", 0)+t.get("feeExit", 0)+t.get("gas", 0)+(t["hedge"].get("fee", 0) if t.get("hedge") else 0)
-    EQ_CAP = 400   # max persisted equity points per engine (decimated when exceeded)
+    EQ_CAP = 3000  # persisted equity points per engine — the forever P&L curve; only the deep past is decimated when exceeded
     def _trim(self, eid):
         trs = self.trades(eid)
         if len(trs) <= self.KEEP: return
@@ -474,27 +485,32 @@ class Bot:
                  f"d {'+' if ev['delta']>=0 else '-'}${fmt_num(abs(ev['delta']))}")
         return True
 
-    # Track WHY an engine didn't enter this interval — only the "close" misses
-    # worth surfacing: it reached its threshold but was blocked by the stability
-    # guard, a filter, or (like the empty-book case) had no liquidity to fill.
+    # Track WHY an engine didn't enter this interval. A "close miss" is any no-entry
+    # that either (a) cleared the guard threshold but was blocked by the stability
+    # guard, a filter/cap, or thin book, OR (b) came within 2 guards of the threshold
+    # on a real move — those are the ones worth surfacing. Dead-flat intervals and
+    # far-from-threshold ones (the boring norm) are skipped so the panel stays useful.
     def _track_miss(self, eid, ev, entered):
         if entered: self.eng[eid]["miss"] = None; return
-        passc, need = ev["passCount"], ev["need"]
+        passc, need, side = ev["passCount"], ev["need"], ev.get("side")
         if ev["enter"]:                                        # signal+filters ok, but fill was skipped
             cap = ENGINE_CFG[eid]["entryMax"] or self.prof()["maxAsk"]
             lvl, note = 4, "book too thin to fill ≤%d¢" % round(cap*100)
         elif passc >= need and ev.get("mustOk") and not ev.get("extraOk"):
             why = []
             for lbl, o in ev.get("extra", []):
-                if not o: why.append("price >65¢" if "entry" in lbl else ("drift too big" if "drift" in lbl else ("too choppy (vol)" if "calm" in lbl else lbl)))
+                if not o: why.append("priced over cap" if "entry" in lbl else ("move too small" if "drift≥" in lbl else ("move too big" if "drift≤" in lbl else ("too choppy (vol)" if "calm" in lbl else lbl))))
             lvl, note = 3, "filter: " + ", ".join(why)
         elif passc >= need and not ev.get("mustOk"):
             lvl, note = 2, "unstable quote (stability guard red)"
+        elif side and passc >= need - 2:                       # near-miss: real move, a guard or two short
+            red = [MISS_LBL.get(k, k) for k, ok in ev["checks"] if not ok]
+            lvl, note = 2, "%d/%d guards — short: %s" % (passc, need, ", ".join(red[:2]))
         else:
-            return                                             # weak signal (<need) — the boring norm, skip
+            return                                             # no move, or far below threshold — the boring norm
         cur = self.eng[eid].get("miss")
         if not cur or lvl >= cur["level"]:
-            self.eng[eid]["miss"] = {"level": lvl, "side": ev.get("side"), "passc": passc, "need": need, "note": note}
+            self.eng[eid]["miss"] = {"level": lvl, "side": side, "passc": passc, "need": need, "note": note}
 
     def manage_open(self, eid, now):
         tr = self.open_trade(eid)
@@ -632,7 +648,7 @@ class Bot:
                 if self.trade_for(e, prev["t0"]): continue  # entered → not a miss
                 miss = self.eng[e].get("miss")
                 if miss and miss["level"] >= 2:
-                    self.misses.insert(0, dict(t0=prev["t0"], eng=e, **miss)); del self.misses[40:]
+                    self.misses.insert(0, dict(t0=prev["t0"], eng=e, **miss)); del self.misses[80:]
         for e in ENGINES: self.eng[e] = {"eval": None, "miss": None}
         self.prev_quote = None
         self.mkt = dict(t0=t0, t1=t1, ev=False, evClosed=False, slug=self.asset()["slug"]+str(t0+self.slug_off),
@@ -694,6 +710,7 @@ def default_state(args):
             "startedAt": now_ms(),
             "lifetime": {e: _zero_life() for e in ENGINES},   # totals for trades trimmed out of the list
             "equity": {e: [] for e in ENGINES},               # [t_ms, cumPnl] curve for trimmed trades
+            "misses": [],                                      # rolling "close but no entry" record (persisted)
             "engines": {e: {"trades": []} for e in ENGINES}}
 def sanitize(o, args):
     d = default_state(args)
@@ -715,11 +732,14 @@ def sanitize(o, args):
                 if isinstance(eq.get(e), list):
                     d["equity"][e] = [[p[0], p[1]] for p in eq[e]
                                       if isinstance(p, list) and len(p) == 2 and all(isinstance(x, (int, float)) for x in p)]
+        ms = o.get("misses")
+        if isinstance(ms, list):
+            d["misses"] = [m for m in ms if isinstance(m, dict) and isinstance(m.get("t0"), (int, float))][:80]
         eng = o.get("engines")
         if isinstance(eng, dict):
             for e in ENGINES:
                 tr = (eng.get(e) or {}).get("trades")
-                if isinstance(tr, list): d["engines"][e]["trades"] = tr[:250]
+                if isinstance(tr, list): d["engines"][e]["trades"] = tr[:Bot.KEEP]
     return d
 def load_state(path, args):
     try:
@@ -753,8 +773,8 @@ def snapshot(bot):
             "slip": st["slip"], "loosePass": st["loosePass"],
             "looseMust": st.get("looseMust", list(LOOSE_MANDATORY)),
             "hedgeOn": st.get("hedgeOn", False),
-            "engineCfg": {e: {"entryMax": ENGINE_CFG[e]["entryMax"], "driftMax": ENGINE_CFG[e]["driftMax"],
-                              "volMax": ENGINE_CFG[e].get("volMax")} for e in ENGINES},
+            "engineCfg": {e: {"entryMax": ENGINE_CFG[e]["entryMax"], "driftMin": ENGINE_CFG[e].get("driftMin"),
+                              "driftMax": ENGINE_CFG[e]["driftMax"], "volMax": ENGINE_CFG[e].get("volMax")} for e in ENGINES},
             "vol": bot.vol,
             "feed": {"src": bot.feed.get("src"), "price": bot.feed.get("last"),
                      "open": bot.feed.get("open"), "t0": bot.feed.get("t0"), "at": bot.feed.get("at")},
@@ -765,7 +785,7 @@ def snapshot(bot):
             "log": bot.logs[:30],
             "misses": bot.misses[:30],
             "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip",
-                                       "loosePass", "looseMust", "startedAt", "lifetime", "equity", "engines")}}
+                                       "loosePass", "looseMust", "startedAt", "lifetime", "equity", "misses", "engines")}}
 def save_state(path, bot):
     tmp = path + ".tmp"
     with open(tmp, "w") as f: json.dump(snapshot(bot), f, separators=(",", ":"))
@@ -854,27 +874,31 @@ def selftest():
     bm.prev_quote = {"side":"up","ask":0.58,"t":now-4000}                                # stable now → Stable green
     eB = bm.evaluate(now, "loose")
     ok(eB["mustOk"] and eB["enter"], "loose enters when Stable2tick green", f"pass={eB['passCount']} enter={eB['enter']}")
-    # capless engine: identical to loose but NO 65c cap — the only difference is the cap
+    # floor + band engines: nested ablation on the drift gate (loose = no gate,
+    # floor = >=0.02%, band = 0.02-0.04%). Fixture move sizes control driftPct.
     bv = Bot({}, default_state(A))
     def mkmkt(ask, bid):
         mk = dict(t0=ns-210, t1=ns+400, ev=True, evClosed=False, slug="v", tokUp="1", tokDown="2",  # window red
                   upBid=bid, upAsk=ask, pUp=(ask+bid)/2, gAt=now,
                   bookUp={"bid":bid,"ask":ask,"asks":[[ask,300]],"bids":[[bid,300]],"topAskUsd":ask*300,"mirrorTopUsd":(1-bid)*300,"at":now})
         mk["bookDown"] = mirror(mk["bookUp"]); return mk
-    bv.mkt = mkmkt(0.68, 0.67); bv.feed = {"src":"Coinbase","open":100000,"last":100010,"at":now,"t0":bv.mkt["t0"]}  # RICH 68c, tiny move
-    bv.prev_quote = {"side":"up","ask":0.68,"t":now-4000}
-    lb, cb = bv.evaluate(now,"loose"), bv.evaluate(now,"capless")
-    ok(not lb["enter"] and cb["enter"], "capless takes a 68c fill that loose's 65c cap blocks", f"loose={lb['enter']} capless={cb['enter']}")
-    bv.mkt = mkmkt(0.58, 0.57); bv.prev_quote = {"side":"up","ask":0.58,"t":now-4000}     # cheap 58c
-    lc, cc = bv.evaluate(now,"loose"), bv.evaluate(now,"capless")
-    ok(lc["enter"] and cc["enter"], "loose and capless both take a cheap fill", f"loose={lc['enter']} capless={cc['enter']}")
-    # calm engine: volatility gate — enters only when trailing range is tight
-    bv.vol = 0.5; cv_hi = bv.evaluate(now,"calm")          # choppy: 0.5% range > 0.25% cap
-    ok(not cv_hi["enter"], "calm blocks entry when volatility is high", f"vol={bv.vol} enter={cv_hi['enter']}")
-    bv.vol = 0.10; cv_lo = bv.evaluate(now,"calm")         # calm: 0.10% range <= 0.25%
-    ok(cv_lo["enter"], "calm enters when the market is calm", f"vol={bv.vol} enter={cv_lo['enter']}")
-    bv.vol = None; cv_un = bv.evaluate(now,"calm")         # unknown vol → no entry (conservative)
-    ok(not cv_un["enter"], "calm blocks entry when vol unknown", f"enter={cv_un['enter']}")
+    bv.mkt = mkmkt(0.58, 0.57); bv.prev_quote = {"side":"up","ask":0.58,"t":now-4000}      # cheap 58c fill
+    bv.feed = {"src":"Coinbase","open":100000,"last":100010,"at":now,"t0":bv.mkt["t0"]}    # 1bps: sub-floor noise
+    l1, f1, n1 = bv.evaluate(now,"loose"), bv.evaluate(now,"floor"), bv.evaluate(now,"band")
+    ok(l1["enter"] and not f1["enter"] and not n1["enter"],
+       "1bps noise: loose takes it, floor+band block", f"loose={l1['enter']} floor={f1['enter']} band={n1['enter']}")
+    bv.feed = {"src":"Coinbase","open":100000,"last":100030,"at":now,"t0":bv.mkt["t0"]}    # 3bps: in the band
+    l2, f2, n2 = bv.evaluate(now,"loose"), bv.evaluate(now,"floor"), bv.evaluate(now,"band")
+    ok(l2["enter"] and f2["enter"] and n2["enter"],
+       "3bps move: all three enter", f"loose={l2['enter']} floor={f2['enter']} band={n2['enter']}")
+    bv.feed = {"src":"Coinbase","open":100000,"last":100060,"at":now,"t0":bv.mkt["t0"]}    # 6bps: over the ceiling
+    f3, n3 = bv.evaluate(now,"floor"), bv.evaluate(now,"band")
+    ok(f3["enter"] and not n3["enter"],
+       "6bps mover: floor takes it, band's ceiling blocks (adverse selection)", f"floor={f3['enter']} band={n3['enter']}")
+    bv.mkt = mkmkt(0.68, 0.67); bv.prev_quote = {"side":"up","ask":0.68,"t":now-4000}      # RICH 68c, 3bps move
+    bv.feed = {"src":"Coinbase","open":100000,"last":100030,"at":now,"t0":bv.mkt["t0"]}
+    n4 = bv.evaluate(now,"band")
+    ok(not n4["enter"], "band blocks a 68c fill (65c cap shared with loose)", f"enter={n4['enter']}")
     # miss tracking: an enter that can't fill (thin book) records a level-4 miss
     bmz = Bot({}, default_state(A)); bmz.eng["loose"]={"eval":None,"miss":None}
     bmz._track_miss("loose", {"enter":True,"side":"up","passCount":8,"need":7,"mustOk":True,"extraOk":True,"extra":[],"checks":[]}, False)
@@ -1001,7 +1025,7 @@ def main():
     bot = Bot({"publishEvery": args.publish_every}, st)
     must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
     bot.log(f"bot started — {st['asset']} · {st['profile']} · loose {args.loose}/10{must_lbl} + fill≤65c · "
-            f"capless (no cap) · calm (loose + 10m-range≤0.25%) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
+            f"floor (+drift≥0.02%) · band (drift 0.02-0.04%) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
             f"${st['stake']:g} stake · +{st['slip']:g}c slip · state={args.state}")
     last_pub = 0
     def positions_sig():   # changes when any trade opens, settles, or goes pending → publish promptly

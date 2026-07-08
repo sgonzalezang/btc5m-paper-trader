@@ -71,9 +71,12 @@ sample.
 
 ## Lifetime tracking (24/7 headless bot)
 
-`bot/btc5m_bot.py` runs BOTH engines (strict 10/10 + loose 7/10) around the
-clock as a launchd service — see `bot/README-bot.md`. It publishes its ledger
-(`state.json`) to the `data` branch; `live.html` shows both ledgers with
-per-trade guard detail, and the main page's Lifetime panel shows the strict
-engine's running return. (An earlier strict-only daemon lived in `daemon/`;
-retired 2026-07-06, recoverable from git history.)
+`bot/btc5m_bot.py` runs FOUR engines around the clock as a launchd service —
+see `bot/README-bot.md`. Since the 2026-07-08 reset they form a nested
+ablation (each adds one gate to the previous): **loose** (7/10 + Stable2tick,
+fills ≤65¢) → **floor** (+ move ≥0.02% at entry) → **band** (+ move ≤0.04%) →
+**strict** (all 10 guards; legacy control). It publishes its ledger
+(`state.json`) to the `data` branch; `live.html` shows all books with
+per-trade guard detail. Retired engines (capless, calm) and the pre-reset
+ledger live in `bot/archive/` and git history. (An earlier strict-only daemon
+lived in `daemon/`; retired 2026-07-06.)

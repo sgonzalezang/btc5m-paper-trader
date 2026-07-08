@@ -102,7 +102,7 @@
 <body>
 <header>
   <h1><span class="b">₿</span> BTC 5m Bot — Live Ledger <span class="b">· read-only</span></h1>
-  <div class="sub">Snapshot published by the headless paper bot · strict 10/10 vs loose N/10 · simulated, not financial advice</div>
+  <div class="sub">Snapshot published by the headless paper bot · nested ablation: loose → +move floor → +move ceiling · simulated, not financial advice</div>
 </header>
 <div class="wrap">
   <div class="hb" id="hb"><span class="dot" id="dot"></span><b id="hbState">Loading…</b><span class="mut" id="hbMeta"></span></div>
@@ -186,26 +186,19 @@ function guardKey(must){
     +'<div class="gkey">'+Object.entries(GUARDS).map(([k,G])=>
       `<span><i class="gd"><i class="g1">${G[0]}</i></i> ${esc(G[1])}${abbr.includes(G[0])?' <b title="loose engine requires this guard green to enter">★</b>':''}</span>`).join("")+'</div></div>';
 }
-// head-to-head from the common start: the first market both loose & capless
-// could enter (= capless's first trade). Both rebased to $0 from that anchor.
-function headToHead(st){
-  const eng=(st.btc&&st.btc.engines)||{};
-  const cap=((eng.capless||{}).trades||[]).filter(t=>typeof t.at==="number");
-  if(!cap.length) return `<div class="h2h"><b>Head-to-head</b> <span class="mut">— starts when Capless takes its first trade (fresh comparison, both from $0)</span></div>`;
-  const anchor=Math.min(...cap.map(t=>t.at));
-  const stat=id=>{
-    const trs=((eng[id]||{}).trades||[]).filter(t=>t.at>=anchor && ["win","loss","stopped"].includes(t.result) && typeof t.pnl==="number");
-    const w=trs.filter(t=>t.result==="win").length, pnl=trs.reduce((a,t)=>a+t.pnl,0);
-    return {n:trs.length, w:w, l:trs.length-w, pnl:pnl};
-  };
-  const L=stat("loose"), C=stat("capless");
-  const cell=(id,s)=>{const m=ENGMETA[id]; return `<b class="${m.lg}">${m.label.charAt(0).toUpperCase()+m.label.slice(1)}</b> `
-    +`<b class="${s.pnl>=0?'eqpos':'eqneg'}">${s.pnl>=0?'+$':'-$'}${Math.abs(s.pnl).toFixed(2)}</b> `
-    +`<span class="mut">(${s.w}/${s.n})</span>`;};
-  const diff=L.pnl-C.pnl;
-  return `<div class="h2h"><b>Head-to-head</b> <span class="mut">since ${new Date(anchor).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})} · both from $0:</span> `
-    +`${cell("loose",L)} &nbsp;vs&nbsp; ${cell("capless",C)} `
-    +`<span class="mut">· cap ${diff>=0?'saving':'costing'} <b class="${diff>=0?'eqpos':'eqneg'}">${diff>=0?'+$':'-$'}${Math.abs(diff).toFixed(2)}</b></span></div>`;
+// nested-ablation scoreboard: every engine started 0/0 at the same reset, and each
+// differs from the previous by exactly ONE gate — so pairwise P&L deltas read as
+// the isolated effect of that gate: loose→floor = the drift floor, floor→band = the ceiling.
+function ablation(st){
+  const S=st.summary||{};
+  const g=id=>({pnl:(S[id]||{}).pnl||0, n:(S[id]||{}).settled||0});
+  const L=g("loose"), F=g("floor"), B=g("band");
+  if(!(L.n||F.n||B.n)) return `<div class="h2h"><b>Ablation</b> <span class="mut">— fresh four-way race from $0 (reset ${new Date((st.btc||{}).startedAt||Date.now()).toLocaleDateString([],{month:"short",day:"numeric"})}): each engine adds one gate to the previous</span></div>`;
+  const d=(a,b,lbl,tip)=>{const v=b.pnl-a.pnl;
+    return `<span class="mut" title="${tip}">${lbl}</span> <b class="${v>=0?'eqpos':'eqneg'}">${v>=0?'+$':'-$'}${Math.abs(v).toFixed(2)}</b>`;};
+  return `<div class="h2h"><b>Ablation</b> <span class="mut">(gate effects, all engines from $0):</span> `
+    +d(L,F,"drift floor","floor P&L minus loose P&L — what requiring a ≥0.02% move is worth")+` &nbsp;·&nbsp; `
+    +d(F,B,"drift ceiling","band P&L minus floor P&L — what refusing >0.04% movers (adverse selection) is worth")+`</div>`;
 }
 function missesPanel(st){
   const m=st.misses||[];
@@ -219,7 +212,7 @@ function missesPanel(st){
     return `<div><span class="mut">${iv}</span> ${eng} ${side} · <span class="mut">${x.passc}/10 signal · ${esc(x.note)}</span> ${tag}</div>`;
   }).join('');
   return '<h3 class="sec">Missed / skipped markets</h3>'
-    +'<div class="mut" style="font-size:12px;margin:-2px 0 4px">Markets where an engine had a valid ≥7/10 signal but didn’t enter — blocked by the stability guard, the ≤65¢ cap / a filter, or no book liquidity to fill.</div>'
+    +'<div class="mut" style="font-size:12px;margin:-2px 0 4px">Markets an engine <b>passed on</b> despite a real move — either it cleared its guard threshold but was blocked by the stability guard, the price cap / a filter, or thin book liquidity; or it came within a guard or two of firing. Dead-flat intervals aren’t listed.</div>'
     +'<div class="log">'+rows+'</div>';
 }
 const PAGE=25;                       // rows revealed per "show more"
@@ -263,7 +256,8 @@ function eqSeries(st, id){
   return pts;
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
-const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},capless:{label:"capless",lg:"lg-v",cls:"eqvariant"},calm:{label:"calm",lg:"lg-c",cls:"eqcalm"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
+// floor inherits capless's purple (lg-v/eqvariant classes), band inherits calm's teal (lg-c/eqcalm) — CSS class names kept to avoid churn
+const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
 const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
 // timeframe: spanH = hours of history shown per screen width (wider SVG scrolls
 // horizontally — finger-swipe on mobile); null = fit-all. daily = one point per
@@ -287,7 +281,7 @@ function dailyClose(series){
   return out;
 }
 function equityChart(st){
-  const engs=["loose","capless","calm","strict"];
+  const engs=["loose","floor","band","strict"];
   const S={}; engs.forEach(e=>S[e]=eqSeries(st,e));
   const legend='<span class="eqlegend">'+engs.filter(e=>S[e].length).map(e=>{const n=S[e][S[e].length-1][1];
     return `<b class="${ENGMETA[e].lg}">━</b> ${ENGMETA[e].label} <b class="${n>=0?'eqpos':'eqneg'}">${D$(n)}</b>`;
@@ -303,7 +297,7 @@ function layoutChart(userAction, _try){
   const wrap=document.getElementById("eqscroll"); if(!wrap||!LAST) return;
   const cw=wrap.clientWidth||Math.round(wrap.getBoundingClientRect().width);
   if(!cw){ if((_try||0)<20) setTimeout(()=>layoutChart(userAction,(_try||0)+1), 40); return; }  // wait for layout to flush
-  const engs=["loose","capless","calm","strict"];
+  const engs=["loose","floor","band","strict"];
   const S={}; engs.forEach(e=>{let s=eqSeries(LAST,e); if(VIEW.daily) s=dailyClose(s); S[e]=s;});
   const all=engs.flatMap(e=>S[e]);
   if(all.length<2){ wrap.innerHTML='<div class="lab" style="padding:12px 2px">'+(VIEW.daily?'Need at least 2 daily closes — check back after a day or two.':'Each engine’s line appears once it has 2+ trades.')+'</div>'; return; }
@@ -387,14 +381,14 @@ function draw(st){
   // second: green = inside the expected window, orange = slightly overdue
   // (usually CDN lag), red = two missed publishes + slack.
   HB={heartbeat:st.heartbeat||0, pubEvery:(st.publishEvery||1800)*1000};
-  const S=st.summary||{}, feesTot=["loose","capless","calm","strict"].reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
+  const S=st.summary||{}, feesTot=["loose","floor","band","strict"].reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
   const must=(st.looseMust||[]), mustAbbr=must.map(k=>(GUARDS[k]||[k])[0]).join("/");
   const mustTxt=must.length?` + ${mustAbbr} required`:"";
   $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · hedge ${st.hedgeOn?"on":"off"} · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
   const eng=st.btc&&st.btc.engines||{};
-  const HUE={loose:"var(--blue)",capless:"#8f7bff",calm:"#3fb6a8",strict:"var(--btc)"};
-  const LABEL={loose:"Loose",capless:"Capless",calm:"Calm",strict:"Strict"};
+  const HUE={loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",strict:"var(--btc)"};
+  const LABEL={loose:"Loose",floor:"Floor",band:"Band",strict:"Strict"};
   const needLbl=(id)=>{
     const need=(S[id]||{}).need||(id==="strict"?10:st.loosePass);
     if(id==="strict") return `needs 10/10`;
@@ -402,19 +396,17 @@ function draw(st){
     let l=`needs ${need}/10`;
     if(must.length) l+=` + <b title="mandatory: ${must.map(k=>(GUARDS[k]||['',k])[1]).join('; ')}">${esc(mustAbbr)}</b>`;
     if(cfg.entryMax!=null) l+=` + <b title="only fills at ≤${Math.round(cfg.entryMax*100)}¢ — the Monte Carlo showed fills ≥66¢ are net-negative">≤${Math.round(cfg.entryMax*100)}¢</b>`;
-    if(cfg.driftMax!=null) l+=` + <b title="only enters when early drift ≤${cfg.driftMax}% of the interval open (buy the lean, don't chase)">drift</b>`;
-    if(cfg.volMax!=null){
-      const v=st.vol; const now=(v!=null)?` (now ${v.toFixed(2)}%${v<=cfg.volMax?' ✓':' ✗'})`:" (—)";
-      l+=` + <b title="only enters when BTC's trailing 10-min range ≤${cfg.volMax}% — tests whether sitting out choppy/trending regimes helps this low-vol mean-reversion edge">calm≤${cfg.volMax}%</b><span class="mut">${now}</span>`;
-    }
+    if(cfg.driftMin!=null&&cfg.driftMax!=null) l+=` + <b title="only enters when the move at entry is ${cfg.driftMin}–${cfg.driftMax}% of the interval open — big enough to be real momentum (sub-${cfg.driftMin}% holds ~54%, coin flip), small enough that a ≤65¢ price isn't the book disagreeing (adverse selection)">move ${cfg.driftMin}–${cfg.driftMax}%</b>`;
+    else if(cfg.driftMin!=null) l+=` + <b title="only enters when the move at entry is ≥${cfg.driftMin}% of the interval open — cuts the no-signal churn (sub-${cfg.driftMin}% drift holds to close only ~54%)">move ≥${cfg.driftMin}%</b>`;
+    else if(cfg.driftMax!=null) l+=` + <b title="only enters when early drift ≤${cfg.driftMax}% of the interval open">drift≤${cfg.driftMax}%</b>`;
     return l;
   };
   const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span><span>${needLbl(id)}</span></h2>`
     +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
   $("body").innerHTML=equityChart(st)
-    +headToHead(st)
-    +`<div class="books">${col("loose")}${col("capless")}</div>`      /* primary race: the 65c cap A/B */
-    +`<div class="books" style="margin-top:16px">${col("calm")}${col("strict")}</div>`  /* calm = vol filter, strict = control */
+    +ablation(st)
+    +`<div class="books">${col("loose")}${col("floor")}</div>`      /* ablation pair 1: the drift floor's effect */
+    +`<div class="books" style="margin-top:16px">${col("band")}${col("strict")}</div>`  /* pair 2: band = +ceiling; strict = legacy control */
     +guardKey(must)
     +missesPanel(st)
     +`<h3 class="sec">Activity log</h3><div class="log">`
@@ -491,7 +483,7 @@ function drawBtcBar(){
 function drawLiveTrade(){
   const el=$("livetrade"); if(!el) return;
   const eng=(LAST&&LAST.btc&&LAST.btc.engines)||{};
-  const engs=["loose","capless","calm","strict"];
+  const engs=["loose","floor","band","strict"];
   const now=Math.floor(Date.now()/1000);
   let parts=[];
   engs.forEach(id=>{
