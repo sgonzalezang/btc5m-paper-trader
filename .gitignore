@@ -1,0 +1,6 @@
+bot/bot.log
+bot/state.json
+bot/signal.env
+bot/signal.json
+bot/signal.json.tmp
+node_modules/

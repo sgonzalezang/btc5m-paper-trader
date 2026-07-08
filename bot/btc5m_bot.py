@@ -21,7 +21,7 @@ Usage:
 
 State + logs live next to this file unless --state / --log point elsewhere.
 """
-import argparse, json, math, os, sys, time, urllib.request, urllib.parse, subprocess
+import argparse, hashlib, hmac, json, math, os, sys, time, urllib.request, urllib.parse, subprocess
 from datetime import datetime, timezone
 
 IVL = 300            # interval length, seconds
@@ -315,6 +315,15 @@ class Bot:
         self.pxwin = []                       # rolling [t_ms, price] for the volatility measure
         self.vol = None                       # trailing 10-min BTC range as % (None until enough samples)
         self.err = None
+        # --- signal bridge (OFF unless --signal-engines is set) ---------------
+        # Emits an ENTER signal at DECISION time for external execution (see
+        # SIGNAL-BRIDGE.md). The GitHub state.json mirror lags ~5 min behind and
+        # must never be used as a signal source; this hook is the live tap.
+        self.sig_engines = cfg.get("sigEngines") or []
+        self.sig_file = cfg.get("sigFile") or ""
+        self.sig_webhook = os.environ.get("BTC5M_SIGNAL_WEBHOOK", "")
+        self.sig_secret = os.environ.get("BTC5M_SIGNAL_SECRET", "")
+        self.sig_last = {}                    # eid -> t0 already emitted (one-shot per engine per interval)
 
     # --- config accessors ---
     def prof(self): return PROFILES[self.st["profile"]]
@@ -512,6 +521,45 @@ class Bot:
         if not cur or lvl >= cur["level"]:
             self.eng[eid]["miss"] = {"level": lvl, "side": side, "passc": passc, "need": need, "note": note}
 
+    # Emit an ENTER signal for external (live) execution the moment an engine's
+    # gate passes — independent of the paper fill, which models a $50 order and
+    # can fail on a book a small live order would clear. One-shot per engine per
+    # interval. Side effects must NEVER crash the tick: all I/O is best-effort.
+    def emit_signal(self, eid, ev):
+        m, q = self.mkt, ev.get("q")
+        if not (m and q and q.get("ask") is not None): return
+        if self.sig_last.get(eid) == m["t0"]: return
+        self.sig_last[eid] = m["t0"]
+        now = now_ms()
+        cap = ENGINE_CFG[eid]["entryMax"] or self.prof()["maxAsk"]
+        sig = dict(v=1, signalId=f"{eid}-{m['t0']}", engine=eid, emittedAt=now,
+                   asset=self.st["asset"], slug=m["slug"], t0=m["t0"], t1=m["t1"],
+                   secLeft=max(0, int(m["t1"] - now/1000)), side=ev["side"],
+                   tokenId=(m.get("tokUp") if ev["side"] == "up" else m.get("tokDown")),
+                   ask=q["ask"], bid=q.get("bid"), limitCap=cap,
+                   driftPct=ev.get("driftPct"), passCount=ev["passCount"], need=ev["need"])
+        if self.sig_secret:   # executor MUST verify: hmac_sha256(secret, canonical-json-without-hmac)
+            canon = json.dumps(sig, sort_keys=True, separators=(",", ":"))
+            sig["hmac"] = hmac.new(self.sig_secret.encode(), canon.encode(), hashlib.sha256).hexdigest()[:32]
+        try:
+            if self.sig_file:
+                tmp = self.sig_file + ".tmp"
+                with open(tmp, "w") as f: json.dump(sig, f, separators=(",", ":"))
+                os.replace(tmp, self.sig_file)
+        except Exception as e:
+            self.log(f"signal file error: {e}")
+        if self.sig_webhook:
+            try:
+                body = (f"🎯 **{eid.upper()} ENTER** {ev['side'].upper()} `{m['slug']}` "
+                        f"ask {q['ask']*100:.0f}c · cap {cap*100:.0f}c · {sig['secLeft']}s left\n"
+                        f"```json\n{json.dumps(sig)}\n```")
+                req = urllib.request.Request(self.sig_webhook, data=json.dumps({"content": body}).encode(),
+                                             headers={"Content-Type": "application/json", "User-Agent": "btc5m-bot"})
+                urllib.request.urlopen(req, timeout=3).read()
+            except Exception as e:
+                self.log(f"signal webhook error: {e}")
+        self.log(f"[SIGNAL] {eid} {ev['side']} {m['slug']} ask {q['ask']*100:.0f}c → bridge")
+
     def manage_open(self, eid, now):
         tr = self.open_trade(eid)
         if not tr: return
@@ -685,6 +733,7 @@ class Bot:
             now = now_ms()
             for e in ENGINES:
                 ev = self.evaluate(now, e)
+                if ev["enter"] and e in self.sig_engines: self.emit_signal(e, ev)   # live tap first — never behind the paper book-walk
                 entered = False
                 if ev["enter"] and self.st.get("auto", True): entered = bool(self.paper_enter(e, ev))
                 self._track_miss(e, ev, entered)
@@ -903,6 +952,23 @@ def selftest():
     bmz = Bot({}, default_state(A)); bmz.eng["loose"]={"eval":None,"miss":None}
     bmz._track_miss("loose", {"enter":True,"side":"up","passCount":8,"need":7,"mustOk":True,"extraOk":True,"extra":[],"checks":[]}, False)
     ok(bmz.eng["loose"]["miss"] and bmz.eng["loose"]["miss"]["level"]==4, "thin-book skip records a miss")
+    # signal bridge: emits once per engine per interval, atomic file, HMAC verifies, bad webhook never raises
+    import tempfile
+    sf = os.path.join(tempfile.gettempdir(), "btc5m_sig_test.json")
+    bsg = Bot({"sigEngines":["band"], "sigFile":sf}, default_state(A))
+    bsg.sig_secret = "testkey"; bsg.sig_webhook = "http://127.0.0.1:1/nope"   # refused instantly → must be swallowed
+    bsg.mkt = dict(t0=ns-60, t1=ns+240, ev=True, evClosed=False, slug="btc-updown-5m-test",
+                   tokUp="TOKUP", tokDown="TOKDN", upBid=0.53, upAsk=0.54, pUp=0.535, gAt=now)
+    evs = dict(side="down", q={"bid":0.53,"ask":0.54,"at":now}, driftPct=0.025, passCount=8, need=7, enter=True)
+    bsg.emit_signal("band", evs); bsg.emit_signal("band", evs)               # second call = duplicate, ignored
+    with open(sf) as f: sj = json.load(f)
+    canon = json.dumps({k:v for k,v in sj.items() if k!="hmac"}, sort_keys=True, separators=(",", ":"))
+    good = hmac.new(b"testkey", canon.encode(), hashlib.sha256).hexdigest()[:32]
+    ok(sj["signalId"]==f"band-{ns-60}" and sj["side"]=="down" and sj["tokenId"]=="TOKDN"
+       and sj["limitCap"]==0.65 and sj["hmac"]==good and bsg.sig_last["band"]==ns-60,
+       "signal bridge: schema + tokenId + HMAC + one-shot + webhook failure swallowed",
+       f"id={sj['signalId']} tok={sj['tokenId']} hmacOK={sj['hmac']==good}")
+    os.remove(sf)
     # hedge toggle: a pinned position in the hedge zone hedges only when hedgeOn
     def pinned_bot(hedge_on):
         b = Bot({}, default_state(A)); b.st["hedgeOn"] = hedge_on
@@ -1010,6 +1076,9 @@ def main():
     ap.add_argument("--loose-must", default=",".join(LOOSE_MANDATORY),
                     help="guards loose must have green (comma-separated keys, or 'none')")
     ap.add_argument("--hedge", action="store_true", help="enable the late micro-hedge (OFF by default)")
+    ap.add_argument("--signal-engines", default="", help="engines whose ENTER signals are emitted for the live "
+                    "execution bridge (comma-separated, e.g. 'band'); empty = bridge OFF. See SIGNAL-BRIDGE.md")
+    ap.add_argument("--signal-file", default="", help="atomic JSON file each signal is written to (optional)")
     args = ap.parse_args()
     FEE_RATE, GAS_USD = args.fee_rate, args.gas
     args.loose_must = [] if args.loose_must.strip().lower() == "none" else \
@@ -1022,11 +1091,15 @@ def main():
     st["stake"], st["bank"], st["slip"], st["loosePass"] = args.stake, args.bank, args.slip, args.loose
     st["looseMust"] = args.loose_must
     st["hedgeOn"] = bool(args.hedge)
-    bot = Bot({"publishEvery": args.publish_every}, st)
+    sig_engines = [e for e in (x.strip() for x in args.signal_engines.split(",")) if e in ENGINES]
+    bot = Bot({"publishEvery": args.publish_every, "sigEngines": sig_engines, "sigFile": args.signal_file}, st)
     must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
     bot.log(f"bot started — {st['asset']} · {st['profile']} · loose {args.loose}/10{must_lbl} + fill≤65c · "
             f"floor (+drift≥0.02%) · band (drift 0.02-0.04%) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
             f"${st['stake']:g} stake · +{st['slip']:g}c slip · state={args.state}")
+    if sig_engines:
+        bot.log(f"SIGNAL BRIDGE ON — engines={','.join(sig_engines)} file={args.signal_file or '—'} "
+                f"webhook={'set' if bot.sig_webhook else 'UNSET'} hmac={'set' if bot.sig_secret else 'UNSET'}")
     last_pub = 0
     def positions_sig():   # changes when any trade opens, settles, or goes pending → publish promptly
         return {e: (sum(1 for t in bot.trades(e) if t["status"] == "settled"),

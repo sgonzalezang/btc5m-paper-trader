@@ -9,6 +9,14 @@ set -euo pipefail
 cd "$(dirname "$0")"
 REPO="$(cd .. && pwd)"
 
+# Optional live-signal bridge (see SIGNAL-BRIDGE.md). OFF unless bot/signal.env
+# exists (untracked — never commit it). It should export:
+#   SIGNAL_ENGINES=band                     # which engines emit ENTER signals
+#   SIGNAL_FILE=$PWD/signal.json            # optional local drop file
+#   BTC5M_SIGNAL_WEBHOOK=https://discord.com/api/webhooks/...   # keep secret
+#   BTC5M_SIGNAL_SECRET=<random hex>        # HMAC key the executor verifies
+[ -f signal.env ] && . ./signal.env
+
 exec caffeinate -i /usr/bin/env python3 btc5m_bot.py \
   --asset BTC \
   --loose 7 \
@@ -21,4 +29,6 @@ exec caffeinate -i /usr/bin/env python3 btc5m_bot.py \
   --branch data \
   --repo-dir "$REPO" \
   --publish-every 300 \
+  --signal-engines "${SIGNAL_ENGINES:-}" \
+  --signal-file "${SIGNAL_FILE:-}" \
   >> "$(pwd)/bot.log" 2>&1
