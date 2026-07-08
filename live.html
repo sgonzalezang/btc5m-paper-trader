@@ -109,6 +109,14 @@
   <div class="btcbar" id="btcbar"><span class="mut">BTC price loading…</span></div>
   <div class="livebar" id="livetrade"></div>
   <div id="body"></div>
+  <h3 class="sec">The engines, in plain terms</h3>
+  <div class="note" style="border-left-color:var(--line)">
+    <b class="lg-l">Loose</b> — the trigger-happy baseline. Nearly every 5-minute round, it buys whichever side BTC is leaning toward, as long as the basics check out (7 of 10 guards + a steady quote) and the price is 65¢ or less. Takes almost everything, good and bad.<br><br>
+    <b class="lg-v">Floor</b> — Loose plus one rule: <b>the move has to be real</b>. It only buys if BTC has already moved at least 0.02% off the round's open. Skips the dead-flat rounds — those are coin flips, and coin flips minus fees lose.<br><br>
+    <b class="lg-c">Band</b> — Floor plus one more rule: <b>…but not too big</b> (0.04% max). If BTC has made a big move and you can <i>still</i> buy that side for 65¢ or less, it's cheap because the market doubts the move — and the market is usually right. Band only buys the goldilocks moves: big enough to be real, small enough that the cheap price is honest.<br><br>
+    <b class="lg-s">Strict</b> — the original by-the-book strategy: needs all 10 guards green at the same moment, which almost never happens. Barely trades; kept as a reference point.<br><br>
+    <span class="mut">Each engine adds exactly one rule to the one before it — so the P&amp;L gap between neighbors is the dollar value of that single rule. All four started from $0 at the same time and see the exact same markets.</span>
+  </div>
   <div class="note">This page is <b>read-only</b>: it only displays the JSON the bot publishes to the <code>data</code> branch — it does not trade. <b>Fills are modeled realistically</b>: every order walks the live order-book depth (a big order in a thin book fills worse, or only partially), and each entry/exit pays Polymarket’s crypto <b>taker fee</b> (≈7%·p·(1−p) per share) plus gas — all P&L is net of these. A result with an orange <span class="prov">*</span> is <b>provisional</b> — settled from clear price action and shown right away, then confirmed or corrected once Polymarket’s oracle reports; <b>…</b> means the close was too close to call and it’s waiting for the oracle. If the heartbeat goes <b>red / stale</b>, the bot on your Mac has stopped or lost network (check <code>launchctl list | grep btc5m</code> and <code>bot.log</code>).</div>
 </div>
 <footer>Auto-refreshes every 60s · source: <span id="src"></span></footer>
