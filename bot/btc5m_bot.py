@@ -62,7 +62,7 @@ PROFILES = {
 #  strict  — all 10 guards (fires almost never; kept as a legacy control)
 # (retired 2026-07-08: capless — answered, >65c entries lose; calm — vol gate
 #  formally dead, z=-1.1 on 1,057 intervals. Both recoverable from git history.)
-ENGINES = ["loose", "floor", "band", "strict", "value", "fade"]
+ENGINES = ["loose", "floor", "band", "strict", "value", "fade", "reversal"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None),
@@ -82,6 +82,17 @@ ENGINE_CFG = {
     # fadeable. Paper side engine, never emitted to the live executor.
     "fade":   dict(label="Fade",   tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                    fadeOf="loose"),
+    # reversal — the cross-interval overreaction engine, structurally UNLIKE the
+    # others: it fires at the START of an interval, betting the OPPOSITE side of
+    # the JUST-COMPLETED interval's move. Basis (10 days, 2,876 intervals): a
+    # completed move >= 0.12% reverses in the next interval ~56% (buffered/
+    # artifact-free; placebo p=0.000, block-bootstrap p=0.015). Enters near the
+    # open where the reversal side is still ~50c — a ~7-point edge that clears
+    # the worst-case fee, with margin up to ~55c. Holds to resolution (no stop:
+    # the thesis IS reversion by close). Deploy-ready for the live bridge but
+    # NOT in --signal-engines until forward paper data confirms the entry price.
+    "reversal": dict(label="Reversal", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                     revThr=0.12, revEntryMax=0.55, revWinMin=180, holdToClose=True),
 }
 VOL_WIN_MS = 600000   # trailing window for the volatility measure (10 min)
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
@@ -323,6 +334,7 @@ class Bot:
         self.res_at = 0
         self.prev_quote = None
         self.closes = {}                      # t0 -> interval's last spot price (for provisional settle)
+        self.prev_ivl = None                  # {t0, open, close, ret} of the just-COMPLETED interval — the reversal engine's signal
         self.eng = {e: {"eval": None, "miss": None} for e in ENGINES}
         self.logs = []
         self.misses = self.st.setdefault("misses", [])   # "close but no entry" markets; persisted so the record survives restarts
@@ -438,9 +450,63 @@ class Bot:
         self.eng[eid]["eval"] = ev
         return ev
 
+    def _reversal_eval(self, now, eid):
+        """Cross-interval overreaction engine — fires at the START of an interval,
+        betting the OPPOSITE side of the just-completed interval's move. Unlike
+        every other engine (which reads the CURRENT interval mid-flight), this
+        reads self.prev_ivl (the completed interval) and enters near the open at
+        the reversal side's real book, while it's still cheap (<= revEntryMax).
+        Holds to resolution — the thesis is reversion by close, so no stop."""
+        cfg = ENGINE_CFG[eid]
+        prof, m, f = self.prof(), self.mkt, self.feed
+        ns = now // 1000
+        left = (m["t1"] - ns) if m else None
+        pv = self.prev_ivl
+        contiguous = bool(pv and m and pv.get("t0") == m["t0"] - IVL and pv.get("ret") is not None)
+        prior_move = abs(pv["ret"]) * 100 if (pv and pv.get("ret") is not None) else None   # % of open
+        signal = bool(contiguous and prior_move is not None and prior_move >= cfg["revThr"])
+        rev_side = ("down" if pv["ret"] > 0 else "up") if signal else None                   # opposite the move
+        q = self.quote(rev_side) if rev_side else None
+        mid = (q["bid"] + q["ask"]) / 2 if (q and q["bid"] is not None and q["ask"] is not None) else None
+        spread = (q["ask"] - q["bid"]) if (q and q["bid"] is not None and q["ask"] is not None) else None
+        slip = clampf(self.st["slip"], 0, 5, 1) / 100
+        early = left is not None and left >= cfg["revWinMin"]                                # near the open
+        priced_ok = bool(q and q["ask"] is not None and q["ask"] + slip <= cfg["revEntryMax"] + 1e-9)
+        spread_ok = spread is not None and spread <= prof["maxSpread"] + 1e-9
+        fresh = bool(q and q.get("at") and (now - q["at"]) <= prof["freshMs"]
+                     and f["at"] and (now - f["at"]) <= prof["feedFreshMs"])
+        depth_ok = bool(q and (q.get("src") == "gamma" or (q.get("top") is not None and q["top"] >= prof["minTopUsd"])))
+        dn, dpnl = self.day_stats(eid)
+        loss_cap = clampf(self.st["bank"], 10, 100000, 100) * prof["dayLossPct"] / 100
+        opent = self.open_trade(eid); dup = self.trade_for(eid, m["t0"]) if m else None
+        market_ok = bool(m and m["ev"] and not m["evClosed"])
+        risk_ok = (not opent) and (not dup) and dn < prof["maxDay"] and dpnl > -loss_cap
+        can_fill = bool(q and q["ask"] is not None and left is not None and left > 0 and risk_ok)
+        checks = [
+            ("Market found", market_ok),
+            ("Prior≥%.2g%%" % cfg["revThr"], signal),
+            ("Near open", early),
+            ("Rev≤%dc" % round(cfg["revEntryMax"] * 100), priced_ok),
+            ("Spread<=max", spread_ok),
+            ("Fresh", fresh),
+            ("Depth>=min", depth_ok),
+            ("RiskCaps", risk_ok),
+        ]
+        passc = sum(1 for _, ok in checks if ok)
+        enter = bool(market_ok and signal and early and priced_ok and spread_ok and fresh and depth_ok and can_fill)
+        delta = (pv["ret"] * pv["open"]) if (pv and pv.get("open")) else 0.0                 # prior move in $ (for logs)
+        ev = dict(t=now, side=rev_side, delta=delta, q=q, mid=mid, spread=spread, left=left,
+                  checks=checks, passCount=passc, need=len(checks), must=["Prior≥thr"], mustOk=signal,
+                  driftPct=prior_move, fv=None, extra=[], extraOk=True, priorMove=prior_move,
+                  all=(passc == len(checks)), enter=enter)
+        self.eng[eid]["eval"] = ev
+        return ev
+
     def evaluate(self, now, eid):
         if ENGINE_CFG[eid].get("fadeOf"):
             return self._fade_eval(now, eid)
+        if ENGINE_CFG[eid].get("revThr"):
+            return self._reversal_eval(now, eid)
         prof, m, f = self.prof(), self.mkt, self.feed
         ns = now // 1000
         left = (m["t1"] - ns) if m else None
@@ -608,7 +674,7 @@ class Bot:
         if self.sig_last.get(eid) == m["t0"]: return
         self.sig_last[eid] = m["t0"]
         now = now_ms()
-        cap = ENGINE_CFG[eid]["entryMax"] or self.prof()["maxAsk"]
+        cap = ENGINE_CFG[eid].get("revEntryMax") or ENGINE_CFG[eid]["entryMax"] or self.prof()["maxAsk"]
         sig = dict(v=1, signalId=f"{eid}-{m['t0']}", engine=eid, emittedAt=now,
                    asset=self.st["asset"], slug=m["slug"], t0=m["t0"], t1=m["t1"],
                    secLeft=max(0, int(m["t1"] - now/1000)), side=ev["side"],
@@ -656,6 +722,7 @@ class Bot:
                 tr["btcClose"] = self.closes[tr["t0"]]
             self.log(f"[{eid.upper()}] interval closed — {tr['side'].upper()} awaiting resolution"); return
         if not self.mkt or self.mkt["t0"] != tr["t0"] or tr.get("asset", "BTC") != self.st["asset"]: return
+        if ENGINE_CFG.get(eid, {}).get("holdToClose"): return   # reversal: hold to resolution — no stop, no hedge
         q, f = self.quote(tr["side"]), self.feed
         sbk, obk = self.side_book(tr["side"]), self.side_book("down" if tr["side"] == "up" else "up")
         slip = clampf(self.st["slip"], 0, 5, 1) / 100
@@ -795,6 +862,10 @@ class Bot:
                 if self.feed.get("t0") is not None and self.feed.get("last") is not None:
                     self.closes[self.feed["t0"]] = self.feed["last"]
                     for k in sorted(self.closes)[:-20]: del self.closes[k]
+                    # capture the just-completed interval's move — the reversal engine's signal
+                    if self.feed.get("open"):
+                        self.prev_ivl = dict(t0=self.feed["t0"], open=self.feed["open"], close=self.feed["last"],
+                                             ret=(self.feed["last"] - self.feed["open"]) / self.feed["open"])
                 self.rollover(t0, t1)
             m = self.mkt
             p = self.find_market(t0)
@@ -813,6 +884,16 @@ class Bot:
                     if b:
                         if side == "up": m["bookUp"], m["bookDown"] = b, mirror(b)
                         else: m["bookDown"], m["bookUp"] = b, mirror(b)
+            # reversal engine buys the OPPOSITE side of the prior move, near the open,
+            # when there's often no directional move yet — so fetch its real book too.
+            if m["ev"] and self.prev_ivl and self.prev_ivl.get("t0") == t0 - IVL:
+                rs = "down" if self.prev_ivl["ret"] > 0 else "up"
+                rtok = m["tokUp"] if rs == "up" else m["tokDown"]
+                if rtok and (m["bookUp"] if rs == "up" else m["bookDown"]) is None:
+                    rb = book(rtok)
+                    if rb:
+                        if rs == "up": m["bookUp"], m["bookDown"] = rb, (m["bookDown"] or mirror(rb))
+                        else: m["bookDown"], m["bookUp"] = rb, (m["bookUp"] or mirror(rb))
             now = now_ms()
             for e in ENGINES:
                 ev = self.evaluate(now, e)
@@ -1049,6 +1130,37 @@ def selftest():
     lf4, ff4 = bv.evaluate(now, "loose"), bv.evaluate(now, "fade")   # 68c blocks loose → fade must stand down too
     ok(not lf4["enter"] and not ff4["enter"],
        "fade stands down when loose stands down", f"loose={lf4['enter']} fade={ff4['enter']}")
+    # --- reversal engine: cross-interval overreaction (fires at the open on the prior move) ---
+    def mkrev(dask, dbid, left=240):
+        t0r = ns - (300 - left)                                     # so t1-ns == left (near-open window)
+        mk = dict(t0=t0r, t1=t0r+300, ev=True, evClosed=False, slug="btc-updown-5m-rev", tokUp="U", tokDown="D",
+                  upBid=round(1-dask,2), upAsk=round(1-dbid,2), pUp=0.5, gAt=now,
+                  bookDown={"bid":dbid,"ask":dask,"asks":[[dask,300]],"bids":[[dbid,300]],
+                            "topAskUsd":dask*300,"mirrorTopUsd":(1-dbid)*300,"at":now})
+        mk["bookUp"]=mirror(mk["bookDown"]); return mk
+    brv = Bot({}, default_state(A)); brv.feed = {"src":"Coinbase","open":100000,"last":100010,"at":now,"t0":ns-60}
+    brv.mkt = mkrev(0.50, 0.49)                                     # reversal (down) side cheap at 50c, 240s left
+    brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)   # prior interval +20bps UP
+    rv = brv.evaluate(now, "reversal")
+    ok(rv["enter"] and rv["side"]=="down",
+       "reversal fires DOWN after a big UP prior interval", f"side={rv['side']} enter={rv['enter']} prior={rv['priorMove']:.3f}%")
+    brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100050, ret=0.0005)   # prior +5bps, below 12bps
+    ok(not brv.evaluate(now,"reversal")["enter"], "reversal stands down when prior move < 12bps")
+    brv.prev_ivl = dict(t0=brv.mkt["t0"]-2*IVL, open=100000, close=100200, ret=0.0020)  # not the immediately-prior interval
+    ok(not brv.evaluate(now,"reversal")["enter"], "reversal requires the immediately-prior interval (contiguity)")
+    brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)
+    brv.mkt = mkrev(0.60, 0.59)                                     # reversal side now RICH at 60c (> 55c cap)
+    ok(not brv.evaluate(now,"reversal")["enter"], "reversal blocks when the reversal side is above 55c")
+    brv.mkt = mkrev(0.50, 0.49, left=90)                           # too late in the interval (90s left < 180)
+    ok(not brv.evaluate(now,"reversal")["enter"], "reversal blocks when not near the open")
+    # holdToClose: a reversal position must NOT stop out on an adverse move — it holds to resolution
+    brv.mkt = mkrev(0.50, 0.49); brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)
+    rvh = brv.evaluate(now,"reversal"); brv.paper_enter("reversal", rvh)
+    brv.feed["last"] = 100500                                       # +50bps: strongly adverse for the DOWN bet
+    brv.manage_open("reversal", now)
+    trh = brv.open_trade("reversal")
+    ok(trh is not None and trh["result"] is None,
+       "reversal holds through an adverse move (no stop-loss)", f"open={trh is not None} result={trh and trh['result']}")
     # miss tracking: an enter that can't fill (thin book) records a level-4 miss
     bmz = Bot({}, default_state(A)); bmz.eng["loose"]={"eval":None,"miss":None}
     bmz._track_miss("loose", {"enter":True,"side":"up","passCount":8,"need":7,"mustOk":True,"extraOk":True,"extra":[],"checks":[]}, False)
