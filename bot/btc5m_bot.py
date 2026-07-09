@@ -62,7 +62,7 @@ PROFILES = {
 #  strict  — all 10 guards (fires almost never; kept as a legacy control)
 # (retired 2026-07-08: capless — answered, >65c entries lose; calm — vol gate
 #  formally dead, z=-1.1 on 1,057 intervals. Both recoverable from git history.)
-ENGINES = ["loose", "floor", "band", "strict", "value", "fade", "reversal"]
+ENGINES = ["loose", "floor", "band", "strict", "value", "fade", "reversal", "reversal2"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None),
@@ -93,6 +93,14 @@ ENGINE_CFG = {
     # NOT in --signal-engines until forward paper data confirms the entry price.
     "reversal": dict(label="Reversal", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                      revThr=0.12, revEntryMax=0.55, revWinMin=180, holdToClose=True),
+    # reversal2 — same signal as reversal (fade a >=0.12% prior move), but LOOSENED
+    # execution so it actually jumps in at the open instead of sitting out on a
+    # thin book: when the CLOB book has no ask, it prices off the gamma/event mid
+    # (~50c), relaxes the spread gate, and uses a slightly wider entry window.
+    # Runs concurrently with reversal — the pair measures how much fill-execution
+    # friction at the open costs the strategy. Paper-only (not in --signal-engines).
+    "reversal2": dict(label="Reversal2", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                      revThr=0.12, revEntryMax=0.55, revWinMin=150, holdToClose=True, revLoose=True),
 }
 VOL_WIN_MS = 600000   # trailing window for the volatility measure (10 min)
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
@@ -450,14 +458,32 @@ class Bot:
         self.eng[eid]["eval"] = ev
         return ev
 
+    def _rev_quote(self, side, loose):
+        """Reversal-side quote. Default (reversal): the real CLOB book, which may
+        be one-sided (ask=None) at the very open. Loose (reversal2): if the book
+        has no ask, fall back to the gamma/event mid (~50c) with a nominal fillable
+        depth, so the engine can still jump in at the open."""
+        q = self.quote(side)
+        if not loose or (q and q.get("ask") is not None):
+            return q
+        m = self.mkt
+        if m and m.get("upAsk") is not None and m.get("upBid") is not None:
+            ga, gb = ((m["upAsk"], m["upBid"]) if side == "up"
+                      else (round(1 - m["upBid"], 4), round(1 - m["upAsk"], 4)))
+            stake = clampf(self.st["stake"], 1, 1000, 5)
+            return {"bid": gb, "ask": ga, "top": round(max(4 * stake, 200), 2), "at": m["gAt"], "src": "gamma"}
+        return q
+
     def _reversal_eval(self, now, eid):
         """Cross-interval overreaction engine — fires at the START of an interval,
         betting the OPPOSITE side of the just-completed interval's move. Unlike
         every other engine (which reads the CURRENT interval mid-flight), this
         reads self.prev_ivl (the completed interval) and enters near the open at
         the reversal side's real book, while it's still cheap (<= revEntryMax).
-        Holds to resolution — the thesis is reversion by close, so no stop."""
+        Holds to resolution — the thesis is reversion by close, so no stop.
+        revLoose (reversal2) prices off the gamma mid when the book is thin."""
         cfg = ENGINE_CFG[eid]
+        loose = bool(cfg.get("revLoose"))
         prof, m, f = self.prof(), self.mkt, self.feed
         ns = now // 1000
         left = (m["t1"] - ns) if m else None
@@ -466,13 +492,14 @@ class Bot:
         prior_move = abs(pv["ret"]) * 100 if (pv and pv.get("ret") is not None) else None   # % of open
         signal = bool(contiguous and prior_move is not None and prior_move >= cfg["revThr"])
         rev_side = ("down" if pv["ret"] > 0 else "up") if signal else None                   # opposite the move
-        q = self.quote(rev_side) if rev_side else None
+        q = self._rev_quote(rev_side, loose) if rev_side else None
         mid = (q["bid"] + q["ask"]) / 2 if (q and q["bid"] is not None and q["ask"] is not None) else None
         spread = (q["ask"] - q["bid"]) if (q and q["bid"] is not None and q["ask"] is not None) else None
         slip = clampf(self.st["slip"], 0, 5, 1) / 100
         early = left is not None and left >= cfg["revWinMin"]                                # near the open
         priced_ok = bool(q and q["ask"] is not None and q["ask"] + slip <= cfg["revEntryMax"] + 1e-9)
-        spread_ok = spread is not None and spread <= prof["maxSpread"] + 1e-9
+        # loose relaxes the spread gate (it holds to resolution, so the exit spread never bites)
+        spread_ok = (spread is not None and spread <= prof["maxSpread"] + 1e-9) or bool(loose and q and q.get("ask") is not None)
         fresh = bool(q and q.get("at") and (now - q["at"]) <= prof["freshMs"]
                      and f["at"] and (now - f["at"]) <= prof["feedFreshMs"])
         depth_ok = bool(q and (q.get("src") == "gamma" or (q.get("top") is not None and q["top"] >= prof["minTopUsd"])))
@@ -610,8 +637,11 @@ class Bot:
         # Walk the actual book depth for that budget — a $50 order does NOT fill
         # at the top ask if only a few dollars rest there.
         limit = min(0.99, prof["maxAsk"] + slip)
-        bk = self.side_book(side) or {"ask": ev["q"]["ask"], "topAskUsd": ev["q"].get("top")}
-        shares, spent, avg, fully = walk_buy(_levels(bk, "ask"), req, limit)
+        sb = self.side_book(side)
+        levels = _levels(sb, "ask") if sb else []
+        if not levels:   # book missing or one-sided (e.g. reversal2's gamma mid at the open) → fill against the quote
+            levels = _levels({"ask": ev["q"]["ask"], "topAskUsd": ev["q"].get("top")}, "ask")
+        shares, spent, avg, fully = walk_buy(levels, req, limit)
         if spent < MIN_ORDER_USD or not avg:
             self.log(f"[{eid.upper()}] SKIP {side.upper()} — book too thin at ≤{limit*100:.0f}c "
                      f"(only ${spent:.2f} fillable of ${req:g}) ({ev['passCount']}/10)")
@@ -1161,6 +1191,27 @@ def selftest():
     trh = brv.open_trade("reversal")
     ok(trh is not None and trh["result"] is None,
        "reversal holds through an adverse move (no stop-loss)", f"open={trh is not None} result={trh and trh['result']}")
+    # --- reversal2: the loosened twin fires where reversal can't (thin/one-sided book at the open) ---
+    b2 = Bot({}, default_state(A)); b2.feed = {"src":"Coinbase","open":100000,"last":100010,"at":now,"t0":ns-60}
+    # DOWN (reversal) side book is ONE-SIDED (bid, no ask) — but gamma shows ~50/50
+    b2.mkt = dict(t0=ns-60, t1=ns-60+300, ev=True, evClosed=False, slug="btc-updown-5m-r2", tokUp="U", tokDown="D",
+                  upBid=0.49, upAsk=0.51, pUp=0.50, gAt=now,
+                  bookDown={"bid":0.49,"ask":None,"asks":[],"bids":[[0.49,300]],"topAskUsd":None,"at":now}, bookUp=None)
+    b2.prev_ivl = dict(t0=b2.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)   # prior +20bps UP → reversal side = down
+    r_strict, r_loose = b2.evaluate(now,"reversal"), b2.evaluate(now,"reversal2")
+    ok(not r_strict["enter"] and r_loose["enter"] and r_loose["side"]=="down",
+       "reversal2 fires on a one-sided book (gamma fallback) where reversal sits out",
+       f"reversal={r_strict['enter']} reversal2={r_loose['enter']} q={r_loose.get('q',{}).get('src')}")
+    b2.paper_enter("reversal2", r_loose); tr2 = b2.open_trade("reversal2")
+    ok(tr2 is not None and tr2["entry"] <= 0.55 + 0.011,
+       "reversal2 fills against the gamma quote at ~50c", f"filled={tr2 is not None} entry={tr2 and tr2['entry']}")
+    # reversal2 still respects the 55c cap — gamma reversal side priced rich → no entry
+    b3 = Bot({}, default_state(A)); b3.feed = {"src":"Coinbase","open":100000,"last":100010,"at":now,"t0":ns-60}
+    b3.mkt = dict(t0=ns-60, t1=ns-60+300, ev=True, evClosed=False, slug="btc-updown-5m-r3", tokUp="U", tokDown="D",
+                  upBid=0.38, upAsk=0.40, pUp=0.39, gAt=now,                 # down side (reversal) = 1-0.38 = 62c > 55c cap
+                  bookDown={"bid":0.60,"ask":None,"asks":[],"bids":[[0.60,300]],"topAskUsd":None,"at":now}, bookUp=None)
+    b3.prev_ivl = dict(t0=b3.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)
+    ok(not b3.evaluate(now,"reversal2")["enter"], "reversal2 still blocks when the gamma reversal side is above 55c")
     # miss tracking: an enter that can't fill (thin book) records a level-4 miss
     bmz = Bot({}, default_state(A)); bmz.eng["loose"]={"eval":None,"miss":None}
     bmz._track_miss("loose", {"enter":True,"side":"up","passCount":8,"need":7,"mustOk":True,"extraOk":True,"extra":[],"checks":[]}, False)
