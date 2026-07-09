@@ -62,12 +62,26 @@ PROFILES = {
 #  strict  — all 10 guards (fires almost never; kept as a legacy control)
 # (retired 2026-07-08: capless — answered, >65c entries lose; calm — vol gate
 #  formally dead, z=-1.1 on 1,057 intervals. Both recoverable from git history.)
-ENGINES = ["loose", "floor", "band", "strict"]
+ENGINES = ["loose", "floor", "band", "strict", "value", "fade"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None),
     "band":   dict(label="Band",   tunable=True,  driftMin=0.02, driftMax=0.04, entryMax=0.65, volMax=None),
     "strict": dict(label="Strict", tunable=False, driftMin=None, driftMax=None, entryMax=None,  volMax=None),
+    # value — fades a lagging book. Estimates P(the current lead survives to close)
+    # from drift, seconds left, and trailing vol, and enters only when the ask is
+    # below that fair value by a margin. First engine that gates on price-vs-fair-
+    # value instead of a fixed cap; it should refuse most of what band takes.
+    "value":  dict(label="Value",  tunable=True,  driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                   fvK=1.6, fvMargin=0.03),
+    # fade — pure contrarian side engine. Mirrors loose's ENTER onto the opposite
+    # token at its REAL book price (not a 1-p mirror), so paper pays the true
+    # opposite spread and fee. Wins exactly when loose loses, which only pays
+    # because loose overpays for its picks (~ -5.5c/share outcome edge: 53% win
+    # at a 59c average entry); floor and band have positive edge and are NOT
+    # fadeable. Paper side engine, never emitted to the live executor.
+    "fade":   dict(label="Fade",   tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                   fadeOf="loose"),
 }
 VOL_WIN_MS = 600000   # trailing window for the volatility measure (10 min)
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
@@ -370,7 +384,63 @@ class Bot:
                     "top": None, "at": m["gAt"], "src": "gamma"}
         return None
 
+    def fair_value(self, delta, open_price, left, K):
+        """P(the current lead survives to the close) for a symmetric random walk:
+        Phi(|move| / sigma_remaining). sigma comes from the trailing 10-min range%
+        converted to an endpoint std (range ~= 1.6*sigma) and scaled to the seconds
+        left. None until vol and feed are ready. This is our own estimate of the
+        side's true probability, independent of what the book is charging."""
+        if delta is None or not open_price or self.vol is None or not left or left <= 0:
+            return None
+        move = abs(delta) / open_price
+        sigma_10m = (self.vol / 100.0) / K            # 10-min endpoint std, as a fraction
+        sigma_rem = sigma_10m * math.sqrt(max(1, left) / 600.0)
+        if sigma_rem <= 0:
+            return None
+        return 0.5 * (1.0 + math.erf((move / sigma_rem) / math.sqrt(2)))
+
+    def _fade_eval(self, now, eid):
+        """Derived side engine: mirror the base engine's ENTER onto the opposite
+        token, priced on ITS real book (not a 1-p mirror), so paper pays the true
+        opposite spread and fee. Wins exactly when the base loses, which only pays
+        when the base overpays for its picks. Loose qualifies (~ -5.5c/share of
+        outcome edge); floor and band have positive edge and are not fadeable.
+        Same position/day guards the other engines honor, applied to this book."""
+        base_id = ENGINE_CFG[eid]["fadeOf"]
+        # Read the base engine's decision as CACHED earlier this tick, before it
+        # entered. Re-evaluating here is wrong: once the base records its trade
+        # this interval, its own RiskCaps/dup guard flips a fresh eval to
+        # enter=False and the fade would never fire. The tick loop always
+        # evaluates the base before this engine, so the cache is present; the
+        # fallback only covers direct/test calls where it is not.
+        base = self.eng.get(base_id, {}).get("eval")
+        if not base or base.get("t") != now:
+            base = self.evaluate(now, base_id)
+        prof, m, f = self.prof(), self.mkt, self.feed
+        left = base.get("left")
+        bside = base.get("side")
+        opp = ("down" if bside == "up" else "up") if bside in ("up", "down") else None
+        q = self.quote(opp) if opp else None
+        mid = (q["bid"] + q["ask"]) / 2 if (q and q["bid"] is not None and q["ask"] is not None) else None
+        spread = (q["ask"] - q["bid"]) if (q and q["bid"] is not None and q["ask"] is not None) else None
+        dn, dpnl = self.day_stats(eid)
+        loss_cap = clampf(self.st["bank"], 10, 100000, 100) * prof["dayLossPct"] / 100
+        opent, dup = self.open_trade(eid), (self.trade_for(eid, m["t0"]) if m else None)
+        can_fill = bool(q and q["ask"] is not None and left is not None and left > 0
+                        and not opent and not dup and dn < prof["maxDay"] and dpnl > -loss_cap)
+        base_enter = bool(base.get("enter"))
+        checks = [(f"{base_id} ENTER", base_enter), ("Opp fillable", can_fill)]
+        passc = sum(1 for _, ok in checks if ok)
+        ev = dict(t=now, side=opp, delta=base.get("delta"), q=q, mid=mid, spread=spread, left=left,
+                  checks=checks, passCount=passc, need=2, must=[f"{base_id} ENTER"], mustOk=base_enter,
+                  driftPct=base.get("driftPct"), fv=None, extra=[], extraOk=True,
+                  all=(passc == 2), enter=(base_enter and can_fill))
+        self.eng[eid]["eval"] = ev
+        return ev
+
     def evaluate(self, now, eid):
+        if ENGINE_CFG[eid].get("fadeOf"):
+            return self._fade_eval(now, eid)
         prof, m, f = self.prof(), self.mkt, self.feed
         ns = now // 1000
         left = (m["t1"] - ns) if m else None
@@ -409,6 +479,7 @@ class Bot:
         cfg = ENGINE_CFG[eid]
         drift_pct = (abs(delta) / f["open"] * 100) if (delta is not None and f["open"]) else None
         extra = []
+        fv = None
         if cfg.get("driftMin") is not None:   # momentum floor: no entry on sub-signal noise
             extra.append(("drift≥%.2g%%" % cfg["driftMin"], drift_pct is not None and drift_pct >= cfg["driftMin"]))
         if cfg["driftMax"] is not None:       # ceiling: big movers still priced cheap = adverse selection
@@ -419,12 +490,18 @@ class Bot:
                           bool(q and q["ask"] is not None and q["ask"] + slip <= cfg["entryMax"] + 1e-9)))
         if cfg.get("volMax") is not None:
             extra.append(("calm≤%.2g%%" % cfg["volMax"], self.vol is not None and self.vol <= cfg["volMax"]))
+        if cfg.get("fvMargin") is not None:   # value: only enter when the book lags our fair value
+            fv = self.fair_value(delta, f["open"], left, cfg.get("fvK", 1.6))
+            slipv = clampf(self.st["slip"], 0, 5, 1) / 100
+            extra.append(("ask<fv−%d%%" % round(cfg["fvMargin"] * 100),
+                          bool(fv is not None and q and q["ask"] is not None
+                               and (q["ask"] + slipv) < fv - cfg["fvMargin"])))
         extra_ok = all(o for _, o in extra)
         can_fill = bool(q and q["ask"] is not None and left is not None and left > 0
                         and not opent and not dup and dn < prof["maxDay"] and dpnl > -loss_cap)
         ev = dict(t=now, side=side, delta=delta, q=q, mid=mid, spread=spread, left=left,
                   checks=checks, passCount=passc, need=need, must=list(must), mustOk=must_ok,
-                  driftPct=drift_pct, extra=extra, extraOk=extra_ok,
+                  driftPct=drift_pct, fv=fv, extra=extra, extraOk=extra_ok,
                   all=allp, enter=(passc >= need and must_ok and extra_ok and can_fill))
         self.eng[eid]["eval"] = ev
         return ev
@@ -546,6 +623,12 @@ class Bot:
                 tmp = self.sig_file + ".tmp"
                 with open(tmp, "w") as f: json.dump(sig, f, separators=(",", ":"))
                 os.replace(tmp, self.sig_file)
+                # append-only log: the multi-engine transport. A single atomic
+                # write per line means two engines firing on the same tick both
+                # land, where the single file above would keep only the last.
+                log_path = os.path.join(os.path.dirname(self.sig_file), "signals.log")
+                with open(log_path, "a") as lf:
+                    lf.write(json.dumps(sig, separators=(",", ":")) + "\n")
         except Exception as e:
             self.log(f"signal file error: {e}")
         if self.sig_webhook:
@@ -940,6 +1023,21 @@ def selftest():
     l2, f2, n2 = bv.evaluate(now,"loose"), bv.evaluate(now,"floor"), bv.evaluate(now,"band")
     ok(l2["enter"] and f2["enter"] and n2["enter"],
        "3bps move: all three enter", f"loose={l2['enter']} floor={f2['enter']} band={n2['enter']}")
+    fd2 = bv.evaluate(now, "fade")   # loose entered UP → fade enters DOWN on the opposite book
+    ok(fd2["enter"] and fd2["side"] == "down",
+       "fade mirrors loose onto the opposite side", f"loose={l2['side']} fade={fd2['side']} enter={fd2['enter']}")
+    # regression: fade must STILL fire after loose has actually ENTERED this
+    # interval. The tick loop enters loose before evaluating fade, so a fresh
+    # re-eval of loose would see its open trade and wrongly stand down. This test
+    # (unlike the ones above) records loose's trade first, so it guards the fix.
+    bvr = Bot({}, default_state(A))
+    bvr.mkt = mkmkt(0.58, 0.57); bvr.prev_quote = {"side": "up", "ask": 0.58, "t": now-4000}
+    bvr.feed = {"src": "Coinbase", "open": 100000, "last": 100030, "at": now, "t0": bvr.mkt["t0"]}
+    lr = bvr.evaluate(now, "loose"); bvr.paper_enter("loose", lr)   # loose takes the trade first
+    fr = bvr.evaluate(now, "fade")
+    ok(fr["enter"] and fr["side"] == "down" and bool(bvr.open_trade("loose")),
+       "fade still fires after loose has entered this interval",
+       f"loose_open={bool(bvr.open_trade('loose'))} fade={fr['side']} enter={fr['enter']}")
     bv.feed = {"src":"Coinbase","open":100000,"last":100060,"at":now,"t0":bv.mkt["t0"]}    # 6bps: over the ceiling
     f3, n3 = bv.evaluate(now,"floor"), bv.evaluate(now,"band")
     ok(f3["enter"] and not n3["enter"],
@@ -948,6 +1046,9 @@ def selftest():
     bv.feed = {"src":"Coinbase","open":100000,"last":100030,"at":now,"t0":bv.mkt["t0"]}
     n4 = bv.evaluate(now,"band")
     ok(not n4["enter"], "band blocks a 68c fill (65c cap shared with loose)", f"enter={n4['enter']}")
+    lf4, ff4 = bv.evaluate(now, "loose"), bv.evaluate(now, "fade")   # 68c blocks loose → fade must stand down too
+    ok(not lf4["enter"] and not ff4["enter"],
+       "fade stands down when loose stands down", f"loose={lf4['enter']} fade={ff4['enter']}")
     # miss tracking: an enter that can't fill (thin book) records a level-4 miss
     bmz = Bot({}, default_state(A)); bmz.eng["loose"]={"eval":None,"miss":None}
     bmz._track_miss("loose", {"enter":True,"side":"up","passCount":8,"need":7,"mustOk":True,"extraOk":True,"extra":[],"checks":[]}, False)

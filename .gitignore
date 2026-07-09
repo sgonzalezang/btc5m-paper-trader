@@ -3,4 +3,6 @@ bot/state.json
 bot/signal.env
 bot/signal.json
 bot/signal.json.tmp
+bot/signals.log
+bot/state.json.bak-pretrue
 node_modules/
