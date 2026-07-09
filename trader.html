@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC 5-Minute — Polymarket Momentum Paper Trader</title>
+<style>
+  :root{
+    --bg:#12161c; --panel:#1a2029; --panel2:#20272f; --ink:#e8ebef; --mut:#8b96a3;
+    --line:#2a323d; --btc:#f7931a; --btc-d:#d97f10; --up:#34c07c; --dn:#e06c4f;
+    --shadow:0 2px 10px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.4;font-size:15px}
+  header{background:#0d1116;border-bottom:3px solid var(--btc);padding:16px;box-shadow:var(--shadow)}
+  header h1{margin:0;font-size:20px;letter-spacing:.4px}
+  header h1 .b{color:var(--btc)}
+  header .sub{color:var(--mut);font-size:13px;margin-top:3px}
+  .wrap{max-width:1180px;margin:0 auto;padding:14px 12px 60px}
+  button{font-family:inherit;font-size:14px;cursor:pointer;border:none;border-radius:8px;padding:8px 12px;background:var(--panel2);color:var(--ink);font-weight:600;border:1px solid var(--line);transition:.12s}
+  button:hover{background:#2a333e}
+  button.gold{background:var(--btc);color:#1d1405;border-color:var(--btc)}
+  button.gold:hover{background:var(--btc-d)}
+  button.warn{background:transparent;color:var(--dn);border:1px solid #5a3a30}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;margin:14px 0;box-shadow:var(--shadow)}
+  .toolbar label{font-size:13px;color:var(--mut);display:flex;align-items:center;gap:5px}
+  .toolbar input[type=number]{width:70px;padding:6px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:var(--panel2);color:var(--ink)}
+  .toolbar select{padding:6px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:inherit;background:var(--panel2);color:var(--ink)}
+  .switch{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--ink);font-size:13px}
+  .pm-status{flex-basis:100%;font-size:13px;color:var(--mut)}
+  .note{background:#1c222b;border:1px solid #33404f;border-left:4px solid var(--btc);border-radius:8px;padding:10px 12px;font-size:13px;color:#c3ccd6;margin-bottom:14px}
+  .note b{color:var(--ink)}
+  a.pmlink{color:var(--btc);font-weight:700;font-size:12px;text-decoration:none;border-bottom:1px dotted var(--btc)}
+  .proj-h{font-size:15px;color:var(--btc);margin:18px 0 8px;border-left:4px solid var(--btc);padding-left:9px}
+  .tr-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:10px}
+  .tr-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:14px;text-align:center}
+  .tr-card .tr-big{font-size:26px;font-weight:800;color:var(--ink)}
+  .tr-card .tr-lab{font-size:12px;color:var(--mut);margin-top:3px}
+  .mc-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.trk{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13px;box-shadow:var(--shadow);min-width:640px}
+  table.trk th{background:var(--panel2);color:var(--mut);padding:7px 6px;font-size:11px;text-transform:uppercase}
+  table.trk td{padding:7px 6px;border-top:1px solid var(--line);text-align:center}
+  table.trk td.desc{text-align:left;font-weight:600;white-space:nowrap;padding-left:10px}
+  table.trk td small{color:var(--mut);font-weight:600}
+  table.trk tr.tr-hit td:first-child{box-shadow:inset 4px 0 0 var(--up)}
+  table.trk tr.tr-miss td:first-child{box-shadow:inset 4px 0 0 var(--dn)}
+  .verdict-tag{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px}
+  .v-value{background:#173527;color:var(--up)} .v-fair{background:#2a2f24;color:#cdc06a} .v-bad{background:#3a231c;color:var(--dn)}
+  .btc-live{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:12px}
+  .btc-count{font-size:30px;font-weight:800;color:var(--btc);font-variant-numeric:tabular-nums}
+  .btc-big{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+  .btc-chk{list-style:none;margin:0;padding:0;font-size:12px;text-align:left}
+  .btc-chk li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-top:1px solid var(--line)}
+  .btc-chk li:first-child{border-top:none}
+  .btc-chk li span:first-child{color:var(--mut)}
+  .btc-ok{color:var(--up);font-weight:700;white-space:nowrap}
+  .btc-no{color:var(--dn);font-weight:700;white-space:nowrap}
+  .btc-side-up{color:var(--up)} .btc-side-down{color:var(--dn)}
+  .btc-mut{color:var(--mut)}
+  .eng-strip{display:flex;flex-wrap:wrap;gap:6px}
+  .eng-badge{display:inline-flex;gap:5px;align-items:center;font-size:12px;border:1px solid var(--line);border-radius:20px;padding:2px 9px;background:#161c24}
+  .btc-books{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:6px}
+  @media(max-width:900px){ .btc-books{grid-template-columns:1fr} }
+  .eng-col{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
+  .eng-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;border-bottom:2px solid var(--line);padding-bottom:6px;margin-bottom:8px}
+  .eng-head h4{margin:0;font-size:16px}
+  .eng-head span{font-size:12px}
+  .eng-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+  .eng-tiles>div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 4px}
+  .et-big{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
+  .et-lab{font-size:10px;color:var(--mut);margin-top:2px}
+  table.trk.trk-mini{min-width:340px}
+  table.trk.trk-mini th,table.trk.trk-mini td{padding:5px 4px}
+  .btc-log{font-size:12px;color:var(--mut);max-height:240px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+  .btc-log div{padding:2px 0;border-top:1px dashed #242c36}
+  .btc-log div:first-child{border-top:none}
+  .btc-log b{color:#aab4bf}
+  footer{text-align:center;color:var(--mut);font-size:12px;padding:20px}
+  @media(max-width:640px){ .wrap{padding:10px 8px 50px} header h1{font-size:17px} }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="b">₿</span> BTC 5-Minute — Momentum into Close <span class="b">· dual paper trader</span></h1>
+  <div class="sub">Polymarket crypto Up/Down 5-minute markets · two engines side by side — <b style="color:var(--btc)">strict 10/10</b> vs <b style="color:#6fb2ff">loose N/10</b> · read-only, simulated fills only</div>
+</header>
+
+<div class="wrap">
+  <div class="note"><b>What this is.</b> A live signal engine running <b>two paper traders at once</b> on Polymarket's <b>crypto Up/Down 5-minute</b> markets (BTC, ETH, SOL, XRP, DOGE). Both watch the same momentum-into-close signal — enter in the last ~2 minutes when the price has <b>already moved hard</b>, the crowd agrees, and the price still leaves value — but they differ in how many of the 10 guards must be green to fire: <b style="color:var(--btc)">Strict</b> needs <b>all 10</b> (the disciplined strategy, rarely trades); <b style="color:#6fb2ff">Loose</b> needs only <b>N/10</b> (default 6, tune it above) so you <b>see plenty of action</b> and can watch how a trigger-happy version's P&amp;L compares. Everything is fetched <b>read-only in your browser</b> (Gamma + order book + a Coinbase→Binance→Kraken feed). Neither engine <b>ever places a real order</b>: fills are simulated <b>with a slippage haircut</b> (live fills are worse than the screen) and settled against Polymarket's own resolution. Watch the core math on each ledger: <b>your entry price is your breakeven win rate</b> — the loose engine will trade far more but usually at worse prices, which is exactly the lesson. Ledgers live in this browser only (plus Export). <b>Not financial advice.</b></div>
+
+  <div class="toolbar">
+    <button class="gold" id="btcStart">▶ Start watching</button>
+    <label>asset <select id="btcAsset"></select></label>
+    <label>profile <select id="btcProfile"></select></label>
+    <label>stake $ <input type="number" id="btcStake" min="1" max="1000" step="1" value="5"></label>
+    <label>bankroll $ <input type="number" id="btcBank" min="10" max="100000" step="10" value="100"></label>
+    <label>slippage ¢ <input type="number" id="btcSlip" min="0" max="5" step="0.5" value="1"></label>
+    <label>loose enters at <input type="number" id="btcLoose" min="1" max="10" step="1" value="6">/10</label>
+    <span class="switch"><input type="checkbox" id="btcAuto" checked> Auto paper-trade</span>
+    <button id="btcExport">⬇ Export</button>
+    <button id="btcImport">⬆ Import</button>
+    <button class="warn" id="btcClear">Clear ledger</button>
+    <input type="file" id="btcFile" accept="application/json" style="display:none">
+    <span class="pm-status" id="btcStatus">Watcher is off — nothing is being fetched.</span>
+  </div>
+
+  <div id="btcWrap"></div>
+
+  <div class="note" style="margin-top:16px"><b>Under the hood.</b> Markets are discovered by their deterministic slug <code>&lt;asset&gt;-updown-5m-&lt;unix start&gt;</code> (intervals align to 300-second UTC boundaries), with a series-feed and public-search sweep as fallback. Executable quotes come from the public CLOB order book (<code>clob.polymarket.com/book</code>), falling back to Gamma's <code>bestBid/bestAsk</code>; the spot price uses 1-minute candles from Coinbase Exchange → Binance data mirror → Kraken. If a direct call is blocked by CORS, a public-proxy fallback chain kicks in automatically. Strategy guards (ported from the "5min-btc-polymarket" momentum skill): 60–150&nbsp;s left, confirmed move ≥ <b>0.10%/0.07% of interval open</b> (≈ $100/$70 on BTC — percentage so it transfers across assets), momentum-side mid ≥ 52¢, ask ≤ 70¢, spread ≤ 3¢, top-ask depth ≥ $30, quotes fresh (book ≤ 8&nbsp;s, feed ≤ 15&nbsp;s), <b>quote stable across two consecutive ticks</b> (≤ 15¢ jump — a lone wild print is dirty data, not a fill), per-day trade & loss caps; plus a 0.25%/0.30% spot-retrace stop-loss and a $1+ micro-hedge when late skew goes extreme (≥ 95¢/93¢). Paper fills pay a configurable <b>slippage haircut</b> (default +1¢) on the visible ask. One simple strategy deployed across five assets beats a complex one on a single asset — switch assets with the selector and compare ledgers. Real execution would need an authenticated CLOB client, order signing, latency work and jurisdiction checks — deliberately out of scope for this page.</div>
+</div>
+<footer>Single self-contained file · public data only · simulated fills · not financial advice</footer>
+
+<script>
+"use strict";
+/* ============================================================
+   BTC 5-MINUTE — momentum-into-close signal engine + PAPER trader
+   Ports the strategy & risk profiles of the "5min-btc-polymarket"
+   skill (enter ~2 min before close, confirmed BTC move, crowd-skew
+   agreement, price cap, micro-hedge on extreme skew) as a fully
+   read-only browser paper trader. Nothing here signs or places
+   real orders — it fetches public data and simulates fills.
+   ============================================================ */
+const $=id=>document.getElementById(id);
+function esc(s){ return (s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function clampNum(v,lo,hi,def){ v=parseFloat(v); if(isNaN(v))return def; return Math.max(lo,Math.min(hi,v)); }
+
+// CORS layer: direct first, then public-proxy fallbacks; every request is
+// time-bounded, and the first wrapper that works is remembered.
+const CORS_PROXIES=[
+  u=>u,
+  u=>"https://api.codetabs.com/v1/proxy/?quest="+encodeURIComponent(u),
+  u=>"https://corsproxy.io/?url="+encodeURIComponent(u),
+  u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u)
+];
+let WORK_PROXY=null;
+function fetchTimeout(url, ms){
+  return new Promise(resolve=>{
+    let done=false; const ctrl=("AbortController" in window)?new AbortController():null;
+    const t=setTimeout(()=>{ if(!done){ done=true; if(ctrl)try{ctrl.abort();}catch(e){} resolve(null);} }, ms||11000);
+    fetch(url, ctrl?{signal:ctrl.signal}:{}).then(async r=>{
+      if(done)return; done=true; clearTimeout(t);
+      if(!r.ok){ resolve(null); return; }
+      try{ resolve(JSON.parse(await r.text())); }catch(e){ resolve(null); }
+    }).catch(()=>{ if(!done){ done=true; clearTimeout(t); resolve(null);} });
+  });
+}
+async function proxiedJson(url){
+  if(WORK_PROXY){ const j=await fetchTimeout(WORK_PROXY(url)); if(j) return j; WORK_PROXY=null; }
+  for(const wrap of CORS_PROXIES){ const j=await fetchTimeout(wrap(url)); if(j){ WORK_PROXY=wrap; return j; } }
+  return null;
+}
+// Gamma responses sometimes encode arrays as JSON strings and numbers as
+// strings — parse every field defensively.
+function pmArr(x){ if(Array.isArray(x))return x; if(typeof x==="string"){ try{ const a=JSON.parse(x); return Array.isArray(a)?a:null; }catch(e){ return null; } } return null; }
+function pmNum(x){ if(x==null||x==="")return null; const v=+x; return isNaN(v)?null:v; }
+function pmP01(p){ return (p==null||p<0||p>1)?null:p; }
+
+const PM_GAMMA="https://gamma-api.polymarket.com";
+const BTC_CLOB="https://clob.polymarket.com";
+const BTC_IVL=300;              // interval length, seconds
+const BTC_TICK_MS=4000;         // data refresh cadence
+const BTC5M_KEY="btc5m_paper_v1";
+// Same simple strategy, deployable across every 5-minute Up/Down series
+// Polymarket runs — an edge that is marginal on BTC may be real on SOL.
+const BTC_ASSETS={
+  BTC:{label:"BTC",  slug:"btc-updown-5m-",  series:"btc-updown-5m",  q:"Bitcoin Up or Down",  cb:"BTC-USD",  bn:"BTCUSDT",  kr:"XBTUSD"},
+  ETH:{label:"ETH",  slug:"eth-updown-5m-",  series:"eth-updown-5m",  q:"Ethereum Up or Down", cb:"ETH-USD",  bn:"ETHUSDT",  kr:"ETHUSD"},
+  SOL:{label:"SOL",  slug:"sol-updown-5m-",  series:"sol-updown-5m",  q:"Solana Up or Down",   cb:"SOL-USD",  bn:"SOLUSDT",  kr:"SOLUSD"},
+  XRP:{label:"XRP",  slug:"xrp-updown-5m-",  series:"xrp-updown-5m",  q:"XRP Up or Down",      cb:"XRP-USD",  bn:"XRPUSDT",  kr:"XRPUSD"},
+  DOGE:{label:"DOGE",slug:"doge-updown-5m-", series:"doge-updown-5m", q:"Dogecoin Up or Down", cb:"DOGE-USD", bn:"DOGEUSDT", kr:"XDGUSD"}
+};
+function btcAsset(){ return BTC_ASSETS[STATE.btc.asset]||BTC_ASSETS.BTC; }
+// Profiles ported from config/btc_5m_profiles.yaml of the source repo.
+// maxAsk 0.70 = the shared "0.70 ask" entry threshold read as a price CAP:
+// your entry price IS your breakeven win rate (a 70¢ entry needs >70% wins),
+// so the cap keeps headroom. minMid 0.52 = "skew supports the move" (crowd
+// prices the momentum side above a coin-flip). The $70–$100 BTC move band is
+// expressed as a percentage of the interval open (≈0.10%/0.07% at $100k BTC)
+// so it transfers across assets.
+// maxDay (trades-per-day cap) is OFF at user request (2026-07-04, "for now") —
+// restore by putting back the source values: conservative 12, aggressive 20.
+const BTC_PROFILES={
+  conservative:{ label:"Conservative", movePct:0.10, minMid:0.52, maxAsk:0.70,
+    winLeftMax:150, winLeftMin:60, freshMs:8000, feedFreshMs:15000, maxSpread:0.03, minTopUsd:30,
+    stopPct:0.25, hedgeAt:0.97, hedgeLeft:20, hedgeFrac:0.03, maxDay:Infinity, dayLossPct:Infinity },  // loss cap OFF 2026-07-07 (paper analytics)
+  aggressive:{ label:"Aggressive", movePct:0.07, minMid:0.52, maxAsk:0.70,
+    winLeftMax:150, winLeftMin:60, freshMs:8000, feedFreshMs:15000, maxSpread:0.03, minTopUsd:30,
+    stopPct:0.30, hedgeAt:0.96, hedgeLeft:25, hedgeFrac:0.05, maxDay:Infinity, dayLossPct:Infinity }  // loss cap OFF
+};
+// TWO paper engines run side by side over the same live data:
+//  · strict — needs ALL 10 guards green (the real momentum strategy)
+//  · loose  — needs only N/10 green (default 6), deliberately trigger-happy
+//    so you can SEE action and compare its P&L against the disciplined one.
+// Both share one market/feed/book fetch per tick; only entry bookkeeping differs.
+const BTC_ENGINES=[
+  {id:"strict", label:"Strict", hue:"var(--btc)"},
+  {id:"loose",  label:"Loose",  hue:"#6fb2ff"}
+];
+function btcEngById(id){ return BTC_ENGINES.find(e=>e.id===id)||BTC_ENGINES[0]; }
+function btcEngPass(id){ return id==="loose"?clampNum(STATE.btc.loosePass,1,10,6):10; }
+function btcDefaults(){ return {on:false, auto:true, profile:"conservative", asset:"BTC", stake:5, bank:100, slip:1, loosePass:6,
+  engines:{ strict:{trades:[]}, loose:{trades:[]} } }; }
+function btcCleanTrades(a){
+  return Array.isArray(a)?a.filter(t=>t&&typeof t.t0==="number"&&(t.side==="up"||t.side==="down")).slice(0,250)
+    .map(t=>{ if(!BTC_ASSETS[t.asset]) t.asset="BTC"; return t; }):[];
+}
+function btcSanitize(o){
+  const d=btcDefaults(); if(!o||typeof o!=="object") return d;
+  d.on=!!o.on; d.auto=o.auto!==false;
+  d.profile=BTC_PROFILES[o.profile]?o.profile:"conservative";
+  d.asset=BTC_ASSETS[o.asset]?o.asset:"BTC";
+  d.stake=clampNum(o.stake,1,1000,5); d.bank=clampNum(o.bank,10,100000,100);
+  d.slip=clampNum(o.slip,0,5,1); d.loosePass=clampNum(o.loosePass,1,10,6);
+  if(o.engines&&typeof o.engines==="object"){
+    d.engines.strict.trades=btcCleanTrades(o.engines.strict&&o.engines.strict.trades);
+    d.engines.loose.trades =btcCleanTrades(o.engines.loose&&o.engines.loose.trades);
+  } else if(Array.isArray(o.trades)){          // v1 → every prior trade was the strict strategy
+    d.engines.strict.trades=btcCleanTrades(o.trades);
+  }
+  return d;
+}
+let STATE={ btc:btcDefaults() };
+function save(){ try{ localStorage.setItem(BTC5M_KEY, JSON.stringify({version:2, btc:STATE.btc})); }catch(e){} }
+function load(){ try{ const raw=localStorage.getItem(BTC5M_KEY); if(raw){ const o=JSON.parse(raw); STATE.btc=btcSanitize(o&&o.btc); } }catch(e){ console.warn("load failed",e); } }
+
+// runtime only (never persisted). Data layer (mkt/feed/prevQuote/lastEval) is
+// SHARED by both engines; only per-engine entry bookkeeping lives in BTC.eng.
+const BTC={ fetching:false, lastTick:0, mkt:null, feed:{src:null,open:null,last:null,at:0,t0:null},
+  feedIdx:null, slugOff:0, sweepAt:0, resAt:0, lastEval:null, prevQuote:null, logs:[], dirty:false, err:null,
+  eng:{ strict:{winEval:null,sigLogged:null,eval:null}, loose:{winEval:null,sigLogged:null,eval:null} } };
+function btcProf(){ return BTC_PROFILES[STATE.btc.profile]||BTC_PROFILES.conservative; }
+function btcTrades(id){ return (STATE.btc.engines[id]&&STATE.btc.engines[id].trades)||[]; }
+function btcOpenTrade(id){ return btcTrades(id).find(t=>t.status==="open")||null; }
+function btcTradeFor(id,t0){ return btcTrades(id).find(t=>t.t0===t0&&(t.asset||"BTC")===STATE.btc.asset)||null; }
+function btcDayKey(ts){ const d=new Date(ts); return d.getUTCFullYear()+"-"+(d.getUTCMonth()+1)+"-"+d.getUTCDate(); }
+function btcDayStats(id){
+  const k=btcDayKey(Date.now()); let n=0,pnl=0;
+  btcTrades(id).forEach(t=>{ if(btcDayKey(t.at)===k){ n++; if(typeof t.pnl==="number") pnl+=t.pnl; } });
+  return {n,pnl};
+}
+function btcLog(msg){ BTC.logs.unshift({t:Date.now(),msg}); if(BTC.logs.length>120)BTC.logs.length=120; BTC.dirty=true; }
+
+// --- BTC price feed: 1-min candles → {open of interval t0, latest price}.
+// If the t0 candle hasn't printed yet, the previous candle's close stands in
+// (crypto candles are gap-free); it self-corrects on the next tick.
+const BTC_FEEDS=[
+  { key:"Coinbase",
+    url:t0=>"https://api.exchange.coinbase.com/products/"+btcAsset().cb+"/candles?granularity=60&start="
+      +encodeURIComponent(new Date((t0-120)*1000).toISOString())+"&end="+encodeURIComponent(new Date(Date.now()+60000).toISOString()),
+    parse:(j,t0)=>{ if(!Array.isArray(j)) return null;      // rows [time,low,high,open,close,vol]
+      let open=null,last=null,lastT=-1,pc=null,pcT=-1;
+      j.forEach(r=>{ if(!Array.isArray(r)||r.length<5) return; const t=+r[0],o=pmNum(r[3]),c=pmNum(r[4]);
+        if(t===t0&&o!=null) open=o;
+        if(t<t0&&t>pcT&&c!=null){ pcT=t; pc=c; }
+        if(t>lastT&&c!=null){ lastT=t; last=c; } });
+      if(open==null&&pc!=null) open=pc;
+      return last==null?null:{open,last}; } },
+  { key:"Binance",
+    url:t0=>"https://data-api.binance.vision/api/v3/klines?symbol="+btcAsset().bn+"&interval=1m&startTime="+((t0-120)*1000)+"&limit=12",
+    parse:(j,t0)=>{ if(!Array.isArray(j)) return null;      // rows [openTimeMs,"o","h","l","c",...]
+      let open=null,last=null,lastT=-1,pc=null,pcT=-1;
+      j.forEach(r=>{ if(!Array.isArray(r)||r.length<5) return; const t=Math.floor(+r[0]/1000),o=pmNum(r[1]),c=pmNum(r[4]);
+        if(t===t0&&o!=null) open=o;
+        if(t<t0&&t>pcT&&c!=null){ pcT=t; pc=c; }
+        if(t>lastT&&c!=null){ lastT=t; last=c; } });
+      if(open==null&&pc!=null) open=pc;
+      return last==null?null:{open,last}; } },
+  { key:"Kraken",
+    url:t0=>"https://api.kraken.com/0/public/OHLC?pair="+btcAsset().kr+"&interval=1&since="+(t0-180),
+    parse:(j,t0)=>{ const res=j&&j.result; if(!res) return null;
+      const k=Object.keys(res).filter(x=>x!=="last")[0], rows=k?res[k]:null;
+      if(!Array.isArray(rows)) return null;                 // rows [time,"o","h","l","c","vwap","vol",n]
+      let open=null,last=null,lastT=-1,pc=null,pcT=-1;
+      rows.forEach(r=>{ if(!Array.isArray(r)||r.length<5) return; const t=+r[0],o=pmNum(r[1]),c=pmNum(r[4]);
+        if(t===t0&&o!=null) open=o;
+        if(t<t0&&t>pcT&&c!=null){ pcT=t; pc=c; }
+        if(t>lastT&&c!=null){ lastT=t; last=c; } });
+      if(open==null&&pc!=null) open=pc;
+      return last==null?null:{open,last}; } }
+];
+async function btcFeedTick(t0){
+  if(BTC.feed.t0!==t0) BTC.feed={src:BTC.feed.src,open:null,last:null,at:0,t0};
+  const order=[]; if(BTC.feedIdx!=null) order.push(BTC.feedIdx);
+  for(let i=0;i<BTC_FEEDS.length;i++) if(order.indexOf(i)<0) order.push(i);
+  for(const i of order){
+    const F=BTC_FEEDS[i]; let r=null;
+    try{ const j=await proxiedJson(F.url(t0)); r=j?F.parse(j,t0):null; }catch(e){ r=null; }
+    if(r&&r.last!=null){
+      BTC.feedIdx=i; BTC.feed.src=F.key;
+      if(r.open!=null) BTC.feed.open=r.open;
+      BTC.feed.last=r.last; BTC.feed.at=Date.now(); return;
+    }
+  }
+}
+
+// --- Market discovery & parsing (Gamma). bestBid/bestAsk refer to the first
+// outcome token, so orientation is normalized to the "Up" side.
+function btcParseEvent(ev){
+  if(!ev||!Array.isArray(ev.markets)||!ev.markets.length) return null;
+  const mk=ev.markets[0];
+  const toks=pmArr(mk.clobTokenIds)||[], outs=pmArr(mk.outcomes)||[], prices=pmArr(mk.outcomePrices)||[];
+  let iUp=-1; outs.forEach((o,i)=>{ if(iUp<0&&/up/i.test(""+o)) iUp=i; }); if(iUp<0) iUp=0;
+  const iDn=iUp===0?1:0;
+  const b0=pmP01(pmNum(mk.bestBid)), a0=pmP01(pmNum(mk.bestAsk));
+  let upBid=b0, upAsk=a0;
+  if(iUp!==0){ upBid=a0!=null?+(1-a0).toFixed(4):null; upAsk=b0!=null?+(1-b0).toFixed(4):null; }
+  return { slug:""+(ev.slug||""), title:ev.title||mk.question||"",
+    closed:(mk.closed===true)||(ev.closed===true),
+    resolved:/resolved/i.test(""+(mk.umaResolutionStatus||"")),
+    tokUp:toks[iUp]!=null?""+toks[iUp]:null, tokDown:toks[iDn]!=null?""+toks[iDn]:null,
+    pUp:pmP01(pmNum(prices[iUp])), pDown:pmP01(pmNum(prices[iDn])), upBid, upAsk,
+    end:Date.parse(mk.endDate||ev.endDate||"")||null };
+}
+function btcWinner(p){
+  if(!p||(!p.closed&&!p.resolved)) return null;
+  if(p.pUp!=null&&p.pUp>=0.99) return "up";
+  if(p.pDown!=null&&p.pDown>=0.99) return "down";
+  return null;
+}
+async function btcGammaBySlug(slug){
+  const j=await proxiedJson(PM_GAMMA+"/events?slug="+encodeURIComponent(slug));
+  return (Array.isArray(j)&&j.length)?j[0]:null;
+}
+async function btcSweep(nowSec){
+  const A=btcAsset();
+  const strategies=[
+    async()=>{ const j=await proxiedJson(PM_GAMMA+"/events?series_slug="+encodeURIComponent(A.series)+"&closed=false&limit=25"); return Array.isArray(j)?j:null; },
+    async()=>{ const j=await proxiedJson(PM_GAMMA+"/public-search?q="+encodeURIComponent(A.q)+"&limit_per_type=40&events_status=active");
+               return (j&&Array.isArray(j.events))?j.events:null; }
+  ];
+  for(const s of strategies){
+    let arr=null; try{ arr=await s(); }catch(e){}
+    if(!arr||!arr.length) continue;
+    let best=null,bestTs=null;
+    arr.forEach(e=>{ const sl=""+((e&&e.slug)||""); if(sl.indexOf(A.slug)!==0) return;
+      const ts=parseInt(sl.slice(A.slug.length),10); if(isNaN(ts)) return;
+      if(ts<=nowSec&&nowSec<ts+BTC_IVL){ best=e; bestTs=ts; } });
+    if(best) return {ev:best, ts:bestTs};
+  }
+  return null;
+}
+async function btcFindMarket(t0){
+  const raw=await btcGammaBySlug(btcAsset().slug+(t0+BTC.slugOff));
+  if(raw) return btcParseEvent(raw);
+  if(Date.now()-BTC.sweepAt>30000){       // slug scheme drifted? sweep, learn the offset
+    BTC.sweepAt=Date.now();
+    const hit=await btcSweep(Math.floor(Date.now()/1000));
+    if(hit){ BTC.slugOff=hit.ts-t0; return btcParseEvent(hit.ev); }
+  }
+  return null;
+}
+// --- CLOB order book → best bid/ask + top-of-book ask notional. The two
+// tokens of a binary market carry mirrored books, so the fetched side also
+// yields the display quote for its complement.
+async function btcBook(tokenId){
+  const j=await proxiedJson(BTC_CLOB+"/book?token_id="+encodeURIComponent(tokenId));
+  if(!j||(!Array.isArray(j.asks)&&!Array.isArray(j.bids))) return null;
+  let ask=null,askSz=0,bid=null,bidSz=0;
+  (j.asks||[]).forEach(l=>{ const p=pmNum(l&&l.price),s=pmNum(l&&l.size); if(p==null||s==null)return; if(ask==null||p<ask){ask=p;askSz=s;} });
+  (j.bids||[]).forEach(l=>{ const p=pmNum(l&&l.price),s=pmNum(l&&l.size); if(p==null||s==null)return; if(bid==null||p>bid){bid=p;bidSz=s;} });
+  if(ask==null&&bid==null) return null;
+  return {bid,ask,topAskUsd:ask!=null?ask*askSz:null,mirrorTopUsd:bid!=null?(1-bid)*bidSz:null,at:Date.now()};
+}
+function btcMirror(b){ if(!b) return null;
+  return {bid:b.ask!=null?+(1-b.ask).toFixed(4):null, ask:b.bid!=null?+(1-b.bid).toFixed(4):null,
+    topAskUsd:b.mirrorTopUsd, mirrorTopUsd:b.topAskUsd, at:b.at}; }
+// executable quote for 'up'|'down': live book first, Gamma fields as fallback
+function btcQuote(side){
+  const m=BTC.mkt; if(!m) return null;
+  const b=side==="up"?m.bookUp:m.bookDown;
+  if(b&&(b.bid!=null||b.ask!=null)) return {bid:b.bid, ask:b.ask, top:b.topAskUsd, at:b.at, src:"book"};
+  if(m.upBid!=null||m.upAsk!=null){
+    if(side==="up") return {bid:m.upBid, ask:m.upAsk, top:null, at:m.gAt, src:"gamma"};
+    return {bid:m.upAsk!=null?+(1-m.upAsk).toFixed(4):null, ask:m.upBid!=null?+(1-m.upBid).toFixed(4):null, top:null, at:m.gAt, src:"gamma"};
+  }
+  return null;
+}
+
+// --- Signal evaluation: every guard of the ported strategy, all visible in
+// the UI. nowMs is a parameter so the logic is directly unit-testable.
+// Evaluated per engine id — the 10 guards are identical except the last
+// (risk caps) which reads that engine's own open trade / day tally. prevQuote
+// is NOT mutated here; btcTick advances it once per tick after both engines run.
+function btcEvaluate(nowMs, id){
+  const prof=btcProf(), m=BTC.mkt, f=BTC.feed;
+  const nowSec=Math.floor(nowMs/1000);
+  const left=m?(m.t1-nowSec):null;
+  const delta=(f&&f.open!=null&&f.last!=null)?(f.last-f.open):null;
+  const side=(delta==null||delta===0)?null:(delta>0?"up":"down");
+  const q=side?btcQuote(side):null;
+  const mid=(q&&q.bid!=null&&q.ask!=null)?(q.bid+q.ask)/2:null;
+  const spread=(q&&q.bid!=null&&q.ask!=null)?(q.ask-q.bid):null;
+  const day=btcDayStats(id);
+  const lossCap=clampNum(STATE.btc.bank,10,100000,100)*prof.dayLossPct/100;
+  const open=btcOpenTrade(id), dup=m?btcTradeFor(id,m.t0):null;
+  const usdThr=(f&&f.open!=null)?f.open*prof.movePct/100:null;   // %-of-open → $ threshold, transfers across assets
+  // dirty-tick guard: an entry quote must be confirmed by the previous tick
+  // (same momentum side, ask within 15¢) — a lone wild print is not tradeable
+  const pq=BTC.prevQuote;
+  const stable=!!(pq&&side&&pq.side===side&&q&&q.ask!=null&&pq.ask!=null&&Math.abs(q.ask-pq.ask)<=0.15);
+  const checks=[
+    {k:"Market found", ok:!!(m&&m.ev&&!m.evClosed), v:(m&&m.ev)?"…"+m.slug.slice(-4):"—"},
+    {k:"Window "+prof.winLeftMin+"–"+prof.winLeftMax+"s left", ok:left!=null&&left>=prof.winLeftMin&&left<=prof.winLeftMax, v:left!=null?left+"s":"—"},
+    {k:"Move ≥ "+prof.movePct+"%"+(usdThr!=null?(" ($"+btcFmtNum(usdThr)+")"):""), ok:delta!=null&&usdThr!=null&&Math.abs(delta)>=usdThr,
+      v:delta!=null?((delta>=0?"+$":"−$")+btcFmtNum(Math.abs(delta))):"—"},
+    {k:"Skew agrees (mid ≥ "+(prof.minMid*100).toFixed(0)+"¢)", ok:mid!=null&&mid>=prof.minMid, v:mid!=null?(mid*100).toFixed(1)+"¢":"—"},
+    {k:"Ask ≤ "+(prof.maxAsk*100).toFixed(0)+"¢", ok:!!(q&&q.ask!=null&&q.ask<=prof.maxAsk), v:(q&&q.ask!=null)?(q.ask*100).toFixed(0)+"¢":"—"},
+    {k:"Spread ≤ "+(prof.maxSpread*100).toFixed(0)+"¢", ok:spread!=null&&spread<=prof.maxSpread+1e-9, v:spread!=null?(spread*100).toFixed(1)+"¢":"—"},
+    {k:"Quotes fresh (book "+(prof.freshMs/1000)+"s / feed "+(prof.feedFreshMs/1000)+"s)",
+      ok:!!(q&&(nowMs-q.at)<=prof.freshMs&&f&&f.at&&(nowMs-f.at)<=prof.feedFreshMs),
+      v:q?Math.round((nowMs-q.at)/1000)+"s/"+(f&&f.at?Math.round((nowMs-f.at)/1000)+"s":"—"):"—"},
+    {k:"Quote stable vs last tick (≤15¢)", ok:stable, v:stable?((q.ask*100).toFixed(0)+"¢≈"+(pq.ask*100).toFixed(0)+"¢"):(pq&&q&&q.ask!=null?"jumped":"1st tick")},
+    {k:"Top-ask depth ≥ $"+prof.minTopUsd, ok:!!(q&&q.top!=null&&q.top>=prof.minTopUsd), v:(q&&q.top!=null)?"$"+Math.round(q.top):"—"},
+    {k:"Risk caps"+((isFinite(prof.maxDay)||isFinite(lossCap))?(" ("+(isFinite(prof.maxDay)?prof.maxDay+"/day":"")+(isFinite(prof.maxDay)&&isFinite(lossCap)?" · ":"")+(isFinite(lossCap)?"−$"+lossCap.toFixed(0)+" stop":"")+")"):" (no open/dup)"), ok:!open&&!dup&&day.n<prof.maxDay&&day.pnl>-lossCap,
+      v:day.n+" today · "+(day.pnl>=0?"+":"")+day.pnl.toFixed(2)}
+  ];
+  const passCount=checks.reduce((n,c)=>n+(c.ok?1:0),0);
+  const need=btcEngPass(id);
+  const all=passCount===checks.length;
+  // a well-defined fill needs a real ask, time left, no existing/dup trade, under caps
+  const canFill=!!(q&&q.ask!=null&&left!=null&&left>0&&!open&&!dup&&day.n<prof.maxDay&&day.pnl>-lossCap);
+  const evalObj={t:nowMs, side, delta, q, mid, spread, left, checks, passCount, need, all, enter:(passCount>=need&&canFill)};
+  BTC.eng[id].eval=evalObj;
+  if(id==="strict") BTC.lastEval=evalObj;   // canonical 10-guard view for the shared checklist
+  if(m&&left!=null&&left>=prof.winLeftMin&&left<=prof.winLeftMax) BTC.eng[id].winEval=evalObj;
+  return evalObj;
+}
+
+// --- Paper execution ---------------------------------------------------
+function btcTag(id){ return "["+btcEngById(id).label.toUpperCase()+"] "; }
+function btcPaperEnter(id, ev){
+  const m=BTC.mkt, f=BTC.feed;
+  const stake=clampNum(STATE.btc.stake,1,1000,5);
+  // fill realism: paper fills pay a slippage haircut on top of the visible ask
+  // (live fills are worse than the screen — adverse selection and latency)
+  const slip=clampNum(STATE.btc.slip,0,5,1)/100;
+  const px=Math.min(0.99,+(ev.q.ask+slip).toFixed(4));
+  const tr={ at:Date.now(), t0:m.t0, t1:m.t1, slug:m.slug, profile:STATE.btc.profile, asset:STATE.btc.asset, eng:id, pass:ev.passCount, need:ev.need,
+    side:ev.side, entry:px, ask:ev.q.ask, slip:slip*100, stake, shares:+(stake/px).toFixed(4), btcOpen:f.open, btcEntry:f.last,
+    btcClose:null, feed:f.src, status:"open", hedge:null, pnl:null, result:null, settledBy:null };
+  STATE.btc.engines[id].trades.unshift(tr); if(STATE.btc.engines[id].trades.length>250)STATE.btc.engines[id].trades.length=250;
+  save();
+  btcLog(btcTag(id)+"ENTER "+STATE.btc.asset+" "+tr.side.toUpperCase()+" @ "+(px*100).toFixed(1)+"¢ ("+ev.passCount+"/10 guards, ask "+(ev.q.ask*100).toFixed(0)+"¢+"+(slip*100)+"¢) · $"+stake+" · Δ "+(ev.delta>=0?"+$":"−$")+btcFmtNum(Math.abs(ev.delta)));
+}
+function btcManageOpen(id, nowMs){
+  const tr=btcOpenTrade(id); if(!tr) return;
+  const prof=BTC_PROFILES[tr.profile]||btcProf();
+  const nowSec=Math.floor(nowMs/1000);
+  if(nowSec>=tr.t1){                                       // interval over → wait for resolution
+    tr.status="pending";
+    if(BTC.feed&&BTC.feed.t0===tr.t0&&BTC.feed.last!=null) tr.btcClose=BTC.feed.last;
+    save(); btcLog(btcTag(id)+"interval closed — "+tr.side.toUpperCase()+" awaiting resolution."); return;
+  }
+  if(!BTC.mkt||BTC.mkt.t0!==tr.t0||(tr.asset||"BTC")!==STATE.btc.asset) return;
+  const q=btcQuote(tr.side), f=BTC.feed;
+  // stop-loss: BTC retraces stopPct% (of price at entry) against the position
+  if(f&&f.last!=null&&tr.btcEntry!=null&&q&&q.bid!=null){
+    const adverse=tr.side==="up"?(tr.btcEntry-f.last):(f.last-tr.btcEntry);
+    if(adverse>=tr.btcEntry*prof.stopPct/100){
+      let pnl=tr.shares*q.bid-tr.stake;
+      if(tr.hedge){ const hb=Math.max(0.01,1-(q.ask!=null?q.ask:q.bid)); pnl+=tr.hedge.shares*hb-tr.hedge.stake; }
+      tr.pnl=+pnl.toFixed(2); tr.result="stopped"; tr.status="settled"; tr.settledBy="stop-loss";
+      save(); btcLog(btcTag(id)+"STOP-LOSS — exited "+tr.side.toUpperCase()+" at "+(q.bid*100).toFixed(0)+"¢ bid · P&L "+(tr.pnl>=0?"+":"")+tr.pnl.toFixed(2));
+      return;
+    }
+  }
+  // micro-hedge when our side goes to an extreme late (tail-risk cover)
+  if(!tr.hedge&&q&&q.bid!=null){
+    const left=tr.t1-nowSec;
+    if(q.bid>=prof.hedgeAt&&left<=prof.hedgeLeft){
+      const hstake=+Math.max(1,tr.stake*prof.hedgeFrac).toFixed(2);
+      const hslip=clampNum(STATE.btc.slip,0,5,1)/100;
+      const hpx=Math.max(0.01,Math.min(0.99,+(1-q.bid+hslip).toFixed(4)));   // opposite ask ≈ 1 − side bid, plus slip
+      tr.hedge={stake:hstake, px:hpx, shares:+(hstake/hpx).toFixed(4), at:nowMs};
+      save(); btcLog(btcTag(id)+"HEDGE — bought "+(tr.side==="up"?"DOWN":"UP")+" $"+hstake+" @ "+(hpx*100).toFixed(0)+"¢ ("+left+"s left)");
+    }
+  }
+}
+function btcApplySettle(tr,winner,by){
+  let pnl=(tr.side===winner)?(tr.shares-tr.stake):-tr.stake;
+  if(tr.hedge) pnl+=(winner!==tr.side)?(tr.hedge.shares-tr.hedge.stake):-tr.hedge.stake;
+  tr.pnl=+pnl.toFixed(2); tr.result=tr.side===winner?"win":"loss"; tr.status="settled"; tr.settledBy=by;
+  save();
+  btcLog(btcTag(tr.eng||"strict")+(tr.result==="win"?"WIN ✓ ":"LOSS ✗ ")+tr.side.toUpperCase()+" settled ("+by+") · P&L "+(tr.pnl>=0?"+":"")+tr.pnl.toFixed(2));
+}
+async function btcSettlePending(){
+  const pend=[]; BTC_ENGINES.forEach(e=>btcTrades(e.id).forEach(t=>{ if(t.status==="pending") pend.push(t); }));
+  if(!pend.length) return;
+  const nowMs=Date.now();
+  if(nowMs-BTC.resAt<8000) return;                          // throttle resolution polling
+  BTC.resAt=nowMs;
+  const cache={};                                           // one gamma fetch per slug even if both engines hold it
+  for(const tr of pend){
+    let p=cache[tr.slug];
+    if(p===undefined){ try{ p=btcParseEvent(await btcGammaBySlug(tr.slug)); }catch(e){ p=null; } cache[tr.slug]=p; }
+    const winner=btcWinner(p);
+    if(winner){ btcApplySettle(tr,winner,"polymarket"); continue; }
+    const age=nowMs/1000-tr.t1;
+    // Chainlink and exchange spot differ by a few dollars — only settle
+    // provisionally from the feed on a clear move, and only after 3 min.
+    if(age>180&&tr.btcOpen!=null&&tr.btcClose!=null&&Math.abs(tr.btcClose-tr.btcOpen)>=2)
+      btcApplySettle(tr, tr.btcClose>tr.btcOpen?"up":"down", "feed (provisional)");
+    else if(age>900){ tr.status="settled"; tr.result="unknown"; tr.pnl=null; tr.settledBy="unresolved";
+      save(); btcLog("Could not resolve "+tr.slug+" — marked unsettled (excluded from P&L)."); }
+  }
+}
+
+// --- Main loop ----------------------------------------------------------
+function btcRollover(t0,t1){
+  const prev=BTC.mkt;
+  if(prev){ BTC_ENGINES.forEach(e=>{ const we=BTC.eng[e.id].winEval;
+    if(we&&!btcTradeFor(e.id,prev.t0)){ const fails=we.checks.filter(c=>!c.ok).map(c=>c.k).slice(0,3).join(", ");
+      btcLog(btcTag(e.id)+"no entry for "+new Date(prev.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+" ("+we.passCount+"/10 guards"+(fails?", missing "+fails:"")+")"); } }); }
+  BTC_ENGINES.forEach(e=>{ BTC.eng[e.id].winEval=null; BTC.eng[e.id].sigLogged=null; BTC.eng[e.id].eval=null; });
+  BTC.lastEval=null; BTC.prevQuote=null;
+  BTC.mkt={t0,t1,ev:false,evClosed:false,slug:btcAsset().slug+(t0+BTC.slugOff),title:"",
+    tokUp:null,tokDown:null,upBid:null,upAsk:null,pUp:null,gAt:0,bookUp:null,bookDown:null};
+}
+async function btcTick(){
+  if(BTC.fetching||!STATE.btc.on) return; BTC.fetching=true;
+  try{
+    const nowSec=Math.floor(Date.now()/1000);
+    const t0=Math.floor(nowSec/BTC_IVL)*BTC_IVL, t1=t0+BTC_IVL;
+    if(!BTC.mkt||BTC.mkt.t0!==t0) btcRollover(t0,t1);
+    const m=BTC.mkt;
+    const p=await btcFindMarket(t0);                        // refreshes prices/closed too
+    if(p&&p.slug){ m.ev=true; m.slug=p.slug; m.evClosed=p.closed; m.title=p.title;
+      m.tokUp=p.tokUp; m.tokDown=p.tokDown; m.upBid=p.upBid; m.upAsk=p.upAsk; m.pUp=p.pUp; m.gAt=Date.now(); }
+    await btcFeedTick(t0);
+    const delta=(BTC.feed.open!=null&&BTC.feed.last!=null)?BTC.feed.last-BTC.feed.open:null;
+    // both engines trade the same momentum side; fetch that side's book once
+    const openTr=btcOpenTrade("strict")||btcOpenTrade("loose");
+    const side=openTr?openTr.side:(delta&&delta!==0?(delta>0?"up":"down"):null);
+    if(side&&m.ev){
+      const tok=side==="up"?m.tokUp:m.tokDown;
+      if(tok){ let b=null; try{ b=await btcBook(tok); }catch(e){}
+        if(b){ if(side==="up"){ m.bookUp=b; m.bookDown=btcMirror(b); } else { m.bookDown=b; m.bookUp=btcMirror(b); } } }
+    }
+    const nowMs=Date.now();
+    BTC_ENGINES.forEach(e=>{
+      const ev=btcEvaluate(nowMs, e.id);
+      if(ev.enter){
+        if(STATE.btc.auto) btcPaperEnter(e.id, ev);
+        else if(BTC.eng[e.id].sigLogged!==t0){ BTC.eng[e.id].sigLogged=t0;
+          btcLog(btcTag(e.id)+"SIGNAL "+ev.side.toUpperCase()+" "+ev.passCount+"/10 — auto OFF, not recorded."); }
+      }
+      btcManageOpen(e.id, nowMs);
+    });
+    // advance the dirty-tick reference once per tick (shared data layer)
+    const cs=(delta&&delta!==0)?(delta>0?"up":"down"):null, cq=cs?btcQuote(cs):null;
+    BTC.prevQuote=(cs&&cq&&cq.ask!=null)?{side:cs, ask:cq.ask, t:nowMs}:null;
+    await btcSettlePending();
+    BTC.err=null;
+  }catch(e){ BTC.err=""+((e&&e.message)||e); }
+  BTC.fetching=false; BTC.lastTick=Date.now();
+  renderBtc5mLive();
+}
+function btcPulse(){
+  if(STATE.btc.on&&Date.now()-BTC.lastTick>=BTC_TICK_MS&&!BTC.fetching) btcTick();
+  renderBtc5mLive();
+}
+function btcUpdateStartBtn(){ const b=$("btcStart"); if(b) b.textContent=STATE.btc.on?"■ Stop watching":"▶ Start watching"; }
+function btcResetRuntime(){
+  BTC.mkt=null; BTC.feed={src:null,open:null,last:null,at:0,t0:null};
+  BTC.feedIdx=null; BTC.slugOff=0; BTC.sweepAt=0; BTC.prevQuote=null; BTC.lastEval=null;
+  BTC_ENGINES.forEach(e=>{ BTC.eng[e.id]={winEval:null,sigLogged:null,eval:null}; });
+}
+function btcSetOn(on){
+  STATE.btc.on=!!on; save(); btcUpdateStartBtn();
+  if(on){ btcLog("Watcher started — "+btcAsset().label+" · "+btcProf().label+" · strict 10/10 + loose "+btcEngPass("loose")+"/10 · $"+STATE.btc.stake+" stake · +"+clampNum(STATE.btc.slip,0,5,1)+"¢ slip."); btcTick(); }
+  else btcLog("Watcher stopped.");
+  renderBtc5m();
+}
+function btcSetAsset(a){
+  if(!BTC_ASSETS[a]||a===STATE.btc.asset) return;
+  STATE.btc.asset=a; save();
+  btcResetRuntime();
+  btcLog("Asset switched to "+a+".");
+  renderBtc5m();
+  if(STATE.btc.on) btcTick();
+}
+
+// --- Rendering ----------------------------------------------------------
+// decimals scale with magnitude so DOGE ($0.1) and BTC ($100k) both read well
+function btcFmtNum(v){ if(v==null)return "—"; const a=Math.abs(+v);
+  const dp=a<0.01?6:a<1?4:a<100?2:0;
+  return (+v).toLocaleString(undefined,{minimumFractionDigits:dp,maximumFractionDigits:dp}); }
+function btcFmtUsd(v){ return v==null?"—":"$"+btcFmtNum(v); }
+function btcCountdown(){ const m=BTC.mkt; if(!m) return "—:—";
+  const s=Math.max(0,m.t1-Math.floor(Date.now()/1000)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+function renderBtc5m(){
+  const wrap=$("btcWrap"); if(!wrap) return;
+  wrap.innerHTML='<div id="btcLive"></div><div id="btcLife"></div><div id="btcLedger"></div><h3 class="proj-h">Activity log</h3><div class="btc-log" id="btcLogBox"></div>';
+  renderBtcLife();
+  renderBtc5mLive(true);
+}
+function btcEngVerdict(id){
+  const ev=BTC.eng[id]&&BTC.eng[id].eval, tr=btcOpenTrade(id), eng=btcEngById(id), need=btcEngPass(id);
+  let txt, cls="btc-mut";
+  if(tr){ txt="IN TRADE "+(tr.side==="up"?"▲":"▼")+" @"+(tr.entry*100).toFixed(0)+"¢"+(tr.hedge?" (hedged)":""); cls="btc-ok"; }
+  else if(!ev){ txt="waiting…"; }
+  else if(ev.enter){ txt="ENTER "+ev.passCount+"/10"; cls="btc-ok"; }
+  else { txt=ev.passCount+"/10 · needs "+need; cls=ev.passCount>=need?"btc-ok":"btc-no"; }
+  return '<span class="eng-badge" style="border-color:'+eng.hue+'"><b style="color:'+eng.hue+'">'+eng.label+'</b> <span class="'+cls+'">'+txt+'</span></span>';
+}
+function renderBtc5mLive(force){
+  const live=$("btcLive"); if(!live) return;
+  const m=BTC.mkt, f=BTC.feed, e=BTC.lastEval, prof=btcProf(), on=STATE.btc.on;
+  const delta=(f&&f.open!=null&&f.last!=null)?f.last-f.open:null;
+  const sideTxt=delta==null?"—":(delta>0?'<b class="btc-side-up">▲ UP</b>':delta<0?'<b class="btc-side-down">▼ DOWN</b>':"flat");
+  const upQ=btcQuote("up"), dnQ=btcQuote("down");
+  const qcell=q=>!q?"—":((q.bid!=null?(q.bid*100).toFixed(0):"–")+"¢ / "+(q.ask!=null?(q.ask*100).toFixed(0):"–")+"¢");
+  const verdicts='<div class="eng-strip">'+(on?BTC_ENGINES.map(x=>btcEngVerdict(x.id)).join(""):"<span class='btc-mut'>watcher off</span>")+'</div>';
+  live.innerHTML='<div class="btc-live">'
+    +'<div class="tr-card"><div class="tr-lab">Current 5-min interval (UTC-aligned)</div>'
+      +'<div class="btc-count">'+btcCountdown()+'</div>'
+      +'<div class="tr-lab">'+(m?(new Date(m.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+" – "+new Date(m.t1*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})):"—")+'</div>'
+      +'<div class="tr-lab" style="margin-top:4px">'+((m&&m.ev)?('<a class="pmlink" target="_blank" rel="noopener" href="https://polymarket.com/event/'+encodeURIComponent(m.slug)+'">'+esc(m.slug)+' ↗</a>'):(on?"looking for the market…":"—"))+'</div></div>'
+    +'<div class="tr-card"><div class="tr-lab">'+esc(btcAsset().label)+' · '+(f&&f.src?esc(f.src):"no feed yet")+(f&&f.at?(" · "+Math.round((Date.now()-f.at)/1000)+"s ago"):"")+'</div>'
+      +'<div class="btc-big">'+btcFmtUsd(f&&f.last)+'</div>'
+      +'<div class="tr-lab">open '+btcFmtUsd(f&&f.open)+' · Δ <b class="'+(delta>0?"btc-side-up":delta<0?"btc-side-down":"")+'">'+(delta==null?"—":((delta>=0?"+$":"−$")+btcFmtNum(Math.abs(delta))))+'</b> · '+sideTxt+'</div></div>'
+    +'<div class="tr-card"><div class="tr-lab">Polymarket book · bid/ask</div>'
+      +'<div style="font-size:14px;margin:6px 0;font-variant-numeric:tabular-nums">▲ Up&nbsp; '+qcell(upQ)+'<br>▼ Down '+qcell(dnQ)+'</div>'
+      +'<div class="tr-lab">'+((e&&e.spread!=null)?("spread "+(e.spread*100).toFixed(1)+"¢"):"")+((upQ&&upQ.top!=null)?(" · top-ask $"+Math.round(upQ.top)):"")+((upQ&&upQ.src==="gamma")?" · gamma quote":"")+'</div></div>'
+    +'<div class="tr-card"><div class="tr-lab">Guards — '+esc(prof.label)+' profile · shared by both engines</div>'
+      +'<div style="margin:6px 0 7px">'+verdicts+'</div>'
+      +(e?('<ul class="btc-chk">'+e.checks.map(c=>'<li><span>'+esc(c.k)+'</span><span class="'+(c.ok?"btc-ok":"btc-no")+'">'+esc(c.v)+" "+(c.ok?"✓":"✗")+'</span></li>').join("")+'</ul>'):(on?'<div class="btc-mut" style="font-size:12px">waiting for first data tick…</div>':''))
+      +'</div></div>'
+    +(BTC.err?('<div class="note" style="border-left-color:var(--dn);color:var(--dn)">Last fetch problem: '+esc(BTC.err)+'</div>'):"");
+  const st=$("btcStatus");
+  if(st) st.textContent=on
+    ?("Watching "+btcAsset().label+" — refresh every "+(BTC_TICK_MS/1000)+"s · both engines share the 10 guards (60–"+prof.winLeftMax+"s left, |Δ| ≥ "+prof.movePct+"% of open, ask ≤ "+(prof.maxAsk*100)+"¢, spread ≤ "+(prof.maxSpread*100)+"¢, depth ≥ $"+prof.minTopUsd+", stable, caps) · STRICT enters at 10/10, LOOSE at "+btcEngPass("loose")+"/10 · fills +"+clampNum(STATE.btc.slip,0,5,1)+"¢ slippage.")
+    :"Watcher is off — nothing is being fetched.";
+  if(force||BTC.dirty){ BTC.dirty=false; renderBtcLedger(); renderBtcLog(); }
+}
+function renderBtcLedger(){
+  const el=$("btcLedger"); if(!el) return;
+  el.innerHTML='<h3 class="proj-h">Paper ledgers — strict vs loose</h3><div class="btc-books">'
+    +BTC_ENGINES.map(e=>renderEngineLedger(e.id)).join("")+'</div>';
+}
+// --- Lifetime results from the 24/7 headless bot: it publishes state.json to
+// the repo's `data` branch (raw.githubusercontent serves it with open CORS).
+let BTC_LIFE=null;
+function renderBtcLife(){
+  const el=$("btcLife"); if(!el) return;
+  const L=BTC_LIFE;
+  if(!L){ el.innerHTML=""; return; }
+  const s=(L.summary&&L.summary.strict)||{};
+  const trs=(L.btc&&L.btc.engines&&L.btc.engines.strict&&L.btc.engines.strict.trades)||[];
+  const liveN=trs.filter(t=>t.status==="open"||t.status==="pending").length;
+  const wr=s.winPct, be=s.avgEntry;   // avgEntry already in cents
+  let wrCol="var(--ink)";
+  if(wr!=null&&be!=null) wrCol=wr>=be+5?"var(--up)":(wr<be?"var(--dn)":"#cdc06a");
+  const bank=L.bank!=null?L.bank:1000, pnl=s.pnl||0, ret=100*pnl/bank;
+  const t0=L.startedAt||null;
+  const since=t0?new Date(t0).toLocaleDateString([],{month:"short",day:"numeric"}):"—";
+  const days=t0?Math.max((Date.now()-t0)/86400000,0.01):null;
+  const upd=L.heartbeat?Math.round((Date.now()-L.heartbeat)/60000):null;
+  el.innerHTML='<h3 class="proj-h">Lifetime — strict engine · 24/7 bot</h3>'
+    +'<div class="tr-card"><div class="tr-lab">running since '+since+(days!=null?(' ('+days.toFixed(1)+' days)'):'')
+    +' · $'+L.stake+' stakes on a $'+bank.toLocaleString()+' bankroll'
+    +(upd!=null?(' · heartbeat '+(upd<1?'just now':upd+' min ago')):'')
+    +(liveN?(' · <b class="btc-ok">'+liveN+' live</b>'):'')+'</div>'
+    +'<div class="eng-tiles" style="margin-top:8px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">'
+    +'<div><div class="et-big">'+(s.settled||0)+'</div><div class="et-lab">settled trades</div></div>'
+    +'<div><div class="et-big" style="color:'+wrCol+'">'+(wr!=null?Math.round(wr)+"%":"—")+'</div><div class="et-lab">win ('+(s.wins||0)+'/'+(s.settled||0)+')</div></div>'
+    +'<div><div class="et-big">'+(be!=null?be.toFixed(0)+"¢":"—")+'</div><div class="et-lab">avg entry = b/e win%</div></div>'
+    +'<div><div class="et-big" style="color:'+(pnl>=0?"var(--up)":"var(--dn)")+'">'+(pnl>=0?"+":"")+pnl.toFixed(2)+'</div><div class="et-lab">P&amp;L $</div></div>'
+    +'<div><div class="et-big" style="color:'+(ret>=0?"var(--up)":"var(--dn)")+'">'+(ret>=0?"+":"")+ret.toFixed(2)+'%</div><div class="et-lab">return on bankroll</div></div>'
+    +'</div>'
+    +'<div class="tr-lab" style="margin-top:6px">'+(s.feesPaid!=null?('net of Polymarket taker fees + gas (paid $'+s.feesPaid.toFixed(2)+') · real order-book depth fills · '):'')
+    +'<a class="pmlink" href="live.html">full live ledger — both engines, guard detail →</a></div></div>';
+}
+async function btcLifeFetch(){
+  // raw CDN lags pushes by up to ~5 min; also ask the GitHub API (fresher,
+  // rate-limited — fine at this 5-min cadence) and keep the newest heartbeat.
+  let best=null;
+  try{
+    const r=await fetch("https://raw.githubusercontent.com/sgonzalezang/btc5m-paper-trader/data/state.json?ts="+Date.now(),{cache:"no-store"});
+    if(r.ok) best=await r.json();
+  }catch(e){}
+  try{
+    const r=await fetch("https://api.github.com/repos/sgonzalezang/btc5m-paper-trader/contents/state.json?ref=data",
+      {cache:"no-store",headers:{Accept:"application/vnd.github.raw"}});
+    if(r.ok){ const s=await r.json(); if(!best||(s.heartbeat||0)>(best.heartbeat||0)) best=s; }
+  }catch(e){}
+  if(best){ BTC_LIFE=best; renderBtcLife(); }
+}
+function renderEngineLedger(id){
+  const eng=btcEngById(id), trs=btcTrades(id), need=btcEngPass(id);
+  const settled=trs.filter(t=>t.result==="win"||t.result==="loss"||t.result==="stopped");
+  const wins=settled.filter(t=>t.result==="win").length;
+  const pnl=settled.reduce((s,t)=>s+(t.pnl||0),0);
+  const priced=trs.filter(t=>typeof t.entry==="number");
+  const avgE=priced.length?priced.reduce((s,t)=>s+t.entry,0)/priced.length*100:null;
+  const winPct=settled.length?wins/settled.length*100:null;
+  let wrCol="var(--ink)";
+  if(winPct!=null&&avgE!=null) wrCol=winPct>=avgE+5?"var(--up)":(winPct<avgE?"var(--dn)":"#cdc06a");
+  const rule=id==="strict"?"needs all 10 guards":"needs "+need+"/10 guards";
+  const head='<div class="eng-head" style="border-color:'+eng.hue+'"><h4 style="color:'+eng.hue+'">'+eng.label+'</h4><span class="btc-mut">'+rule+'</span></div>';
+  const tiles='<div class="eng-tiles">'
+    +'<div><div class="et-big">'+trs.length+'</div><div class="et-lab">trades</div></div>'
+    +'<div><div class="et-big" style="color:'+wrCol+'">'+(winPct!=null?Math.round(winPct)+"%":"—")+'</div><div class="et-lab">win ('+wins+"/"+settled.length+')</div></div>'
+    +'<div><div class="et-big">'+(avgE!=null?avgE.toFixed(0)+"¢":"—")+'</div><div class="et-lab">avg entry = b/e win%</div></div>'
+    +'<div><div class="et-big" style="color:'+(pnl>=0?"var(--up)":"var(--dn)")+'">'+(pnl>=0?"+":"")+pnl.toFixed(2)+'</div><div class="et-lab">P&amp;L $</div></div>'
+    +'</div>';
+  const warn=(winPct!=null&&avgE!=null&&settled.length>=3&&winPct<avgE)
+    ?'<div class="note" style="margin:8px 0 0;border-left-color:var(--dn)"><b>Losing math:</b> win rate '+Math.round(winPct)+'% &lt; avg entry '+avgE.toFixed(0)+'¢ — wins often, loses money.</div>':"";
+  const table=trs.length
+    ?'<div class="mc-scroll" style="margin-top:8px;max-height:340px;overflow:auto"><table class="trk trk-mini"><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th>Δ@in</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>'+trs.slice(0,40).map(btcEngRow).join("")+'</tbody></table></div>'
+    +(trs.length>40?'<div class="btc-mut" style="font-size:11px;margin-top:4px">showing 40 of '+trs.length+' (this tab’s own watch session)</div>':'')
+    :'<div class="btc-mut" style="font-size:12px;margin-top:8px">No '+eng.label.toLowerCase()+' trades yet.</div>';
+  return '<div class="eng-col">'+head+tiles+warn+table+'</div>';
+}
+function btcEngRow(t){
+  const d=(t.btcEntry!=null&&t.btcOpen!=null)?t.btcEntry-t.btcOpen:null;
+  const res=t.status==="open"?'<span class="verdict-tag v-fair">OPEN</span>'
+    :t.status==="pending"?'<span class="verdict-tag v-fair">…</span>'
+    :t.result==="win"?'<span class="verdict-tag v-value">WIN</span>'
+    :t.result==="loss"?'<span class="verdict-tag v-bad">LOSS</span>'
+    :t.result==="stopped"?'<span class="verdict-tag v-bad">STOP</span>'
+    :'<span class="verdict-tag v-fair">—</span>';
+  const cls=t.result==="win"?"tr-hit":(t.result==="loss"||t.result==="stopped")?"tr-miss":"";
+  return '<tr class="'+cls+'"><td class="desc" data-label="Time">'+new Date(t.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+' <small>'+esc(t.asset||"BTC")+'</small></td>'
+    +'<td data-label="Side">'+(t.side==="up"?'<b class="btc-side-up">▲</b>':'<b class="btc-side-down">▼</b>')+(t.hedge?'<small>+h</small>':"")+'</td>'
+    +'<td data-label="Entry">'+(t.entry*100).toFixed(1)+'¢</td>'
+    +'<td data-label="Δ@in">'+(d==null?"—":((d>=0?"+$":"−$")+btcFmtNum(Math.abs(d))))+'</td>'
+    +'<td data-label="Result">'+res+'</td>'
+    +'<td data-label="P&L">'+(typeof t.pnl==="number"?((t.pnl>=0?"+":"")+t.pnl.toFixed(2)):"—")+'</td></tr>';
+}
+function renderBtcLog(){
+  const el=$("btcLogBox"); if(!el) return;
+  el.innerHTML=BTC.logs.length?BTC.logs.map(l=>'<div><b>'+new Date(l.t).toLocaleTimeString()+'</b> — '+esc(l.msg)+'</div>').join(""):"<div>No activity yet.</div>";
+}
+
+// --- Init ---------------------------------------------------------------
+function init(){
+  load();
+  const ps=$("btcProfile");
+  ps.innerHTML=Object.keys(BTC_PROFILES).map(k=>'<option value="'+k+'">'+BTC_PROFILES[k].label+'</option>').join("");
+  ps.value=STATE.btc.profile;
+  const as=$("btcAsset");
+  as.innerHTML=Object.keys(BTC_ASSETS).map(k=>'<option value="'+k+'">'+BTC_ASSETS[k].label+'</option>').join("");
+  as.value=STATE.btc.asset;
+  $("btcStake").value=STATE.btc.stake;
+  $("btcBank").value=STATE.btc.bank;
+  $("btcSlip").value=STATE.btc.slip;
+  $("btcLoose").value=STATE.btc.loosePass;
+  $("btcAuto").checked=STATE.btc.auto!==false;
+  $("btcStart").addEventListener("click", ()=>btcSetOn(!STATE.btc.on));
+  as.addEventListener("change", e=>btcSetAsset(e.target.value));
+  ps.addEventListener("change", e=>{ STATE.btc.profile=BTC_PROFILES[e.target.value]?e.target.value:"conservative"; save(); renderBtc5mLive(true); });
+  $("btcStake").addEventListener("change", e=>{ STATE.btc.stake=clampNum(e.target.value,1,1000,5); e.target.value=STATE.btc.stake; save(); });
+  $("btcBank").addEventListener("change", e=>{ STATE.btc.bank=clampNum(e.target.value,10,100000,100); e.target.value=STATE.btc.bank; save(); renderBtc5mLive(true); });
+  $("btcSlip").addEventListener("change", e=>{ STATE.btc.slip=clampNum(e.target.value,0,5,1); e.target.value=STATE.btc.slip; save(); renderBtc5mLive(true); });
+  $("btcLoose").addEventListener("change", e=>{ STATE.btc.loosePass=clampNum(e.target.value,1,10,6); e.target.value=STATE.btc.loosePass; save(); renderBtc5mLive(true); });
+  $("btcAuto").addEventListener("change", e=>{ STATE.btc.auto=e.target.checked; save(); });
+  $("btcClear").addEventListener("click", ()=>{ if(confirm("Clear BOTH paper-trade ledgers (strict + loose)? This cannot be undone.")){ STATE.btc.engines={strict:{trades:[]},loose:{trades:[]}}; save(); BTC.dirty=true; renderBtc5m(); } });
+  $("btcExport").addEventListener("click", ()=>{
+    const blob=new Blob([JSON.stringify({version:1, btc:STATE.btc},null,2)],{type:"application/json"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="btc5m-paper-backup.json"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  });
+  $("btcImport").addEventListener("click", ()=>$("btcFile").click());
+  $("btcFile").addEventListener("change", e=>{
+    const f=e.target.files[0]; if(!f)return; const rd=new FileReader();
+    rd.onload=()=>{ try{ const o=JSON.parse(rd.result);
+      if(o&&(o.version===1||o.version===2)&&o.btc){ STATE.btc=btcSanitize(o.btc); save(); btcResetRuntime(); init2(); alert("Imported "+(btcTrades("strict").length+btcTrades("loose").length)+" paper trades and settings."); }
+      else alert("Unrecognised file (need a btc5m-paper-backup.json)."); }catch(err){ alert("Import failed: "+err.message); } };
+    rd.readAsText(f); e.target.value="";
+  });
+  init2();
+  setInterval(btcPulse,1000);
+  btcLifeFetch(); setInterval(btcLifeFetch,300000);   // lifetime panel: on load + every 5 min
+  if(STATE.btc.on){ btcLog("Watcher resumed after reload."); btcTick(); }
+}
+function init2(){   // re-sync controls + full render (used after import too)
+  $("btcProfile").value=STATE.btc.profile;
+  $("btcAsset").value=STATE.btc.asset;
+  $("btcStake").value=STATE.btc.stake;
+  $("btcBank").value=STATE.btc.bank;
+  $("btcSlip").value=STATE.btc.slip;
+  $("btcLoose").value=STATE.btc.loosePass;
+  $("btcAuto").checked=STATE.btc.auto!==false;
+  btcUpdateStartBtn();
+  renderBtc5m();
+}
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
