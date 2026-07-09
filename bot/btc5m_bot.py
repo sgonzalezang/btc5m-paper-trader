@@ -62,7 +62,7 @@ PROFILES = {
 #  strict  — all 10 guards (fires almost never; kept as a legacy control)
 # (retired 2026-07-08: capless — answered, >65c entries lose; calm — vol gate
 #  formally dead, z=-1.1 on 1,057 intervals. Both recoverable from git history.)
-ENGINES = ["loose", "floor", "band", "strict", "value", "fade", "reversal", "reversal2"]
+ENGINES = ["loose", "floor", "band", "strict", "value", "fade", "reversal", "reversal2", "latentfire"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None),
@@ -101,6 +101,17 @@ ENGINE_CFG = {
     # friction at the open costs the strategy. Paper-only (not in --signal-engines).
     "reversal2": dict(label="Reversal2", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                       revThr=0.12, revEntryMax=0.55, revWinMin=150, holdToClose=True, revLoose=True),
+    # Latent Fire (reversal3) — reversal2 PLUS a regime gate. Reversal only wins when
+    # big moves revert, which happens in CHOPPY regimes and fails in TRENDING ones.
+    # The tell that survives out-of-sample is Kaufman trend efficiency over the last
+    # hour: |net move| / sum(|moves|), 0=pure chop … 1=pure trend. Low efficiency
+    # (choppy) reversed 55% (OOS 53); high (trending) only 38% (OOS 33). Gating
+    # reversal to fire ONLY when efficiency <= effMax turned a losing always-on
+    # book (-2866 over 10d) into +917. It sits latent through trends and fires in
+    # chop. Paper-only.
+    "latentfire": dict(label="Latent Fire", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                       revThr=0.12, revEntryMax=0.55, revWinMin=150, holdToClose=True, revLoose=True,
+                       effGate=True, effMax=0.48, effWin=12),
 }
 VOL_WIN_MS = 600000   # trailing window for the volatility measure (10 min)
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
@@ -343,6 +354,7 @@ class Bot:
         self.prev_quote = None
         self.closes = {}                      # t0 -> interval's last spot price (for provisional settle)
         self.prev_ivl = None                  # {t0, open, close, ret} of the just-COMPLETED interval — the reversal engine's signal
+        self.ivl_hist = self.st.setdefault("ivlHist", [])   # rolling last-N interval returns (for Latent Fire's trend-efficiency regime gate); persisted
         self.eng = {e: {"eval": None, "miss": None} for e in ENGINES}
         self.logs = []
         self.misses = self.st.setdefault("misses", [])   # "close but no entry" markets; persisted so the record survives restarts
@@ -509,6 +521,17 @@ class Bot:
         market_ok = bool(m and m["ev"] and not m["evClosed"])
         risk_ok = (not opent) and (not dup) and dn < prof["maxDay"] and dpnl > -loss_cap
         can_fill = bool(q and q["ask"] is not None and left is not None and left > 0 and risk_ok)
+        # Latent Fire regime gate: fire only in CHOPPY markets (low Kaufman trend efficiency
+        # over the last effWin intervals). eff = |net move| / sum(|moves|), 0=chop … 1=trend.
+        eff_ok, eff_val = True, None
+        if cfg.get("effGate"):
+            win = cfg.get("effWin", 12); h = self.ivl_hist[-win:]
+            if len(h) >= win:
+                denom = sum(abs(r) for r in h)
+                eff_val = (abs(sum(h)) / denom) if denom > 0 else 1.0
+                eff_ok = eff_val <= cfg.get("effMax", 0.48)
+            else:
+                eff_ok = False   # not enough history yet — stay latent
         checks = [
             ("Market found", market_ok),
             ("Prior≥%.2g%%" % cfg["revThr"], signal),
@@ -519,12 +542,14 @@ class Bot:
             ("Depth>=min", depth_ok),
             ("RiskCaps", risk_ok),
         ]
+        if cfg.get("effGate"):
+            checks.append(("Choppy≤%.2f" % cfg.get("effMax", 0.48), eff_ok))
         passc = sum(1 for _, ok in checks if ok)
-        enter = bool(market_ok and signal and early and priced_ok and spread_ok and fresh and depth_ok and can_fill)
+        enter = bool(market_ok and signal and early and priced_ok and spread_ok and fresh and depth_ok and can_fill and eff_ok)
         delta = (pv["ret"] * pv["open"]) if (pv and pv.get("open")) else 0.0                 # prior move in $ (for logs)
         ev = dict(t=now, side=rev_side, delta=delta, q=q, mid=mid, spread=spread, left=left,
                   checks=checks, passCount=passc, need=len(checks), must=["Prior≥thr"], mustOk=signal,
-                  driftPct=prior_move, fv=None, extra=[], extraOk=True, priorMove=prior_move,
+                  driftPct=prior_move, fv=None, extra=[], extraOk=True, priorMove=prior_move, eff=eff_val,
                   all=(passc == len(checks)), enter=enter)
         self.eng[eid]["eval"] = ev
         return ev
@@ -894,8 +919,9 @@ class Bot:
                     for k in sorted(self.closes)[:-20]: del self.closes[k]
                     # capture the just-completed interval's move — the reversal engine's signal
                     if self.feed.get("open"):
-                        self.prev_ivl = dict(t0=self.feed["t0"], open=self.feed["open"], close=self.feed["last"],
-                                             ret=(self.feed["last"] - self.feed["open"]) / self.feed["open"])
+                        _r = (self.feed["last"] - self.feed["open"]) / self.feed["open"]
+                        self.prev_ivl = dict(t0=self.feed["t0"], open=self.feed["open"], close=self.feed["last"], ret=_r)
+                        self.ivl_hist.append(_r); del self.ivl_hist[:-20]   # Latent Fire's regime window
                 self.rollover(t0, t1)
             m = self.mkt
             p = self.find_market(t0)
@@ -954,6 +980,7 @@ def default_state(args):
             "lifetime": {e: _zero_life() for e in ENGINES},   # totals for trades trimmed out of the list
             "equity": {e: [] for e in ENGINES},               # [t_ms, cumPnl] curve for trimmed trades
             "misses": [],                                      # rolling "close but no entry" record (persisted)
+            "ivlHist": [],                                      # rolling interval returns for Latent Fire's regime gate
             "engines": {e: {"trades": []} for e in ENGINES}}
 def sanitize(o, args):
     d = default_state(args)
@@ -978,6 +1005,9 @@ def sanitize(o, args):
         ms = o.get("misses")
         if isinstance(ms, list):
             d["misses"] = [m for m in ms if isinstance(m, dict) and isinstance(m.get("t0"), (int, float))][:80]
+        ih = o.get("ivlHist")
+        if isinstance(ih, list):
+            d["ivlHist"] = [x for x in ih if isinstance(x, (int, float))][-20:]
         eng = o.get("engines")
         if isinstance(eng, dict):
             for e in ENGINES:
@@ -1028,7 +1058,7 @@ def snapshot(bot):
             "log": bot.logs[:30],
             "misses": bot.misses[:30],
             "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip",
-                                       "loosePass", "looseMust", "startedAt", "lifetime", "equity", "misses", "engines")}}
+                                       "loosePass", "looseMust", "startedAt", "lifetime", "equity", "misses", "ivlHist", "engines")}}
 def save_state(path, bot):
     tmp = path + ".tmp"
     with open(tmp, "w") as f: json.dump(snapshot(bot), f, separators=(",", ":"))
@@ -1212,6 +1242,22 @@ def selftest():
                   bookDown={"bid":0.60,"ask":None,"asks":[],"bids":[[0.60,300]],"topAskUsd":None,"at":now}, bookUp=None)
     b3.prev_ivl = dict(t0=b3.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)
     ok(not b3.evaluate(now,"reversal2")["enter"], "reversal2 still blocks when the gamma reversal side is above 55c")
+    # --- Latent Fire: reversal2 PLUS a trend-efficiency regime gate (fire only in chop) ---
+    blf = Bot({}, default_state(A)); blf.feed = {"src":"Coinbase","open":100000,"last":100010,"at":now,"t0":ns-60}
+    blf.mkt = dict(t0=ns-60, t1=ns-60+300, ev=True, evClosed=False, slug="btc-updown-5m-lf", tokUp="U", tokDown="D",
+                   upBid=0.49, upAsk=0.51, pUp=0.50, gAt=now,
+                   bookDown={"bid":0.49,"ask":None,"asks":[],"bids":[[0.49,300]],"topAskUsd":None,"at":now}, bookUp=None)
+    blf.prev_ivl = dict(t0=blf.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)   # valid >=12bps reversal signal
+    blf.ivl_hist = [0.001 if i%2==0 else -0.001 for i in range(12)]                     # alternating → efficiency ~0 (choppy)
+    lf_c = blf.evaluate(now, "latentfire")
+    ok(lf_c["enter"] and lf_c["side"]=="down" and lf_c.get("eff") is not None and lf_c["eff"]<=0.48,
+       "Latent Fire fires in a choppy regime (low trend efficiency)", f"eff={lf_c.get('eff')} enter={lf_c['enter']}")
+    blf.ivl_hist = [0.001]*12                                                           # same sign → efficiency 1.0 (trending)
+    lf_t, r2_t = blf.evaluate(now,"latentfire"), blf.evaluate(now,"reversal2")
+    ok(not lf_t["enter"] and r2_t["enter"] and lf_t["eff"]>0.48,
+       "Latent Fire stays latent in a trending regime while reversal2 still fires", f"eff={lf_t['eff']} lf={lf_t['enter']} r2={r2_t['enter']}")
+    blf.ivl_hist = [0.001, -0.001]
+    ok(not blf.evaluate(now,"latentfire")["enter"], "Latent Fire stays latent until its regime window is warmed up")
     # miss tracking: an enter that can't fill (thin book) records a level-4 miss
     bmz = Bot({}, default_state(A)); bmz.eng["loose"]={"eval":None,"miss":None}
     bmz._track_miss("loose", {"enter":True,"side":"up","passCount":8,"need":7,"mustOk":True,"extraOk":True,"extra":[],"checks":[]}, False)

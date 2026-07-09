@@ -81,7 +81,8 @@
   .eqfade{fill:none;stroke:#e0559a;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqreversal{fill:none;stroke:#26c6da;stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqreversal2{fill:none;stroke:#facc15;stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
-  .eqd-loose{fill:var(--blue)}.eqd-variant{fill:#8f7bff}.eqd-calm{fill:#3fb6a8}.eqd-value{fill:#8bc34a}.eqd-fade{fill:#e0559a}.eqd-reversal{fill:#26c6da}.eqd-reversal2{fill:#facc15}.eqd-strict{fill:var(--btc)}
+  .eqlatentfire{fill:none;stroke:#ff5252;stroke-width:2.6;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+  .eqd-loose{fill:var(--blue)}.eqd-variant{fill:#8f7bff}.eqd-calm{fill:#3fb6a8}.eqd-value{fill:#8bc34a}.eqd-fade{fill:#e0559a}.eqd-reversal{fill:#26c6da}.eqd-reversal2{fill:#facc15}.eqd-latentfire{fill:#ff5252}.eqd-strict{fill:var(--btc)}
   .eqpos{color:var(--up)}.eqneg{color:var(--dn)}
   .eqzero{stroke:var(--mut);stroke-dasharray:3 3;stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
   .eqarea{stroke:none}.eqarea.pos{fill:var(--up);opacity:.10}.eqarea.neg{fill:var(--dn);opacity:.10}
@@ -89,7 +90,7 @@
   .eqmeta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--mut);margin-top:4px;flex-wrap:wrap}
   .eqnow.pos{color:var(--up);font-weight:700}.eqnow.neg{color:var(--dn);font-weight:700}
   .eqlegend{font-size:11px;color:var(--mut);font-weight:400}
-  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-v{color:#8f7bff}.lg-c{color:#3fb6a8}.lg-va{color:#8bc34a}.lg-f{color:#e0559a}.lg-rv{color:#26c6da}.lg-rv2{color:#facc15}.lg-s{color:var(--btc)}
+  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-v{color:#8f7bff}.lg-c{color:#3fb6a8}.lg-va{color:#8bc34a}.lg-f{color:#e0559a}.lg-rv{color:#26c6da}.lg-rv2{color:#facc15}.lg-lf{color:#ff5252}.lg-s{color:var(--btc)}
   .gd{white-space:nowrap}
   .gd i{display:inline-block;font-style:normal;font-size:9px;width:13px;height:13px;line-height:13px;text-align:center;border-radius:3px;margin:0 1px;font-weight:700;cursor:default}
   .gd .g1{background:#173527;color:var(--up)}.gd .g0{background:#3a231c;color:var(--dn)}
@@ -106,7 +107,7 @@
 <body>
 <header>
   <h1><span class="b">₿</span> BTC 5m Bot — Live Ledger <span class="b">· read-only</span></h1>
-  <div class="sub">Snapshot published by the headless paper bot · nested ablation: loose → +move floor → +move ceiling · value = fair-value gate · fade = opposite of loose · reversal = fade the last interval's big move · reversal2 = same, jumps in on a thin book · simulated, not financial advice</div>
+  <div class="sub">Snapshot published by the headless paper bot · nested ablation: loose → +move floor → +move ceiling · value = fair-value gate · fade = opposite of loose · reversal = fade the last interval's big move · reversal2 = same, jumps in on a thin book · latent fire = reversal gated to choppy regimes · simulated, not financial advice</div>
 </header>
 <div class="wrap">
   <div class="hb" id="hb"><span class="dot" id="dot"></span><b id="hbState">Loading…</b><span class="mut" id="hbMeta"></span></div>
@@ -123,7 +124,8 @@
     <b class="lg-s">Strict</b> — the original by-the-book strategy: needs all 10 guards green at the same moment, which almost never happens. Barely trades; kept as a reference point.<br><br>
     <b class="lg-rv">Reversal</b> — the odd one out, and the most interesting. Every other engine bets on the move <i>continuing</i>; this one bets it <b>reverses</b>. When the interval that just ended made a big move (≥0.12%), Reversal buys the <b>opposite</b> side of the new interval right at the open — while it's still cheap near 50¢. The idea: big 5-minute moves overshoot and snap back. In 10 days of history that happened ~56% of the time, which at a 50¢ price is a real edge. It's brand new, paper-only, and being watched live to see if the history holds. <b>Not enabled for real trading.</b><br><br>
     <b class="lg-rv2">Reversal2</b> — the same bet as Reversal, but a <b>looser trigger finger</b>. Reversal sometimes sits out because the order book is empty on one side in the first seconds after the open, and it won't guess a price. Reversal2 fills that gap: when the book is thin it uses the market's mid-price (~50¢) and <b>jumps in anyway</b>. Runs side by side with Reversal so we can measure how many good setups the stricter one lets slip — and whether jumping in on a thin book helps or hurts. Also paper-only.<br><br>
-    <span class="mut">Loose, Floor, and Band each add exactly one rule to the one before — so the P&amp;L gap between those three is the dollar value of that single rule. Value (a fair-value gate), Fade (a contrarian), Reversal & Reversal2 (a cross-interval mean-reversion bet and its jump-in-anyway twin), and Strict (a stricter reference) sit outside that chain. All see the exact same markets.</span>
+    <b class="lg-lf">Latent Fire</b> — Reversal with a brain about <b>when</b> to fire. Reversal only works when big moves snap back, which happens in <b>choppy</b> markets and fails badly in <b>trending</b> ones. So this one watches the last hour and measures how directional the market has been (a trend-efficiency score). When the market is grinding one direction, it stays <b>latent</b> and does nothing. When the market is chopping back and forth, it fires the reversal bet. In testing, this gate turned a losing always-on reversal book into a winning one by simply sitting out the trends. It is the newest idea and the closest thing to a regime-aware hybrid. Paper-only.<br><br>
+    <span class="mut">Loose, Floor, and Band each add exactly one rule to the one before — so the P&amp;L gap between those three is the dollar value of that single rule. Value (a fair-value gate), Fade (a contrarian), Reversal, Reversal2 & Latent Fire (a cross-interval mean-reversion bet, its jump-in-anyway twin, and its regime-gated version), and Strict (a stricter reference) sit outside that chain. All see the exact same markets.</span>
   </div>
   <div class="note">This page is <b>read-only</b>: it only displays the JSON the bot publishes to the <code>data</code> branch — it does not trade. <b>Fills are modeled realistically</b>: every order walks the live order-book depth (a big order in a thin book fills worse, or only partially), and each entry/exit pays Polymarket’s crypto <b>taker fee</b> (≈7%·p·(1−p) per share) plus gas — all P&L is net of these. A result with an orange <span class="prov">*</span> is <b>provisional</b> — settled from clear price action and shown right away, then confirmed or corrected once Polymarket’s oracle reports; <b>…</b> means the close was too close to call and it’s waiting for the oracle. If the heartbeat goes <b>red / stale</b>, the bot on your Mac has stopped or lost network (check <code>launchctl list | grep btc5m</code> and <code>bot.log</code>).</div>
 </div>
@@ -273,7 +275,7 @@ function eqSeries(st, id){
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
 // floor inherits capless's purple (lg-v/eqvariant classes), band inherits calm's teal (lg-c/eqcalm) — CSS class names kept to avoid churn
-const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},value:{label:"value",lg:"lg-va",cls:"eqvalue"},fade:{label:"fade",lg:"lg-f",cls:"eqfade"},reversal:{label:"reversal",lg:"lg-rv",cls:"eqreversal"},reversal2:{label:"reversal2",lg:"lg-rv2",cls:"eqreversal2"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
+const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},value:{label:"value",lg:"lg-va",cls:"eqvalue"},fade:{label:"fade",lg:"lg-f",cls:"eqfade"},reversal:{label:"reversal",lg:"lg-rv",cls:"eqreversal"},reversal2:{label:"reversal2",lg:"lg-rv2",cls:"eqreversal2"},latentfire:{label:"Latent Fire",lg:"lg-lf",cls:"eqlatentfire"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
 const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
 // timeframe: spanH = hours of history shown per screen width (wider SVG scrolls
 // horizontally — finger-swipe on mobile); null = fit-all. daily = one point per
@@ -297,7 +299,7 @@ function dailyClose(series){
   return out;
 }
 function equityChart(st){
-  const engs=["loose","floor","band","value","fade","reversal","reversal2","strict"];
+  const engs=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"];
   const S={}; engs.forEach(e=>S[e]=eqSeries(st,e));
   const legend='<span class="eqlegend">'+engs.filter(e=>S[e].length).map(e=>{const n=S[e][S[e].length-1][1];
     return `<b class="${ENGMETA[e].lg}">━</b> ${ENGMETA[e].label} <b class="${n>=0?'eqpos':'eqneg'}">${D$(n)}</b>`;
@@ -313,7 +315,7 @@ function layoutChart(userAction, _try){
   const wrap=document.getElementById("eqscroll"); if(!wrap||!LAST) return;
   const cw=wrap.clientWidth||Math.round(wrap.getBoundingClientRect().width);
   if(!cw){ if((_try||0)<20) setTimeout(()=>layoutChart(userAction,(_try||0)+1), 40); return; }  // wait for layout to flush
-  const engs=["loose","floor","band","value","fade","reversal","reversal2","strict"];
+  const engs=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"];
   const S={}; engs.forEach(e=>{let s=eqSeries(LAST,e); if(VIEW.daily) s=dailyClose(s); S[e]=s;});
   const all=engs.flatMap(e=>S[e]);
   if(all.length<2){ wrap.innerHTML='<div class="lab" style="padding:12px 2px">'+(VIEW.daily?'Need at least 2 daily closes — check back after a day or two.':'Each engine’s line appears once it has 2+ trades.')+'</div>'; return; }
@@ -397,14 +399,14 @@ function draw(st){
   // second: green = inside the expected window, orange = slightly overdue
   // (usually CDN lag), red = two missed publishes + slack.
   HB={heartbeat:st.heartbeat||0, pubEvery:(st.publishEvery||1800)*1000};
-  const S=st.summary||{}, feesTot=["loose","floor","band","value","fade","reversal","reversal2","strict"].reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
+  const S=st.summary||{}, feesTot=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"].reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
   const must=(st.looseMust||[]), mustAbbr=must.map(k=>(GUARDS[k]||[k])[0]).join("/");
   const mustTxt=must.length?` + ${mustAbbr} required`:"";
   $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · hedge ${st.hedgeOn?"on":"off"} · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
   const eng=st.btc&&st.btc.engines||{};
-  const HUE={loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",value:"#8bc34a",fade:"#e0559a",reversal:"#26c6da",reversal2:"#facc15",strict:"var(--btc)"};
-  const LABEL={loose:"Loose",floor:"Floor",band:"Band",value:"Value",fade:"Fade",reversal:"Reversal",reversal2:"Reversal2",strict:"Strict"};
+  const HUE={loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",value:"#8bc34a",fade:"#e0559a",reversal:"#26c6da",reversal2:"#facc15",latentfire:"#ff5252",strict:"var(--btc)"};
+  const LABEL={loose:"Loose",floor:"Floor",band:"Band",value:"Value",fade:"Fade",reversal:"Reversal",reversal2:"Reversal2",latentfire:"Latent Fire",strict:"Strict"};
   const needLbl=(id)=>{
     const need=(S[id]||{}).need||(id==="strict"?10:st.loosePass);
     if(id==="strict") return `needs 10/10`;
@@ -412,6 +414,7 @@ function draw(st){
     if(id==="value") return `ask < fair value`;
     if(id==="reversal") return `fade big prior move → open`;
     if(id==="reversal2") return `reversal + gamma fallback (jumps in)`;
+    if(id==="latentfire") return `reversal, only in choppy regimes`;
     const cfg=(st.engineCfg||{})[id]||{};
     let l=`needs ${need}/10`;
     if(must.length) l+=` + <b title="mandatory: ${must.map(k=>(GUARDS[k]||['',k])[1]).join('; ')}">${esc(mustAbbr)}</b>`;
@@ -429,6 +432,7 @@ function draw(st){
     +`<div class="books" style="margin-top:16px">${col("band")}${col("value")}</div>`  /* band = +ceiling; value = fair-value gate (side engine, off the ablation chain) */
     +`<div class="books" style="margin-top:16px">${col("fade")}${col("strict")}</div>`  /* fade = contrarian mirror of loose; strict = by-the-book reference */
     +`<div class="books" style="margin-top:16px">${col("reversal")}${col("reversal2")}</div>`  /* reversal (strict fills) vs reversal2 (gamma-fallback, jumps in) — the cross-interval overreaction pair */
+    +`<div class="books" style="grid-template-columns:1fr;margin-top:16px">${col("latentfire")}</div>`  /* Latent Fire = reversal + trend-efficiency regime gate — featured full-width */
     +guardKey(must)
     +missesPanel(st)
     +`<h3 class="sec">Activity log</h3><div class="log">`
@@ -505,7 +509,7 @@ function drawBtcBar(){
 function drawLiveTrade(){
   const el=$("livetrade"); if(!el) return;
   const eng=(LAST&&LAST.btc&&LAST.btc.engines)||{};
-  const engs=["loose","floor","band","value","fade","reversal","reversal2","strict"];
+  const engs=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"];
   const now=Math.floor(Date.now()/1000);
   let parts=[];
   engs.forEach(id=>{
