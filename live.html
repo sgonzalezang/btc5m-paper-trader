@@ -283,11 +283,16 @@ function moreRows(id){ SHOWN[id]=(SHOWN[id]||PAGE)+PAGE; if(LAST) draw(LAST); }
 // the curve at t1 also lands every engine that traded the same interval on the SAME x,
 // instead of scattering them across those 5 minutes by whenever each happened to enter.
 function closeMs(t){ return (typeof t.t1==="number")?t.t1*1000:t.at; }
-// ERA: the chart races from 8:00am CDT Jul 10 2026 (13:00 UTC) — the v3 relaunch
-// ($500 flagship bank, $20 side stakes). Everything is rebased to $0 at that
-// moment; engines with no settled trade since then simply don't appear. Card
-// totals below the chart still show full lifetimes.
-const ERA_MS=Date.UTC(2026,6,10,13,0,0);
+// ERA: the chart races from MIDNIGHT CDT Jul 10 2026 (05:00 UTC) — the v3-era
+// day, everything rebased to $0. Engines with no settled trade since then
+// simply don't appear. Card totals below the chart still show full lifetimes.
+const ERA_MS=Date.UTC(2026,6,10,5,0,0);
+// Impulse v2 launched mid-day, so its pre-launch stretch is SIMULATED off the
+// same price action and the shadows' real fills (gate + 53c cap + quarter-Kelly
+// at launch qhat; 20 signals -> 2 sized trades). The real book takes over from
+// launch, offset by the sim's ending value. Cards/ledgers stay 100% real.
+const IMP_SIM=[[1783675500000,-19.86],[1783690800000,-31.0]];
+const IMP_SIM_END=1783698300000, IMP_SIM_VAL=-31.0;
 function eqSeries(st, id){
   const btc=st.btc||{}, hist=(btc.equity||{})[id]||[], agg=(btc.lifetime||{})[id]||{};
   const base=(typeof agg.pnl==="number")?agg.pnl:(hist.length?hist[hist.length-1][1]:0);
@@ -297,10 +302,13 @@ function eqSeries(st, id){
   const pts=hist.map(p=>[p[0],p[1]]); let cum=base;
   for(const t of settled){ cum+=t.pnl; pts.push([closeMs(t),+cum.toFixed(2)]); }
   const era=pts.filter(p=>p[0]>=ERA_MS);
-  if(!era.length) return [];
   const base0=stepVal(pts,ERA_MS);
   const out=era.map(p=>[p[0],+(p[1]-base0).toFixed(2)]);
-  if(out[0][0]>ERA_MS) out.unshift([ERA_MS,0]);
+  if(out.length&&out[0][0]>ERA_MS) out.unshift([ERA_MS,0]);
+  if(id==="impulse_v2"){
+    const real=out.filter(p=>p[0]>IMP_SIM_END).map(p=>[p[0],+(p[1]+IMP_SIM_VAL).toFixed(2)]);
+    return [[ERA_MS,0]].concat(IMP_SIM).concat(real);
+  }
   return out;
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
@@ -389,7 +397,7 @@ function equityChart(st){
     +`<button data-daily="1" class="${VIEW.daily?'on':''}" onclick="toggleDaily()" title="one point per day at 11:55pm local (daily close)">Daily</button>`
     +`<button style="margin-left:auto" class="${ENGSORT==='rank'?'on':''}" onclick="toggleEngSort()" title="Rank: order every engine list by current P&amp;L, best first. Grouped: the ablation layout (loose|floor, band|value, …)">${ENGSORT==='rank'?'▼ by return':'⇄ grouped'}</button></div>`;
   // SVG is filled by layoutChart() after insert (needs the container width)
-  return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — since 8am Jul 10 (v3 era, from $0) '+legend+'</h2>'
+  return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — since midnight Jul 10, from $0 <span style="font-size:11px;color:var(--mut);font-weight:400" title="Impulse v2 launched 10:40am; its earlier stretch is simulated off the same price action and the shadows\' real fills (gate + 53c cap + launch sizing). Its real book takes over from launch. All other lines and every card/ledger are real trades.">· impulse sim before 10:40am</span> '+legend+'</h2>'
     +ctrl+'<div class="eqscroll" id="eqscroll"><div class="lab" style="padding:12px 2px">…</div></div>'
     +'<div class="eqtip" id="eqtip"></div><div class="eqmeta" id="eqmeta"></div></div>';
 }
