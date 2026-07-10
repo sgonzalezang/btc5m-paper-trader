@@ -85,6 +85,7 @@
   .eqtip{position:absolute;pointer-events:none;display:none;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;line-height:1.5;box-shadow:var(--shadow);z-index:6;white-space:nowrap}
   .eqtip-t{color:var(--mut);font-size:11px;margin-bottom:2px}
   .eqtip b{font-weight:700}
+  .eqdlt{font-size:11px;font-weight:700;margin-left:2px}   /* what THIS market contributed */
   .eqgrid{stroke:var(--line);stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
   .eqloose{fill:none;stroke:var(--blue);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqvariant{fill:none;stroke:#8f7bff;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
@@ -456,13 +457,19 @@ function eqShowAt(clientX){
   let rows="";
   EQ.engs.forEach(e=>{ const s=EQ.S[e], d=document.getElementById("eqhd-"+e);
     if(s&&s.length&&t>=s[0][0]){ const v=stepVal(s,t);
+      // the curve steps AT t, so the jump across t is exactly what THIS market paid this
+      // engine. Zero means it sat this market out.
+      const dlt=+(v-stepVal(s,t-1)).toFixed(2);
       if(d){ d.setAttribute("cx",xs); d.setAttribute("cy",Y(v).toFixed(1)); d.style.display=""; }
-      rows+=`<div><b class="${ENGMETA[e].lg}">${ENGMETA[e].label}</b> <b class="${v>=0?'eqpos':'eqneg'}">${D$(v)}</b></div>`;
+      const chip = dlt!==0
+        ? ` <span class="eqdlt ${dlt>0?'eqpos':'eqneg'}">(${dlt>0?'+':'−'}$${Math.abs(dlt).toFixed(2)})</span>`
+        : ' <span class="eqdlt mut">(—)</span>';
+      rows+=`<div><b class="${ENGMETA[e].lg}">${ENGMETA[e].label}</b> <b class="${v>=0?'eqpos':'eqneg'}">${D$(v)}</b>${chip}</div>`;
     } else if(d){ d.style.display="none"; } });
   const tip=document.getElementById("eqtip"), col=wrap.closest(".col");
   if(tip&&col){ const cr=col.getBoundingClientRect(), scr=wrap.getBoundingClientRect();
     const stamp=new Date(t).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
-    tip.innerHTML=`<div class="eqtip-t">${stamp} <span class="mut">· ${VIEW.daily?"daily close":"market close"}</span></div>${rows||'<div class="eqtip-t">no trades yet</div>'}`;
+    tip.innerHTML=`<div class="eqtip-t">${stamp} <span class="mut">· ${VIEW.daily?"daily close":"market close"} · total (this market)</span></div>${rows||'<div class="eqtip-t">no trades yet</div>'}`;
     tip.style.display="block";
     let left=(sr.left-cr.left)+xs+12;   // anchor to the SNAPPED crosshair, not the raw cursor
     left=Math.max(4,Math.min(left,cr.width-tip.offsetWidth-4));
