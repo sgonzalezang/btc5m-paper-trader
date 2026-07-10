@@ -295,6 +295,8 @@ const ERA_MS=1783564500000;
 // from launch, offset by the replay's ending value. Cards/ledgers stay 100% real.
 const IMP_SIM=[[1783568400000,17.01],[1783575000000,-10.01],[1783590600000,0.43],[1783599000000,11.09],[1783601400000,-0.76],[1783604400000,42.49],[1783606500000,37.47],[1783608000000,55.76],[1783609500000,82.45],[1783612800000,77.07],[1783613700000,51.95],[1783617900000,60.44],[1783621800000,83.34],[1783626600000,83.49],[1783626900000,125.41],[1783631400000,160.16],[1783635900000,159.97],[1783644300000,184.66],[1783648500000,163.93],[1783650000000,155.84],[1783675500000,128.09],[1783690500000,128.14],[1783690800000,111.82],[1783693500000,79.7],[1783694400000,101.39]];
 const IMP_SIM_END=1783694400000, IMP_SIM_VAL=101.39;
+// the 25 replay trades behind the pre-launch line: [t0, side, fill, stake, result, pnl]
+const IMP_SIM_TRADES=[[1783568100,"down",0.43,13.24,"win",17.02],[1783574700,"up",0.3515,25.85,"loss",-27.03],[1783590300,"up",0.45,8.82,"win",10.44],[1783598700,"up",0.45,9.01,"win",10.66],[1783601100,"up",0.44,11.41,"loss",-11.86],[1783604100,"up",0.36,24.96,"win",43.25],[1783606200,"up",0.47,4.83,"loss",-5.01],[1783607700,"up",0.43,14.23,"win",18.29],[1783609200,"down",0.41,19.1,"win",26.69],[1783612500,"up",0.47,5.19,"loss",-5.39],[1783613400,"up",0.39,24.08,"loss",-25.11],[1783617600,"down",0.46,7.48,"win",8.49],[1783621500,"up",0.42,17.09,"win",22.9],[1783626300,"down",0.49,0.16,"win",0.16],[1783626600,"up",0.38,26.4,"win",41.92],[1783631100,"down",0.4,23.83,"win",34.74],[1783635600,"down",0.49,0.18,"loss",-0.19],[1783644000,"down",0.43,19.21,"win",24.69],[1783648200,"down",0.43,19.93,"loss",-20.73],[1783649700,"down",0.47,7.8,"loss",-8.09],[1783675200,"down",0.4,26.63,"loss",-27.75],[1783690200,"up",0.49,0.05,"win",0.05],[1783690500,"down",0.44,15.7,"loss",-16.32],[1783693200,"up",0.29,30.59,"loss",-32.11],[1783694100,"up",0.43,16.87,"win",21.69]];
 function rawSeries(st, id){   // the engine's FULL lifetime cumulative P&L, unclipped
   const btc=st.btc||{}, hist=(btc.equity||{})[id]||[], agg=(btc.lifetime||{})[id]||{};
   const base=(typeof agg.pnl==="number")?agg.pnl:(hist.length?hist[hist.length-1][1]:0);
@@ -595,14 +597,38 @@ function draw(st){
     const X=t=>P+(W-2*P)*(t-t0)/Math.max(1,t1-t0), Y=v=>P+(H-2*P)*(1-(v-lo)/(hi-lo));
     let d="M"+X(pts[0][0]).toFixed(1)+" "+Y(pts[0][1]).toFixed(1);
     for(let i=1;i<pts.length;i++){ d+=" L"+X(pts[i][0]).toFixed(1)+" "+Y(pts[i-1][1]).toFixed(1)+" L"+X(pts[i][0]).toFixed(1)+" "+Y(pts[i][1]).toFixed(1); }
-    const zero=(lo<=0&&hi>=0)?`<line x1="${P}" x2="${W-P}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="var(--line)" stroke-dasharray="3 3"/>`:"";
+    // visible $0 axis + green-above / red-below coloring so sign reads at a glance
+    const y0=Y(Math.max(lo,Math.min(hi,0))).toFixed(1);
+    const zero=`<line x1="0" x2="${W}" y1="${y0}" y2="${y0}" stroke="#8b96a3" stroke-width="1" opacity="0.6"/><text x="${W-2}" y="${(+y0-2).toFixed(1)}" text-anchor="end" font-size="8" fill="#8b96a3">$0</text>`;
     const last=pts[pts.length-1][1];
     return `<div style="margin:8px 0 4px;border:1px solid var(--line);border-radius:8px;padding:6px 8px 4px;background:var(--panel2)">`
-      +`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:54px;display:block">${zero}<path d="${d}" fill="none" stroke="${HUE[id]||"#8b96a3"}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`
+      +`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:54px;display:block">`
+      +`<clipPath id="spka-${id}"><rect x="0" y="0" width="${W}" height="${y0}"/></clipPath>`
+      +`<clipPath id="spkb-${id}"><rect x="0" y="${y0}" width="${W}" height="${(H-y0).toFixed(1)}"/></clipPath>`
+      +zero
+      +`<path d="${d}" fill="none" stroke="var(--up)" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round" clip-path="url(#spka-${id})"/>`
+      +`<path d="${d}" fill="none" stroke="var(--dn)" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round" clip-path="url(#spkb-${id})"/>`
+      +`</svg>`
       +`<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--mut)"><span>${new Date(t0).toLocaleDateString(undefined,{month:"short",day:"numeric"})} ${new Date(t0).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})} → now · ${lbl}</span><span style="color:${last>=0?"var(--up)":"var(--dn)"}">${D$(last)}</span></div></div>`;
   };
+  // the 25 pre-launch replay trades that make up Impulse v2's chart line — listed
+  // so the card ledger explains the +$101.39 even before the real book trades.
+  const replayRows=(id)=>{
+    if(id!=="impulse_v2") return "";
+    const fmt=t=>new Date(t*1000).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+    const tag=`<b style="font-size:9px;padding:0 4px;border-radius:6px;background:#3a3325;color:#d9b36a">SIM</b>`;
+    const body=IMP_SIM_TRADES.slice().reverse().map(x=>
+      `<tr style="opacity:.78;border-top:1px solid var(--line)"><td style="padding:3px 6px">${fmt(x[0])} ${tag}</td>`
+      +`<td style="padding:3px 6px">${x[1].toUpperCase()}</td><td style="padding:3px 6px">${Math.round(x[2]*100)}¢</td>`
+      +`<td style="padding:3px 6px">$${x[3].toFixed(2)}</td><td style="padding:3px 6px">${x[4]}</td>`
+      +`<td style="padding:3px 6px;color:${x[5]>=0?"var(--up)":"var(--dn)"}">${D$(x[5])}</td></tr>`).join("");
+    return `<h3 style="margin:10px 0 4px;font-size:12.5px;color:var(--mut)" title="Replay of the flagship's exact rules over the family's real order-book fills and oracle outcomes, pre-launch. These make up the chart line before 10:40am Jul 10; real trades appear in the ledger above as they settle.">Pre-launch replay — the 25 trades behind the chart line (net +$101.39)</h3>`
+      +`<div style="max-height:200px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel2)">`
+      +`<table style="width:100%;border-collapse:collapse;font-size:11.5px"><tr style="color:var(--mut);font-size:10.5px">`
+      +`<td style="padding:3px 6px">time</td><td style="padding:3px 6px">side</td><td style="padding:3px 6px">fill</td><td style="padding:3px 6px">stake</td><td style="padding:3px 6px">result</td><td style="padding:3px 6px">P&amp;L</td></tr>${body}</table></div>`;
+  };
   const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span>${chip(id)}<span>${needLbl(id)}</span></h2>`
-    +(S[id]?tiles(S[id]):"")+spark(id)+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
+    +(S[id]?tiles(S[id]):"")+spark(id)+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+replayRows(id)+`</div>`;
   // Cards follow the SHARED order. In "grouped" this reproduces the ablation layout exactly
   // (loose|floor, band|value, fade|strict, reversal|reversal2, latentfire full-width);
   // in "rank" it lays them out best-first, 2 per row.
