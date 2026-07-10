@@ -61,6 +61,13 @@
   .more{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer}
   .more:hover{border-color:var(--btc)}
   .rowinfo{font-size:11px;color:var(--mut)}
+  .pkwrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;margin-top:4px}
+  .pk{width:100%;border-collapse:collapse;font-size:12px;margin:0;min-width:620px}
+  .pk th{background:var(--panel2);color:var(--mut);padding:6px 8px;font-size:10px;text-transform:uppercase;white-space:nowrap;position:sticky;top:0}
+  .pk td{padding:6px 8px;border-top:1px solid var(--line);text-align:center;white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.35}
+  .pk td.l,.pk th.l{text-align:left}
+  .pk tbody tr:hover{background:var(--panel2)}
+  .pkhi{color:var(--up)}.pklo{color:var(--dn)}.pkflat{color:var(--mut)}
   .eqctrl{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 2px}
   .eqctrl button{background:var(--panel2);color:var(--mut);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:12px;cursor:pointer;font-variant-numeric:tabular-nums}
   .eqctrl button:hover{border-color:var(--btc)}
@@ -277,6 +284,43 @@ function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[
 // floor inherits capless's purple (lg-v/eqvariant classes), band inherits calm's teal (lg-c/eqcalm) — CSS class names kept to avoid churn
 const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},value:{label:"value",lg:"lg-va",cls:"eqvalue"},fade:{label:"fade",lg:"lg-f",cls:"eqfade"},reversal:{label:"reversal",lg:"lg-rv",cls:"eqreversal"},reversal2:{label:"reversal2",lg:"lg-rv2",cls:"eqreversal2"},latentfire:{label:"Latent Fire",lg:"lg-lf",cls:"eqlatentfire"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
 const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
+// --- peak / trough of each engine's cumulative P&L inside rolling windows ----
+// The curve is a STEP function, so a window's high/low must include its value at
+// the window START (carried forward), not just the points that fall inside it —
+// otherwise an engine that didn't trade in the last hour would show no range at
+// all instead of a flat line at its current P&L.
+const PKWIN=[["48h",172800e3],["24h",86400e3],["12h",43200e3],["6h",21600e3],["60m",3600e3]];
+function peakTrough(st){
+  const engs=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"];
+  const now=Date.now();
+  const rows=engs.map(e=>{
+    const pts=eqSeries(st,e);
+    if(!pts.length) return null;                         // never traded — omit
+    const cur=pts[pts.length-1][1];
+    const cells=PKWIN.map(([lbl,ms])=>{
+      const t0=now-ms;
+      const vals=[stepVal(pts,t0)].concat(pts.filter(p=>p[0]>=t0).map(p=>p[1]));
+      const hi=Math.max.apply(null,vals), lo=Math.min.apply(null,vals);
+      return {lbl,hi,lo,flat:(hi===lo)};
+    });
+    return {e,cur,cells};
+  }).filter(Boolean);
+  if(!rows.length) return '';
+  const head='<tr><th class="l">engine</th><th>now</th>'+PKWIN.map(w=>`<th>${w[0]}</th>`).join('')+'</tr>';
+  const body=rows.map(r=>{
+    const m=ENGMETA[r.e]||{label:r.e,lg:''};
+    const cells=r.cells.map(c=>{
+      if(c.flat) return `<td title="no movement in this window"><span class="pkflat">flat ${D$(c.hi)}</span></td>`;
+      return `<td title="peak-to-trough swing $${(c.hi-c.lo).toFixed(2)} within ${c.lbl}">`
+        +`<span class="pkhi">▲ ${D$(c.hi)}</span><br><span class="pklo">▼ ${D$(c.lo)}</span></td>`;
+    }).join('');
+    return `<tr><td class="l"><b class="${m.lg}">${m.label}</b></td>`
+      +`<td><b class="${r.cur>=0?'eqpos':'eqneg'}">${D$(r.cur)}</b></td>${cells}</tr>`;
+  }).join('');
+  return '<h3 class="sec">Peak &amp; trough by window</h3>'
+    +'<div class="mut" style="font-size:12px;margin:-2px 0 6px">Highest (<span class="pkhi">▲</span>) and lowest (<span class="pklo">▼</span>) point each engine\'s <b>cumulative</b> P&amp;L reached inside each rolling window, ending now. Hover a cell for its peak-to-trough swing. <b>flat</b> means the engine took no settled trade in that window.</div>'
+    +`<div class="pkwrap"><table class="pk"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
 // timeframe: spanH = hours of history shown per screen width (wider SVG scrolls
 // horizontally — finger-swipe on mobile); null = fit-all. daily = one point per
 // local day sampled at 11:55pm ("daily close" before the next day's markets).
@@ -428,6 +472,7 @@ function draw(st){
     +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
   $("body").innerHTML=equityChart(st)
     +ablation(st)
+    +peakTrough(st)                                                  /* numeric companion to the chart: highs/lows per window */
     +`<div class="books">${col("loose")}${col("floor")}</div>`      /* ablation pair 1: the drift floor's effect */
     +`<div class="books" style="margin-top:16px">${col("band")}${col("value")}</div>`  /* band = +ceiling; value = fair-value gate (side engine, off the ablation chain) */
     +`<div class="books" style="margin-top:16px">${col("fade")}${col("strict")}</div>`  /* fade = contrarian mirror of loose; strict = by-the-book reference */
