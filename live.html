@@ -94,6 +94,8 @@
   .eqvalue{fill:none;stroke:#8bc34a;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqfade{fill:none;stroke:#e0559a;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqreversal{fill:none;stroke:#26c6da;stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+  .eqimpulse{fill:none;stroke:#ff8f2b;stroke-width:2.8;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+  .eqrevv2{fill:none;stroke:#7bd88f;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqreversal2{fill:none;stroke:#facc15;stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqlatentfire{fill:none;stroke:#ff5252;stroke-width:2.6;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqd-loose{fill:var(--blue)}.eqd-variant{fill:#8f7bff}.eqd-calm{fill:#3fb6a8}.eqd-value{fill:#8bc34a}.eqd-fade{fill:#e0559a}.eqd-reversal{fill:#26c6da}.eqd-reversal2{fill:#facc15}.eqd-latentfire{fill:#ff5252}.eqd-strict{fill:var(--btc)}
@@ -104,7 +106,7 @@
   .eqmeta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--mut);margin-top:4px;flex-wrap:wrap}
   .eqnow.pos{color:var(--up);font-weight:700}.eqnow.neg{color:var(--dn);font-weight:700}
   .eqlegend{font-size:11px;color:var(--mut);font-weight:400}
-  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-v{color:#8f7bff}.lg-c{color:#3fb6a8}.lg-va{color:#8bc34a}.lg-f{color:#e0559a}.lg-rv{color:#26c6da}.lg-rv2{color:#facc15}.lg-lf{color:#ff5252}.lg-s{color:var(--btc)}
+  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-v{color:#8f7bff}.lg-c{color:#3fb6a8}.lg-va{color:#8bc34a}.lg-f{color:#e0559a}.lg-rv{color:#26c6da}.lg-rv2{color:#facc15}.lg-lf{color:#ff5252}.lg-s{color:var(--btc)}.lg-imp{color:#ff8f2b}.lg-rvv2{color:#7bd88f}
   .gd{white-space:nowrap}
   .gd i{display:inline-block;font-style:normal;font-size:9px;width:13px;height:13px;line-height:13px;text-align:center;border-radius:3px;margin:0 1px;font-weight:700;cursor:default}
   .gd .g1{background:#173527;color:var(--up)}.gd .g0{background:#3a231c;color:var(--dn)}
@@ -281,6 +283,11 @@ function moreRows(id){ SHOWN[id]=(SHOWN[id]||PAGE)+PAGE; if(LAST) draw(LAST); }
 // the curve at t1 also lands every engine that traded the same interval on the SAME x,
 // instead of scattering them across those 5 minutes by whenever each happened to enter.
 function closeMs(t){ return (typeof t.t1==="number")?t.t1*1000:t.at; }
+// ERA: the chart races from 8:00am CDT Jul 10 2026 (13:00 UTC) — the v3 relaunch
+// ($500 flagship bank, $20 side stakes). Everything is rebased to $0 at that
+// moment; engines with no settled trade since then simply don't appear. Card
+// totals below the chart still show full lifetimes.
+const ERA_MS=Date.UTC(2026,6,10,13,0,0);
 function eqSeries(st, id){
   const btc=st.btc||{}, hist=(btc.equity||{})[id]||[], agg=(btc.lifetime||{})[id]||{};
   const base=(typeof agg.pnl==="number")?agg.pnl:(hist.length?hist[hist.length-1][1]:0);
@@ -289,18 +296,23 @@ function eqSeries(st, id){
                       .slice().sort((a,b)=>closeMs(a)-closeMs(b));
   const pts=hist.map(p=>[p[0],p[1]]); let cum=base;
   for(const t of settled){ cum+=t.pnl; pts.push([closeMs(t),+cum.toFixed(2)]); }
-  return pts;
+  const era=pts.filter(p=>p[0]>=ERA_MS);
+  if(!era.length) return [];
+  const base0=stepVal(pts,ERA_MS);
+  const out=era.map(p=>[p[0],+(p[1]-base0).toFixed(2)]);
+  if(out[0][0]>ERA_MS) out.unshift([ERA_MS,0]);
+  return out;
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
 // floor inherits capless's purple (lg-v/eqvariant classes), band inherits calm's teal (lg-c/eqcalm) — CSS class names kept to avoid churn
-const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},value:{label:"value",lg:"lg-va",cls:"eqvalue"},fade:{label:"fade",lg:"lg-f",cls:"eqfade"},reversal:{label:"reversal",lg:"lg-rv",cls:"eqreversal"},reversal2:{label:"reversal2",lg:"lg-rv2",cls:"eqreversal2"},latentfire:{label:"Latent Fire",lg:"lg-lf",cls:"eqlatentfire"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
+const ENGMETA={impulse_v2:{label:"Impulse v2",lg:"lg-imp",cls:"eqimpulse"},reversal_v2:{label:"Rev v2 ctrl",lg:"lg-rvv2",cls:"eqrevv2"},loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},value:{label:"value",lg:"lg-va",cls:"eqvalue"},fade:{label:"fade",lg:"lg-f",cls:"eqfade"},reversal:{label:"reversal",lg:"lg-rv",cls:"eqreversal"},reversal2:{label:"reversal2",lg:"lg-rv2",cls:"eqreversal2"},latentfire:{label:"Latent Fire",lg:"lg-lf",cls:"eqlatentfire"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
 const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
 // --- engine display order -----------------------------------------------------
 // "grouped" = the pedagogical layout (ablation pairs, read 2-per-row);
 // "rank"    = sorted by current P&L, best first.
 // ONE list drives the legend, the peak/trough table, the tooltip, the live bar and the
 // cards, so those surfaces can never disagree about ordering.
-const ENGS_GROUPED=["impulse_v2","reversal_v2","reversal","loose","floor","band","value","fade","strict","reversal2","latentfire"];
+const ENGS_GROUPED=["impulse_v2","reversal_v2","reversal","reversal2","loose","floor","band","value","fade","strict","latentfire"];
 let ENGSORT="rank";
 function engList(st){
   if(ENGSORT!=="rank") return ENGS_GROUPED.slice();
@@ -377,7 +389,7 @@ function equityChart(st){
     +`<button data-daily="1" class="${VIEW.daily?'on':''}" onclick="toggleDaily()" title="one point per day at 11:55pm local (daily close)">Daily</button>`
     +`<button style="margin-left:auto" class="${ENGSORT==='rank'?'on':''}" onclick="toggleEngSort()" title="Rank: order every engine list by current P&amp;L, best first. Grouped: the ablation layout (loose|floor, band|value, …)">${ENGSORT==='rank'?'▼ by return':'⇄ grouped'}</button></div>`;
   // SVG is filled by layoutChart() after insert (needs the container width)
-  return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — separate books '+legend+'</h2>'
+  return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — since 8am Jul 10 (v3 era, from $0) '+legend+'</h2>'
     +ctrl+'<div class="eqscroll" id="eqscroll"><div class="lab" style="padding:12px 2px">…</div></div>'
     +'<div class="eqtip" id="eqtip"></div><div class="eqmeta" id="eqmeta"></div></div>';
 }

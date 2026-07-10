@@ -97,7 +97,7 @@ ENGINE_CFG = {
     # the worst-case fee, with margin up to ~55c. Holds to resolution (no stop:
     # the thesis IS reversion by close). Deploy-ready for the live bridge but
     # NOT in --signal-engines until forward paper data confirms the entry price.
-    "reversal": dict(label="Rev 55c", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+    "reversal": dict(label="Reversal (55c)", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                      revThr=0.12, revEntryMax=0.55, revWinMin=180, holdToClose=True, shadow=True),
     # reversal2 — same signal as reversal (fade a >=0.12% prior move), but LOOSENED
     # execution so it actually jumps in at the open instead of sitting out on a
@@ -105,8 +105,10 @@ ENGINE_CFG = {
     # (~50c), relaxes the spread gate, and uses a slightly wider entry window.
     # Runs concurrently with reversal — the pair measures how much fill-execution
     # friction at the open costs the strategy. Paper-only (not in --signal-engines).
+    # reversal2 — un-retired 2026-07-10 at user request: keeps running as a side
+    # book alongside reversal (55c) while the flagship trial runs. Flat stake.
     "reversal2": dict(label="Reversal2", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
-                      revThr=0.12, revEntryMax=0.55, revWinMin=150, holdToClose=True, revLoose=True, retired=True),
+                      revThr=0.12, revEntryMax=0.55, revWinMin=150, holdToClose=True, revLoose=True, shadow=True),
     # Latent Fire (reversal3) — reversal2 PLUS a regime gate. Reversal only wins when
     # big moves revert, which happens in CHOPPY regimes and fails in TRENDING ones.
     # The tell that survives out-of-sample is Kaufman trend efficiency over the last
@@ -145,7 +147,7 @@ ENGINE_CFG = {
 # qhat learns from THIS, never from the bank-censored sized book.
 IMP_SEED_LO, IMP_SEED_HI, IMP_PRIOR = 0.5057, 0.5068, 400
 def default_impulse():
-    return dict(bank=1000.0, qlo=IMP_SEED_LO, qhi=IMP_SEED_HI, benched=False,
+    return dict(bank=1000.0, bank0=1000.0, qlo=IMP_SEED_LO, qhi=IMP_SEED_HI, benched=False,
                 measure=[], skips={}, lastNightly=0)
 VOL_WIN_MS = 600000   # trailing window for the volatility measure (10 min)
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
@@ -554,7 +556,7 @@ class Bot:
         cost = p + FEE_RATE * p * (1 - p)
         qh = imp["qlo"] if cost < 0.50 else imp["qhi"]
         if imp.get("benched"): return None, "benched"
-        if imp.get("bank", 1000.0) < 250: return None, "breaker"
+        if imp.get("bank", 1000.0) < 0.25 * imp.get("bank0", 1000.0): return None, "breaker"   # ops stop at 25% of launch bank
         if imp.get("haircut"): qh = 0.5 + (qh - 0.5) / 2      # tier-1/2 base-rate guard: halve the assumed edge
         f = qh - (1 - qh) * cost / (1 - cost)
         if f <= 0: return None, "f_nonpos"
@@ -1229,7 +1231,7 @@ def sanitize(o, args):
         im = o.get("impulse")
         if isinstance(im, dict):
             di = d["impulse"]
-            for k in ("bank", "qlo", "qhi", "lastNightly"):
+            for k in ("bank", "bank0", "qlo", "qhi", "lastNightly"):
                 if isinstance(im.get(k), (int, float)): di[k] = im[k]
             for k in ("benched", "haircut"):
                 if isinstance(im.get(k), bool): di[k] = im[k]

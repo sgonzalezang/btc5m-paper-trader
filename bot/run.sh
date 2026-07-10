@@ -20,8 +20,8 @@ REPO="$(cd .. && pwd)"
 exec caffeinate -i /usr/bin/env python3 btc5m_bot.py \
   --asset BTC \
   --loose 7 \
-  --stake 50 \
-  --bank 1000 \
+  --stake 20 \
+  --bank 500 \
   --slip 1 \
   --profile conservative \
   --state "$(pwd)/state.json" \
