@@ -283,16 +283,18 @@ function moreRows(id){ SHOWN[id]=(SHOWN[id]||PAGE)+PAGE; if(LAST) draw(LAST); }
 // the curve at t1 also lands every engine that traded the same interval on the SAME x,
 // instead of scattering them across those 5 minutes by whenever each happened to enter.
 function closeMs(t){ return (typeof t.t1==="number")?t.t1*1000:t.at; }
-// ERA: the chart races from MIDNIGHT CDT Jul 10 2026 (05:00 UTC) — the v3-era
-// day, everything rebased to $0. Engines with no settled trade since then
-// simply don't appear. Card totals below the chart still show full lifetimes.
-const ERA_MS=Date.UTC(2026,6,10,5,0,0);
-// Impulse v2 launched mid-day, so its pre-launch stretch is SIMULATED off the
-// same price action and the shadows' real fills (gate + 53c cap + quarter-Kelly
-// at launch qhat; 20 signals -> 2 sized trades). The real book takes over from
-// launch, offset by the sim's ending value. Cards/ledgers stay 100% real.
-const IMP_SIM=[[1783675500000,-19.86],[1783690800000,-31.0]];
-const IMP_SIM_END=1783698300000, IMP_SIM_VAL=-31.0;
+// ERA: the chart races from the birth of the REAL reversal-family record —
+// Jul 8 9:35pm CDT (Jul 9 02:35 UTC), the first oracle-settled reversal trade.
+// Everything rebased to $0 there. Only the four RUNNING engines draw; retired
+// books keep their cards/ledgers below but stay off the chart.
+const ERA_MS=1783564500000;
+// Impulse v2 launched 10:40am Jul 10, so its earlier stretch is a REPLAY of its
+// exact rules over the family's real ledger: actual order-book fills, actual
+// oracle outcomes — gate + 53c cap + quarter-Kelly from the $500 launch bank
+// (82 real intervals -> 25 sized trades, +$101.39). The real book takes over
+// from launch, offset by the replay's ending value. Cards/ledgers stay 100% real.
+const IMP_SIM=[[1783568400000,17.01],[1783575000000,-10.01],[1783590600000,0.43],[1783599000000,11.09],[1783601400000,-0.76],[1783604400000,42.49],[1783606500000,37.47],[1783608000000,55.76],[1783609500000,82.45],[1783612800000,77.07],[1783613700000,51.95],[1783617900000,60.44],[1783621800000,83.34],[1783626600000,83.49],[1783626900000,125.41],[1783631400000,160.16],[1783635900000,159.97],[1783644300000,184.66],[1783648500000,163.93],[1783650000000,155.84],[1783675500000,128.09],[1783690500000,128.14],[1783690800000,111.82],[1783693500000,79.7],[1783694400000,101.39]];
+const IMP_SIM_END=1783694400000, IMP_SIM_VAL=101.39;
 function eqSeries(st, id){
   const btc=st.btc||{}, hist=(btc.equity||{})[id]||[], agg=(btc.lifetime||{})[id]||{};
   const base=(typeof agg.pnl==="number")?agg.pnl:(hist.length?hist[hist.length-1][1]:0);
@@ -328,6 +330,9 @@ function engList(st){
   return ENGS_GROUPED.slice().sort((a,b)=>((S[b]||{}).pnl||0)-((S[a]||{}).pnl||0));
 }
 function toggleEngSort(){ ENGSORT=(ENGSORT==="rank")?"grouped":"rank"; if(LAST) draw(LAST); }
+// Chart, peak/trough and live-trade surfaces show only the RUNNING engines;
+// retired books keep their cards + ledgers below but stay off the race.
+function activeList(st){ const cfg=(st&&st.engineCfg)||{}; return engList(st).filter(e=>!(cfg[e]&&cfg[e].retired)); }
 // --- peak / trough of each engine's cumulative P&L inside rolling windows ----
 // The curve is a STEP function, so a window's high/low must include its value at
 // the window START (carried forward), not just the points that fall inside it —
@@ -335,7 +340,7 @@ function toggleEngSort(){ ENGSORT=(ENGSORT==="rank")?"grouped":"rank"; if(LAST) 
 // all instead of a flat line at its current P&L.
 const PKWIN=[["60m",3600e3],["6h",21600e3],["12h",43200e3],["24h",86400e3],["48h",172800e3]];  // nearest window first, widening left→right
 function peakTrough(st){
-  const engs=engList(st);
+  const engs=activeList(st);
   const now=Date.now();
   const rows=engs.map(e=>{
     const pts=eqSeries(st,e);
@@ -388,7 +393,7 @@ function dailyClose(series){
   return out;
 }
 function equityChart(st){
-  const engs=engList(st);
+  const engs=activeList(st);
   const S={}; engs.forEach(e=>S[e]=eqSeries(st,e));
   const legend='<span class="eqlegend">'+engs.filter(e=>S[e].length).map(e=>{const n=S[e][S[e].length-1][1];
     return `<b class="${ENGMETA[e].lg}">━</b> ${ENGMETA[e].label} <b class="${n>=0?'eqpos':'eqneg'}">${D$(n)}</b>`;
@@ -397,7 +402,7 @@ function equityChart(st){
     +`<button data-daily="1" class="${VIEW.daily?'on':''}" onclick="toggleDaily()" title="one point per day at 11:55pm local (daily close)">Daily</button>`
     +`<button style="margin-left:auto" class="${ENGSORT==='rank'?'on':''}" onclick="toggleEngSort()" title="Rank: order every engine list by current P&amp;L, best first. Grouped: the ablation layout (loose|floor, band|value, …)">${ENGSORT==='rank'?'▼ by return':'⇄ grouped'}</button></div>`;
   // SVG is filled by layoutChart() after insert (needs the container width)
-  return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — since midnight Jul 10, from $0 <span style="font-size:11px;color:var(--mut);font-weight:400" title="Impulse v2 launched 10:40am; its earlier stretch is simulated off the same price action and the shadows\' real fills (gate + 53c cap + launch sizing). Its real book takes over from launch. All other lines and every card/ledger are real trades.">· impulse sim before 10:40am</span> '+legend+'</h2>'
+  return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — running engines since Jul 8 9:35pm, from $0 <span style="font-size:11px;color:var(--mut);font-weight:400" title="The era starts at the first oracle-settled reversal trade (Jul 8 9:35pm CDT). Impulse v2 launched 10:40am Jul 10; its earlier stretch is a replay of its exact rules over the family\'s REAL ledger — actual order-book fills, actual oracle outcomes (82 intervals, 25 sized trades). Its real book continues from launch. Every card/ledger below is real trades only; retired engines keep their cards but stay off this chart.">· impulse replayed pre-launch</span> '+legend+'</h2>'
     +ctrl+'<div class="eqscroll" id="eqscroll"><div class="lab" style="padding:12px 2px">…</div></div>'
     +'<div class="eqtip" id="eqtip"></div><div class="eqmeta" id="eqmeta"></div></div>';
 }
@@ -405,7 +410,7 @@ function layoutChart(userAction, _try){
   const wrap=document.getElementById("eqscroll"); if(!wrap||!LAST) return;
   const cw=wrap.clientWidth||Math.round(wrap.getBoundingClientRect().width);
   if(!cw){ if((_try||0)<20) setTimeout(()=>layoutChart(userAction,(_try||0)+1), 40); return; }  // wait for layout to flush
-  const engs=engList(LAST);
+  const engs=activeList(LAST);
   const S={}; engs.forEach(e=>{let s=eqSeries(LAST,e); if(VIEW.daily) s=dailyClose(s); S[e]=s;});
   // A timeframe now means "show exactly this window, fitted to the screen" rather than
   // "this many hours per screen width, scroll for the rest". The whole point of picking a
@@ -708,7 +713,7 @@ function drawBtcBar(){
 function drawLiveTrade(){
   const el=$("livetrade"); if(!el) return;
   const eng=(LAST&&LAST.btc&&LAST.btc.engines)||{};
-  const engs=engList(LAST);
+  const engs=activeList(LAST);
   const now=Math.floor(Date.now()/1000);
   const usd=v=>"$"+(+v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   const cur=curPrice();
