@@ -348,6 +348,7 @@ class Bot:
         self.mkt = None                       # runtime shared data layer
         self.feed = {"src": None, "open": None, "last": None, "at": 0, "t0": None}
         self.feed_idx = None
+        self.feed_bad = {}                    # feed index -> unix ts until which it stays skipped
         self.slug_off = 0
         self.sweep_at = 0
         self.res_at = 0
@@ -886,18 +887,25 @@ class Bot:
             if hit:
                 ev, ts = hit; self.slug_off = ts - t0; return parse_event(ev)
         return None
+    FEED_COOLDOWN = 90     # seconds a failing feed is skipped before we retry it
     def feed_tick(self, t0):
         if self.feed["t0"] != t0:
             self.feed = {"src": self.feed["src"], "open": None, "last": None, "at": 0, "t0": t0}
-        order = ([self.feed_idx] if self.feed_idx is not None else []) + \
-                [i for i in range(len(FEEDS)) if i != self.feed_idx]
-        for i in order:
-            name, fn = FEEDS[i]
+        # ALWAYS prefer the primary (Coinbase = BTCUSD, the venue's own denomination).
+        # The old order tried the last-good feed first, so a single transient Coinbase
+        # timeout pinned the bot to Binance (BTCUSDT) forever — a ~$50 basis on every
+        # recorded strike. Now a failed feed is merely skipped for FEED_COOLDOWN, then retried.
+        now = time.time()
+        for i, (name, fn) in enumerate(FEEDS):
+            if now < self.feed_bad.get(i, 0): continue          # still cooling down
             r = fn(self.asset(), t0)
             if r and r["last"] is not None:
+                if self.feed_idx != i and self.feed_idx is not None:
+                    self.log(f"feed → {name} (was {FEEDS[self.feed_idx][0]})")
                 self.feed_idx = i; self.feed["src"] = name
                 if r["open"] is not None: self.feed["open"] = r["open"]
                 self.feed["last"] = r["last"]; self.feed["at"] = now_ms(); return
+            self.feed_bad[i] = now + self.FEED_COOLDOWN
     def rollover(self, t0, t1):
         prev = self.mkt
         if prev and prev.get("t0") is not None:            # finalize the interval that just ended

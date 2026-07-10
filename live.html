@@ -295,6 +295,19 @@ function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[
 // floor inherits capless's purple (lg-v/eqvariant classes), band inherits calm's teal (lg-c/eqcalm) — CSS class names kept to avoid churn
 const ENGMETA={loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},value:{label:"value",lg:"lg-va",cls:"eqvalue"},fade:{label:"fade",lg:"lg-f",cls:"eqfade"},reversal:{label:"reversal",lg:"lg-rv",cls:"eqreversal"},reversal2:{label:"reversal2",lg:"lg-rv2",cls:"eqreversal2"},latentfire:{label:"Latent Fire",lg:"lg-lf",cls:"eqlatentfire"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
 const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
+// --- engine display order -----------------------------------------------------
+// "grouped" = the pedagogical layout (ablation pairs, read 2-per-row);
+// "rank"    = sorted by current P&L, best first.
+// ONE list drives the legend, the peak/trough table, the tooltip, the live bar and the
+// cards, so those surfaces can never disagree about ordering.
+const ENGS_GROUPED=["loose","floor","band","value","fade","strict","reversal","reversal2","latentfire"];
+let ENGSORT="rank";
+function engList(st){
+  if(ENGSORT!=="rank") return ENGS_GROUPED.slice();
+  const S=(st&&st.summary)||{};
+  return ENGS_GROUPED.slice().sort((a,b)=>((S[b]||{}).pnl||0)-((S[a]||{}).pnl||0));
+}
+function toggleEngSort(){ ENGSORT=(ENGSORT==="rank")?"grouped":"rank"; if(LAST) draw(LAST); }
 // --- peak / trough of each engine's cumulative P&L inside rolling windows ----
 // The curve is a STEP function, so a window's high/low must include its value at
 // the window START (carried forward), not just the points that fall inside it —
@@ -302,7 +315,7 @@ const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
 // all instead of a flat line at its current P&L.
 const PKWIN=[["60m",3600e3],["6h",21600e3],["12h",43200e3],["24h",86400e3],["48h",172800e3]];  // nearest window first, widening left→right
 function peakTrough(st){
-  const engs=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"];
+  const engs=engList(st);
   const now=Date.now();
   const rows=engs.map(e=>{
     const pts=eqSeries(st,e);
@@ -355,13 +368,14 @@ function dailyClose(series){
   return out;
 }
 function equityChart(st){
-  const engs=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"];
+  const engs=engList(st);
   const S={}; engs.forEach(e=>S[e]=eqSeries(st,e));
   const legend='<span class="eqlegend">'+engs.filter(e=>S[e].length).map(e=>{const n=S[e][S[e].length-1][1];
     return `<b class="${ENGMETA[e].lg}">━</b> ${ENGMETA[e].label} <b class="${n>=0?'eqpos':'eqneg'}">${D$(n)}</b>`;
   }).join(' &nbsp; ')+'</span>';
   const ctrl='<div class="eqctrl">'+SPANS.map(sp=>`<button data-span="${sp[1]}" class="${VIEW.spanH===sp[1]&&!VIEW.daily?'on':''}" onclick="setSpan(${sp[1]})">${sp[0]}</button>`).join('')
-    +`<button data-daily="1" class="${VIEW.daily?'on':''}" onclick="toggleDaily()" title="one point per day at 11:55pm local (daily close)">Daily</button></div>`;
+    +`<button data-daily="1" class="${VIEW.daily?'on':''}" onclick="toggleDaily()" title="one point per day at 11:55pm local (daily close)">Daily</button>`
+    +`<button style="margin-left:auto" class="${ENGSORT==='rank'?'on':''}" onclick="toggleEngSort()" title="Rank: order every engine list by current P&amp;L, best first. Grouped: the ablation layout (loose|floor, band|value, …)">${ENGSORT==='rank'?'▼ by return':'⇄ grouped'}</button></div>`;
   // SVG is filled by layoutChart() after insert (needs the container width)
   return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — separate books '+legend+'</h2>'
     +ctrl+'<div class="eqscroll" id="eqscroll"><div class="lab" style="padding:12px 2px">…</div></div>'
@@ -371,7 +385,7 @@ function layoutChart(userAction, _try){
   const wrap=document.getElementById("eqscroll"); if(!wrap||!LAST) return;
   const cw=wrap.clientWidth||Math.round(wrap.getBoundingClientRect().width);
   if(!cw){ if((_try||0)<20) setTimeout(()=>layoutChart(userAction,(_try||0)+1), 40); return; }  // wait for layout to flush
-  const engs=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"];
+  const engs=engList(LAST);
   const S={}; engs.forEach(e=>{let s=eqSeries(LAST,e); if(VIEW.daily) s=dailyClose(s); S[e]=s;});
   // A timeframe now means "show exactly this window, fitted to the screen" rather than
   // "this many hours per screen width, scroll for the rest". The whole point of picking a
@@ -498,7 +512,7 @@ function draw(st){
   // second: green = inside the expected window, orange = slightly overdue
   // (usually CDN lag), red = two missed publishes + slack.
   HB={heartbeat:st.heartbeat||0, pubEvery:(st.publishEvery||1800)*1000};
-  const S=st.summary||{}, feesTot=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"].reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
+  const S=st.summary||{}, feesTot=ENGS_GROUPED.reduce((a,e)=>a+((S[e]||{}).feesPaid||0),0);
   const must=(st.looseMust||[]), mustAbbr=must.map(k=>(GUARDS[k]||[k])[0]).join("/");
   const mustTxt=must.length?` + ${mustAbbr} required`:"";
   $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · hedge ${st.hedgeOn?"on":"off"} · real fills, fees paid $${feesTot.toFixed(2)}`;
@@ -525,14 +539,20 @@ function draw(st){
   };
   const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span><span>${needLbl(id)}</span></h2>`
     +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
+  // Cards follow the SHARED order. In "grouped" this reproduces the ablation layout exactly
+  // (loose|floor, band|value, fade|strict, reversal|reversal2, latentfire full-width);
+  // in "rank" it lays them out best-first, 2 per row.
+  const order=engList(st);
+  let cards="";
+  for(let i=0;i<order.length;i+=2){
+    const pair=order.slice(i,i+2);
+    const solo=pair.length===1?"grid-template-columns:1fr;":"";
+    cards+=`<div class="books" style="${solo}${i?"margin-top:16px":""}">${pair.map(col).join("")}</div>`;
+  }
   $("body").innerHTML=equityChart(st)
     +ablation(st)
     +peakTrough(st)                                                  /* numeric companion to the chart: highs/lows per window */
-    +`<div class="books">${col("loose")}${col("floor")}</div>`      /* ablation pair 1: the drift floor's effect */
-    +`<div class="books" style="margin-top:16px">${col("band")}${col("value")}</div>`  /* band = +ceiling; value = fair-value gate (side engine, off the ablation chain) */
-    +`<div class="books" style="margin-top:16px">${col("fade")}${col("strict")}</div>`  /* fade = contrarian mirror of loose; strict = by-the-book reference */
-    +`<div class="books" style="margin-top:16px">${col("reversal")}${col("reversal2")}</div>`  /* reversal (strict fills) vs reversal2 (gamma-fallback, jumps in) — the cross-interval overreaction pair */
-    +`<div class="books" style="grid-template-columns:1fr;margin-top:16px">${col("latentfire")}</div>`  /* Latent Fire = reversal + trend-efficiency regime gate — featured full-width */
+    +cards
     +guardKey(must)
     +missesPanel(st)
     +`<h3 class="sec">Activity log</h3><div class="log">`
@@ -654,7 +674,7 @@ function drawBtcBar(){
 function drawLiveTrade(){
   const el=$("livetrade"); if(!el) return;
   const eng=(LAST&&LAST.btc&&LAST.btc.engines)||{};
-  const engs=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"];
+  const engs=engList(LAST);
   const now=Math.floor(Date.now()/1000);
   const usd=v=>"$"+(+v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   const cur=curPrice();
@@ -681,8 +701,10 @@ function drawLiveTrade(){
   const anyLive=keys.some(k=>groups[k].live);
   const blocks=keys.map(k=>{
     const g=groups[k], closed=!g.live;
-    // strike from the trade record; fall back to the cached candle for that window
-    const strike=(g.strike!=null)?g.strike:strikeOf(g.t0);
+    // Strike MUST come from the same feed as `cur`, or "ahead/behind" compares two exchanges.
+    // The bot may be running on a fallback feed (Binance = BTCUSDT, ~$50 basis vs BTCUSD), so
+    // its recorded btcOpen can differ from ours. Prefer our own candle; fall back to the bot's.
+    const strike=(()=>{ const s=strikeOf(g.t0); return (s!=null)?s:g.strike; })();
     // settle at the BOUNDARY instant (= next window's open), not the bot's last candle
     const settle=closed?settleOf(g.t0,g.settle):null;
     const ref=(strike!=null)?`<span class="mut">beat</span> <b class="btcline">${usd(strike)}</b>`:'<span class="mut">beat —</span>';
