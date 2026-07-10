@@ -376,17 +376,26 @@ function layoutChart(userAction, _try){
   // "this many hours per screen width, scroll for the rest". The whole point of picking a
   // window is to see its total performance at a glance, which scrolling defeats.
   let t0,t1;
+  // GRID = the real data-point times (market closes, or daily samples). The hover snaps to
+  // these, never to the synthetic window-edge points below, so the crosshair always reads an
+  // actual market result rather than a moment when nothing happened.
+  const gridSet=new Set();
   if(VIEW.spanH && !VIEW.daily){
     t1=Date.now(); t0=t1-VIEW.spanH*3600e3;
     engs.forEach(e=>{
       const s=S[e]; if(!s.length) return;
+      const inWin=s.filter(p=>p[0]>t0 && p[0]<=t1);
+      inWin.forEach(p=>gridSet.add(p[0]));
       // start the line at the window edge (step-held from before it) and hold it to now,
       // so an engine that didn't trade in the window still draws a correct flat line
-      const pts=[[t0, stepVal(s,t0)]].concat(s.filter(p=>p[0]>t0 && p[0]<=t1));
+      const pts=[[t0, stepVal(s,t0)]].concat(inWin);
       if(pts[pts.length-1][0]<t1) pts.push([t1, pts[pts.length-1][1]]);
       S[e]=pts;
     });
+  } else {
+    engs.forEach(e=>S[e].forEach(p=>gridSet.add(p[0])));
   }
+  const gridT=[...gridSet].sort((a,b)=>a-b);   // NB: `grid` below is the midnight-gridline SVG string
   const all=engs.flatMap(e=>S[e]);
   if(all.length<2){ wrap.innerHTML='<div class="lab" style="padding:12px 2px">'+(VIEW.daily?'Need at least 2 daily closes — check back after a day or two.':'Each engine’s line appears once it has 2+ trades.')+'</div>'; return; }
   if(t0==null){ const ts=all.map(p=>p[0]); t0=Math.min(...ts); t1=Math.max(...ts); }   // All / Daily: fit everything
@@ -410,7 +419,7 @@ function layoutChart(userAction, _try){
     +grid+`<line class="eqzero" x1="0" y1="${z.toFixed(1)}" x2="${Wpx}" y2="${z.toFixed(1)}"/>`
     +engs.map(e=>poly(S[e],ENGMETA[e].cls)).join("")+engs.map(dot).join("")+cross+`</svg>`;
   wrap.innerHTML=svg;   // SVG is exactly container-width, so there is nothing to pan
-  EQ={S:S, t0:t0, t1:t1, Wpx:Wpx, vmin:vmin, vmax:vmax, H:H, padT:padT, padB:padB, engs:engs};
+  EQ={S:S, t0:t0, t1:t1, Wpx:Wpx, vmin:vmin, vmax:vmax, H:H, padT:padT, padB:padB, engs:engs, grid:gridT};
   wrap.onpointermove=eqHover; wrap.onpointerleave=eqHoverHide;
   wrap.onpointerdown=eqDown; wrap.onpointerup=eqUp; wrap.onpointercancel=eqDownClear;
   wrap.onscroll=eqHoverHide;   // scrolling changes what's under a placed tooltip → clear it
@@ -424,24 +433,39 @@ function eqHoverHide(){
   const t=document.getElementById("eqtip"); if(t) t.style.display="none";
   (EQ?EQ.engs:[]).forEach(e=>{const d=document.getElementById("eqhd-"+e); if(d) d.style.display="none";});
 }
+// nearest value in a sorted array (binary search) — used to snap the hover to real data
+function nearestIn(arr, t){
+  if(!arr||!arr.length) return t;
+  if(t<=arr[0]) return arr[0];
+  if(t>=arr[arr.length-1]) return arr[arr.length-1];
+  let lo=0, hi=arr.length-1;
+  while(hi-lo>1){ const m=(lo+hi)>>1; if(arr[m]<=t) lo=m; else hi=m; }
+  return (t-arr[lo] <= arr[hi]-t) ? arr[lo] : arr[hi];
+}
 function eqShowAt(clientX){
   const wrap=document.getElementById("eqscroll"), svg=wrap&&wrap.querySelector("svg"); if(!EQ||!svg) return;
   const sr=svg.getBoundingClientRect(), x=clientX-sr.left;
   if(x<0||x>EQ.Wpx){ eqHoverHide(); return; }
-  const t=EQ.t0+(EQ.Wpx?x/EQ.Wpx:0)*(EQ.t1-EQ.t0);
+  // SNAP to the nearest real market close. The P&L only moves when a market resolves, so a
+  // reading between closes is a moment where nothing happened — the crosshair and its label
+  // would name a time that never produced a result.
+  const t=nearestIn(EQ.grid, EQ.t0+(EQ.Wpx?x/EQ.Wpx:0)*(EQ.t1-EQ.t0));
+  const xs=(EQ.t1===EQ.t0)?EQ.Wpx/2:(t-EQ.t0)/(EQ.t1-EQ.t0)*EQ.Wpx;   // re-derive x from the snapped time
   const Y=v=>EQ.padT+(1-(v-EQ.vmin)/(EQ.vmax-EQ.vmin))*(EQ.H-EQ.padT-EQ.padB);
-  const c=document.getElementById("eqcross"); if(c){ c.setAttribute("x1",x); c.setAttribute("x2",x); c.style.display=""; }
+  const c=document.getElementById("eqcross"); if(c){ c.setAttribute("x1",xs); c.setAttribute("x2",xs); c.style.display=""; }
   let rows="";
   EQ.engs.forEach(e=>{ const s=EQ.S[e], d=document.getElementById("eqhd-"+e);
     if(s&&s.length&&t>=s[0][0]){ const v=stepVal(s,t);
-      if(d){ d.setAttribute("cx",x); d.setAttribute("cy",Y(v).toFixed(1)); d.style.display=""; }
+      if(d){ d.setAttribute("cx",xs); d.setAttribute("cy",Y(v).toFixed(1)); d.style.display=""; }
       rows+=`<div><b class="${ENGMETA[e].lg}">${ENGMETA[e].label}</b> <b class="${v>=0?'eqpos':'eqneg'}">${D$(v)}</b></div>`;
     } else if(d){ d.style.display="none"; } });
   const tip=document.getElementById("eqtip"), col=wrap.closest(".col");
   if(tip&&col){ const cr=col.getBoundingClientRect(), scr=wrap.getBoundingClientRect();
-    tip.innerHTML=`<div class="eqtip-t">${new Date(t).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</div>${rows||'<div class="eqtip-t">no trades yet</div>'}`;
+    const stamp=new Date(t).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+    tip.innerHTML=`<div class="eqtip-t">${stamp} <span class="mut">· ${VIEW.daily?"daily close":"market close"}</span></div>${rows||'<div class="eqtip-t">no trades yet</div>'}`;
     tip.style.display="block";
-    let left=clientX-cr.left+12; left=Math.max(4,Math.min(left,cr.width-tip.offsetWidth-4));
+    let left=(sr.left-cr.left)+xs+12;   // anchor to the SNAPPED crosshair, not the raw cursor
+    left=Math.max(4,Math.min(left,cr.width-tip.offsetWidth-4));
     tip.style.left=left+"px"; tip.style.top=(scr.top-cr.top+6)+"px";
   }
 }
