@@ -276,14 +276,18 @@ function moreRows(id){ SHOWN[id]=(SHOWN[id]||PAGE)+PAGE; if(LAST) draw(LAST); }
 // Per engine: persisted historical points (trades trimmed out of the list) +
 // the in-list settled trades accumulated from the folded baseline. Combined =
 // both engines summed (step-held between their trade times).
+// A trade's P&L is decided when its market CLOSES (t1), not when it was entered. Stepping
+// the curve at t1 also lands every engine that traded the same interval on the SAME x,
+// instead of scattering them across those 5 minutes by whenever each happened to enter.
+function closeMs(t){ return (typeof t.t1==="number")?t.t1*1000:t.at; }
 function eqSeries(st, id){
   const btc=st.btc||{}, hist=(btc.equity||{})[id]||[], agg=(btc.lifetime||{})[id]||{};
   const base=(typeof agg.pnl==="number")?agg.pnl:(hist.length?hist[hist.length-1][1]:0);
   const trades=((btc.engines||{})[id]||{}).trades||[];
   const settled=trades.filter(t=>["win","loss","stopped"].includes(t.result)&&typeof t.pnl==="number")
-                      .slice().sort((a,b)=>a.at-b.at);
+                      .slice().sort((a,b)=>closeMs(a)-closeMs(b));
   const pts=hist.map(p=>[p[0],p[1]]); let cum=base;
-  for(const t of settled){ cum+=t.pnl; pts.push([t.at,+cum.toFixed(2)]); }
+  for(const t of settled){ cum+=t.pnl; pts.push([closeMs(t),+cum.toFixed(2)]); }
   return pts;
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }

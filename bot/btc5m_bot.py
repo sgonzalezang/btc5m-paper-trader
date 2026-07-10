@@ -647,7 +647,11 @@ class Bot:
                 agg["settled"] += 1; agg[{"win": "wins", "loss": "losses", "stopped": "stopped"}[r]] += 1
                 if isinstance(t.get("pnl"), (int, float)): agg["pnl"] += t["pnl"]
                 agg["staked"] += t.get("stake", 0)
-                eq.append([t["at"], round(agg["pnl"], 2)])   # cumulative lifetime P&L at this trade's time
+                # step the curve at the market CLOSE (t1), not the entry: the P&L is only
+                # decided when the interval resolves, and it keeps every engine that traded
+                # the same interval on the same x instead of scattering them by entry time.
+                close_ms = int(t["t1"] * 1000) if isinstance(t.get("t1"), (int, float)) else t["at"]
+                eq.append([close_ms, round(agg["pnl"], 2)])   # cumulative lifetime P&L at that market's close
             elif r == "unknown": agg["unknown"] += 1
         if len(eq) > self.EQ_CAP:                 # decimate but always keep the last point (== agg pnl)
             self.st["equity"][eid] = eq[::2] + ([eq[-1]] if len(eq) % 2 == 0 else [])
