@@ -77,7 +77,8 @@
   .eqctrl button{background:var(--panel2);color:var(--mut);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:12px;cursor:pointer;font-variant-numeric:tabular-nums}
   .eqctrl button:hover{border-color:var(--btc)}
   .eqctrl button.on{background:var(--btc);color:#0d1116;border-color:var(--btc);font-weight:700}
-  .eqscroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;margin-top:4px;border-radius:8px}
+  /* chart always fits the container — no horizontal pan (it defeats seeing the window at a glance) */
+  .eqscroll{overflow:hidden;margin-top:4px;border-radius:8px}
   .eqsvg{display:block;cursor:crosshair}
   .eqcross{stroke:var(--mut);stroke-width:1;stroke-dasharray:3 2;opacity:.75;vector-effect:non-scaling-stroke}
   .eqhd{stroke:var(--bg);stroke-width:1.5}
@@ -327,9 +328,9 @@ function peakTrough(st){
     +'<div class="mut" style="font-size:12px;margin:-2px 0 6px">Highest (▲) and lowest (▼) point each engine\'s <b>cumulative</b> P&amp;L reached inside each rolling window, ending now. <b>Colour is the sign of the number</b> — green above zero, red below — so a ▲ shows red when an engine\'s best moment in that window was still a loss. Hover a cell for its peak-to-trough swing. <b>flat</b> means no settled trade in that window.</div>'
     +`<div class="pkwrap"><table class="pk"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
 }
-// timeframe: spanH = hours of history shown per screen width (wider SVG scrolls
-// horizontally — finger-swipe on mobile); null = fit-all. daily = one point per
-// local day sampled at 11:55pm ("daily close" before the next day's markets).
+// timeframe: spanH = show exactly the last N hours, fitted to the container width
+// (never scrolls — the point of picking a window is to read it at a glance);
+// null = fit-all. daily = one point per local day sampled at 11:55pm.
 let VIEW={spanH:null, daily:false};
 const SPANS=[["3h",3],["6h",6],["12h",12],["24h",24],["3d",72],["7d",168],["All",null]];
 function eqSyncCtrl(){
@@ -367,11 +368,26 @@ function layoutChart(userAction, _try){
   if(!cw){ if((_try||0)<20) setTimeout(()=>layoutChart(userAction,(_try||0)+1), 40); return; }  // wait for layout to flush
   const engs=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"];
   const S={}; engs.forEach(e=>{let s=eqSeries(LAST,e); if(VIEW.daily) s=dailyClose(s); S[e]=s;});
+  // A timeframe now means "show exactly this window, fitted to the screen" rather than
+  // "this many hours per screen width, scroll for the rest". The whole point of picking a
+  // window is to see its total performance at a glance, which scrolling defeats.
+  let t0,t1;
+  if(VIEW.spanH && !VIEW.daily){
+    t1=Date.now(); t0=t1-VIEW.spanH*3600e3;
+    engs.forEach(e=>{
+      const s=S[e]; if(!s.length) return;
+      // start the line at the window edge (step-held from before it) and hold it to now,
+      // so an engine that didn't trade in the window still draws a correct flat line
+      const pts=[[t0, stepVal(s,t0)]].concat(s.filter(p=>p[0]>t0 && p[0]<=t1));
+      if(pts[pts.length-1][0]<t1) pts.push([t1, pts[pts.length-1][1]]);
+      S[e]=pts;
+    });
+  }
   const all=engs.flatMap(e=>S[e]);
   if(all.length<2){ wrap.innerHTML='<div class="lab" style="padding:12px 2px">'+(VIEW.daily?'Need at least 2 daily closes — check back after a day or two.':'Each engine’s line appears once it has 2+ trades.')+'</div>'; return; }
-  const ts=all.map(p=>p[0]), t0=Math.min(...ts), t1=Math.max(...ts);
-  const totalH=(t1-t0)/3600e3, H=220, padT=14, padB=8;
-  const Wpx = VIEW.spanH ? Math.max(cw, Math.round(cw*totalH/VIEW.spanH)) : cw;   // wider than screen → scroll
+  if(t0==null){ const ts=all.map(p=>p[0]); t0=Math.min(...ts); t1=Math.max(...ts); }   // All / Daily: fit everything
+  const H=220, padT=14, padB=8;
+  const Wpx = cw;                                   // always fits the container — never scrolls
   const vs=all.map(p=>p[1]); let vmin=Math.min(0,...vs), vmax=Math.max(0,...vs); if(vmin===vmax){vmin-=1;vmax+=1;}
   const gp=(vmax-vmin)*0.08; vmin-=gp; vmax+=gp;
   const X=t=> t1===t0?Wpx/2 : (t-t0)/(t1-t0)*Wpx;
@@ -389,9 +405,7 @@ function layoutChart(userAction, _try){
   const svg=`<svg class="eqsvg" width="${Wpx}" height="${H}" viewBox="0 0 ${Wpx} ${H}" preserveAspectRatio="none" style="width:${Wpx}px;height:${H}px">`
     +grid+`<line class="eqzero" x1="0" y1="${z.toFixed(1)}" x2="${Wpx}" y2="${z.toFixed(1)}"/>`
     +engs.map(e=>poly(S[e],ENGMETA[e].cls)).join("")+engs.map(dot).join("")+cross+`</svg>`;
-  const wasRight = wrap.scrollWidth-wrap.clientWidth-wrap.scrollLeft < 6, prevLeft=wrap.scrollLeft;
-  wrap.innerHTML=svg;
-  wrap.scrollLeft = (userAction||wasRight) ? wrap.scrollWidth : prevLeft;   // keep viewing latest unless panned
+  wrap.innerHTML=svg;   // SVG is exactly container-width, so there is nothing to pan
   EQ={S:S, t0:t0, t1:t1, Wpx:Wpx, vmin:vmin, vmax:vmax, H:H, padT:padT, padB:padB, engs:engs};
   wrap.onpointermove=eqHover; wrap.onpointerleave=eqHoverHide;
   wrap.onpointerdown=eqDown; wrap.onpointerup=eqUp; wrap.onpointercancel=eqDownClear;
@@ -549,6 +563,22 @@ function strikeOf(t0){
   if(LAST&&LAST.feed&&LAST.feed.t0===t0&&LAST.feed.open!=null) return LAST.feed.open;
   return null;
 }
+// A window's SETTLE price is the price at its boundary instant — which is exactly the
+// next window's open. Prefer that over the bot's recorded btcClose, which is the last
+// 1-min candle it had seen and can lag the boundary by up to a minute: enough to call a
+// near-the-line window the wrong way.
+function settleOf(t0, botClose){
+  const boundary=strikeOf(t0+300);
+  return (boundary!=null)?boundary:((typeof botClose==="number")?botClose:null);
+}
+// Mirrors the bot's _clear_margin: max($15, 0.03% of price) ≈ $19 at $64k. Inside this
+// band no spot feed can be trusted against Polymarket's oracle, so we decline to call it.
+function clearMargin(px){ return Math.max(15, px*0.0003); }
+function verdictOf(strike, settle){
+  const d=settle-strike;
+  if(Math.abs(d)<clearMargin(strike)) return {d:d, tooClose:true};
+  return {d:d, tooClose:false, up:d>0};
+}
 async function tickBtc(){ const b=await fetchBtc(); if(b) BTCP=b; drawBtcBar(); }
 function drawBtcBar(){
   const el=$("btcbar"); if(!el) return;
@@ -560,16 +590,17 @@ function drawBtcBar(){
   // GRACE WINDOW: for the first GRACE_S seconds of a new interval, keep showing the one that
   // just CLOSED — its strike and where BTC settled against it — instead of swapping to the new
   // reference the instant it stops mattering. Lets a viewer actually read the outcome.
-  const pStrike=strikeOf(t0-300), pSettle=strikeOf(t0);   // prev close == this open, same instant
+  const pStrike=strikeOf(t0-300), pSettle=strikeOf(t0);   // settle == this window's open, same instant
   if(secsIn<GRACE_S && pStrike!=null && pSettle!=null){
-    const d=pSettle-pStrike;
+    const v=verdictOf(pStrike,pSettle);
     el.className="btcbar closed";
     el.innerHTML=`<b class="btcpx">₿ ${usd(px)}</b>`
       +`<span class="mut">${esc(src)} · <b>last window closed</b> · beat</span> <b class="btcline">${usd(pStrike)}</b> `
       +`<span class="mut">settled</span> <b class="btcline">${usd(pSettle)}</b> `
-      +(d>0?`<b class="up">▲ +$${d.toFixed(2)} → Up won</b>`
-        :d<0?`<b class="dn">▼ −$${Math.abs(d).toFixed(2)} → Down won</b>`
-        :'<span class="mut">dead flat → tie</span>')
+      +(v.tooClose
+        ?`<span class="prov" title="within $${clearMargin(pStrike).toFixed(0)} of the line — no spot feed can call this against Polymarket's oracle">… too close to call → oracle decides</span>`
+        :v.up?`<b class="up">▲ +$${v.d.toFixed(2)} → Up won</b>`
+             :`<b class="dn">▼ −$${Math.abs(v.d).toFixed(2)} → Down won</b>`)
       +`<span class="mut"> · new reference in ${GRACE_S-secsIn}s</span>`;
     return;
   }
@@ -617,14 +648,15 @@ function drawLiveTrade(){
     const g=groups[k], closed=!g.live;
     // strike from the trade record; fall back to the cached candle for that window
     const strike=(g.strike!=null)?g.strike:strikeOf(g.t0);
-    // a closed window settles at its own close, which is the NEXT window's open
-    const settle=closed?((g.settle!=null)?g.settle:strikeOf(g.t0+300)):null;
+    // settle at the BOUNDARY instant (= next window's open), not the bot's last candle
+    const settle=closed?settleOf(g.t0,g.settle):null;
     const ref=(strike!=null)?`<span class="mut">beat</span> <b class="btcline">${usd(strike)}</b>`:'<span class="mut">beat —</span>';
-    let mark="";
+    let mark="", tooClose=false;
     if(closed && strike!=null && settle!=null){
-      const d=settle-strike;
+      const v=verdictOf(strike,settle); tooClose=v.tooClose;
       mark=` <span class="mut">· settled</span> <b class="btcline">${usd(settle)}</b> `
-        +(d>0?'<b class="up">▲ Up won</b>':d<0?'<b class="dn">▼ Down won</b>':'<span class="mut">tie</span>');
+        +(v.tooClose?'<span class="prov">… too close to call → oracle decides</span>'
+          :v.up?'<b class="up">▲ Up won</b>':'<b class="dn">▼ Down won</b>');
     } else if(!closed && strike!=null && cur!=null){
       const d=cur-strike;
       mark=` <span class="mut">· now</span> <b class="btcline">${usd(cur)}</b> `
@@ -638,7 +670,8 @@ function drawLiveTrade(){
       let verdict="";
       if(strike!=null && px!=null){
         const d=px-strike, good=(t.side==="up")?(d>0):(d<0);
-        verdict = (d===0) ? ' <span class="mut">tie</span>'
+        verdict = (closed && tooClose) ? ' <span class="prov">…</span>'   // oracle decides, don't guess
+          : (d===0) ? ' <span class="mut">tie</span>'
           : closed ? (good?' <b class="up">WON</b>':' <b class="dn">LOST</b>')
                    : (good?' <b class="up">ahead</b>':' <b class="dn">behind</b>');
       }
