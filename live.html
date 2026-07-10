@@ -67,7 +67,9 @@
   .pk td{padding:6px 8px;border-top:1px solid var(--line);text-align:center;white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.35}
   .pk td.l,.pk th.l{text-align:left}
   .pk tbody tr:hover{background:var(--panel2)}
-  .pkhi{color:var(--up)}.pklo{color:var(--dn)}.pkflat{color:var(--mut)}
+  /* ▲/▼ mark the high/low of the window; COLOUR is the sign of the number (eqpos/eqneg),
+     so a peak that is still a loss reads red rather than misleadingly green */
+  .pkflat{color:var(--mut)}.pk .eqpos{color:var(--up)}.pk .eqneg{color:var(--dn)}
   .eqctrl{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 2px}
   .eqctrl button{background:var(--panel2);color:var(--mut);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:12px;cursor:pointer;font-variant-numeric:tabular-nums}
   .eqctrl button:hover{border-color:var(--btc)}
@@ -307,18 +309,19 @@ function peakTrough(st){
   }).filter(Boolean);
   if(!rows.length) return '';
   const head='<tr><th class="l">engine</th><th>now</th>'+PKWIN.map(w=>`<th>${w[0]}</th>`).join('')+'</tr>';
+  const sc=v=>v>=0?'eqpos':'eqneg';          // colour by SIGN, not by peak/trough role
   const body=rows.map(r=>{
     const m=ENGMETA[r.e]||{label:r.e,lg:''};
     const cells=r.cells.map(c=>{
-      if(c.flat) return `<td title="no movement in this window"><span class="pkflat">flat ${D$(c.hi)}</span></td>`;
+      if(c.flat) return `<td title="no settled trade in this window"><span class="pkflat">flat</span> <span class="${sc(c.hi)}">${D$(c.hi)}</span></td>`;
       return `<td title="peak-to-trough swing $${(c.hi-c.lo).toFixed(2)} within ${c.lbl}">`
-        +`<span class="pkhi">▲ ${D$(c.hi)}</span><br><span class="pklo">▼ ${D$(c.lo)}</span></td>`;
+        +`<span class="${sc(c.hi)}">▲ ${D$(c.hi)}</span><br><span class="${sc(c.lo)}">▼ ${D$(c.lo)}</span></td>`;
     }).join('');
     return `<tr><td class="l"><b class="${m.lg}">${m.label}</b></td>`
       +`<td><b class="${r.cur>=0?'eqpos':'eqneg'}">${D$(r.cur)}</b></td>${cells}</tr>`;
   }).join('');
   return '<h3 class="sec">Peak &amp; trough by window</h3>'
-    +'<div class="mut" style="font-size:12px;margin:-2px 0 6px">Highest (<span class="pkhi">▲</span>) and lowest (<span class="pklo">▼</span>) point each engine\'s <b>cumulative</b> P&amp;L reached inside each rolling window, ending now. Hover a cell for its peak-to-trough swing. <b>flat</b> means the engine took no settled trade in that window.</div>'
+    +'<div class="mut" style="font-size:12px;margin:-2px 0 6px">Highest (▲) and lowest (▼) point each engine\'s <b>cumulative</b> P&amp;L reached inside each rolling window, ending now. <b>Colour is the sign of the number</b> — green above zero, red below — so a ▲ shows red when an engine\'s best moment in that window was still a loss. Hover a cell for its peak-to-trough swing. <b>flat</b> means no settled trade in that window.</div>'
     +`<div class="pkwrap"><table class="pk"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
 }
 // timeframe: spanH = hours of history shown per screen width (wider SVG scrolls
