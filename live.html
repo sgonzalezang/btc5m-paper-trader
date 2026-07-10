@@ -295,7 +295,7 @@ const ERA_MS=1783564500000;
 // from launch, offset by the replay's ending value. Cards/ledgers stay 100% real.
 const IMP_SIM=[[1783568400000,17.01],[1783575000000,-10.01],[1783590600000,0.43],[1783599000000,11.09],[1783601400000,-0.76],[1783604400000,42.49],[1783606500000,37.47],[1783608000000,55.76],[1783609500000,82.45],[1783612800000,77.07],[1783613700000,51.95],[1783617900000,60.44],[1783621800000,83.34],[1783626600000,83.49],[1783626900000,125.41],[1783631400000,160.16],[1783635900000,159.97],[1783644300000,184.66],[1783648500000,163.93],[1783650000000,155.84],[1783675500000,128.09],[1783690500000,128.14],[1783690800000,111.82],[1783693500000,79.7],[1783694400000,101.39]];
 const IMP_SIM_END=1783694400000, IMP_SIM_VAL=101.39;
-function eqSeries(st, id){
+function rawSeries(st, id){   // the engine's FULL lifetime cumulative P&L, unclipped
   const btc=st.btc||{}, hist=(btc.equity||{})[id]||[], agg=(btc.lifetime||{})[id]||{};
   const base=(typeof agg.pnl==="number")?agg.pnl:(hist.length?hist[hist.length-1][1]:0);
   const trades=((btc.engines||{})[id]||{}).trades||[];
@@ -303,6 +303,10 @@ function eqSeries(st, id){
                       .slice().sort((a,b)=>closeMs(a)-closeMs(b));
   const pts=hist.map(p=>[p[0],p[1]]); let cum=base;
   for(const t of settled){ cum+=t.pnl; pts.push([closeMs(t),+cum.toFixed(2)]); }
+  return pts;
+}
+function eqSeries(st, id){
+  const pts=rawSeries(st,id);
   const era=pts.filter(p=>p[0]>=ERA_MS);
   const base0=stepVal(pts,ERA_MS);
   const out=era.map(p=>[p[0],+(p[1]-base0).toFixed(2)]);
@@ -576,8 +580,29 @@ function draw(st){
     if(id==="impulse_v2") return ` <b style="font-size:10px;padding:1px 6px;border-radius:8px;background:#4d321f;color:#ffb26b;vertical-align:middle" title="the only sized live arm">FLAGSHIP</b>`;
     return "";
   };
+  // per-card equity sparkline: the engine's own FULL lifetime curve (backward-
+  // looking on purpose), step-drawn like the main chart. Impulse falls back to
+  // its pre-launch ledger replay until its real book has trades.
+  const spark=(id)=>{
+    let pts=rawSeries(st,id), lbl="lifetime equity";
+    if(id==="impulse_v2"&&pts.length<2){ pts=[[ERA_MS,0]].concat(IMP_SIM); lbl="ledger replay (pre-launch sim)"; }
+    if(pts.length===1) pts=[[pts[0][0]-3600000,0]].concat(pts);   // single settled trade: anchor a $0 start an hour before
+    if(pts.length<2) return "";
+    const t0=pts[0][0], t1=pts[pts.length-1][0];
+    let lo=Math.min(0,...pts.map(p=>p[1])), hi=Math.max(0,...pts.map(p=>p[1]));
+    if(hi-lo<1e-9) hi=lo+1;
+    const W=300,H=54,P=4;
+    const X=t=>P+(W-2*P)*(t-t0)/Math.max(1,t1-t0), Y=v=>P+(H-2*P)*(1-(v-lo)/(hi-lo));
+    let d="M"+X(pts[0][0]).toFixed(1)+" "+Y(pts[0][1]).toFixed(1);
+    for(let i=1;i<pts.length;i++){ d+=" L"+X(pts[i][0]).toFixed(1)+" "+Y(pts[i-1][1]).toFixed(1)+" L"+X(pts[i][0]).toFixed(1)+" "+Y(pts[i][1]).toFixed(1); }
+    const zero=(lo<=0&&hi>=0)?`<line x1="${P}" x2="${W-P}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="var(--line)" stroke-dasharray="3 3"/>`:"";
+    const last=pts[pts.length-1][1];
+    return `<div style="margin:8px 0 4px;border:1px solid var(--line);border-radius:8px;padding:6px 8px 4px;background:var(--panel2)">`
+      +`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:54px;display:block">${zero}<path d="${d}" fill="none" stroke="${HUE[id]||"#8b96a3"}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`
+      +`<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--mut)"><span>${new Date(t0).toLocaleDateString(undefined,{month:"short",day:"numeric"})} ${new Date(t0).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})} → now · ${lbl}</span><span style="color:${last>=0?"var(--up)":"var(--dn)"}">${D$(last)}</span></div></div>`;
+  };
   const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span>${chip(id)}<span>${needLbl(id)}</span></h2>`
-    +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
+    +(S[id]?tiles(S[id]):"")+spark(id)+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
   // Cards follow the SHARED order. In "grouped" this reproduces the ablation layout exactly
   // (loose|floor, band|value, fade|strict, reversal|reversal2, latentfire full-width);
   // in "rank" it lays them out best-first, 2 per row.
