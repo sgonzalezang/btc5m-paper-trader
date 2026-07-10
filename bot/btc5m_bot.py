@@ -571,13 +571,16 @@ class Bot:
         if stake < MIN_ORDER_USD: return None, "stake_lt_min"  # no stake floor exists (MF1): too small = SKIP
         return stake, None
 
-    def _measure_record(self, t0, side, cost, sized, why):
+    def _measure_record(self, t0, side, cost, sized, why, feats=None):
         """Measurement book: EVERY cap-compliant gated signal, sized or skipped.
-        qhat learns from this, never from the bank-censored sized book."""
+        qhat learns from this, never from the bank-censored sized book.
+        feats = decision-time context (ML-PLAN.md Phase 0): the training row for
+        the future meta-labeling model. Recorded at decision time so no feature
+        can leak information from after the entry moment."""
         ms = self.imp["measure"]
         if ms and ms[-1].get("t0") == t0: return
         ms.append(dict(t0=t0, side=side, cost=round(cost, 4), win=None,
-                       sized=bool(sized), skip=(why or None)))
+                       sized=bool(sized), skip=(why or None), f=(feats or None)))
         del ms[:-12000]
         if why: self.imp["skips"][why] = self.imp["skips"].get(why, 0) + 1
 
@@ -727,8 +730,13 @@ class Bot:
             # measurement first (stake-independent), then the sizing decision
             p_fill = min(0.99, q["ask"] + slip)
             stake_usd, skip_why = self._impulse_stake(p_fill)
+            feats = dict(ask=q["ask"], pm=(round(prior_move, 4) if prior_move is not None else None),
+                         eff6=eff6, cnt12=cnt12,
+                         spread=(round(spread, 4) if spread is not None else None),
+                         sec=(max(0, IVL - left) if left is not None else None),
+                         hour=int((m["t0"] % 86400) // 3600), vol=self.vol)
             self._measure_record(m["t0"], rev_side, p_fill + FEE_RATE * p_fill * (1 - p_fill),
-                                 stake_usd is not None, skip_why)
+                                 stake_usd is not None, skip_why, feats)
             if stake_usd is None and self.sig_last.get("_impskip") != m["t0"]:
                 self.sig_last["_impskip"] = m["t0"]
                 self.log(f"[IMPULSE_V2] signal but SKIP ({skip_why}) ask {q['ask']*100:.0f}c "
@@ -1551,6 +1559,10 @@ def selftest():
        and bs.imp["skips"].get("f_nonpos",0) >= 1,
        "sizing SKIP (f<=0) is a decision: no trade, measurement + skip reason recorded",
        f"skip={bs.imp['measure'] and bs.imp['measure'][-1]['skip']}")
+    mf = bs.imp["measure"][-1].get("f") or {}
+    ok(mf.get("eff6") is not None and mf.get("cnt12")==0 and mf.get("ask")==0.50 and mf.get("hour") is not None,
+       "measurement rows carry decision-time ML features (ML-PLAN Phase 0)",
+       f"f={mf}")
     bb = mkimp(); bb.imp["qlo"] = 0.53; bb.imp["benched"] = True
     bv2 = bb.evaluate(now, "impulse_v2")
     ok(not bv2["enter"] and bb.imp["measure"][-1]["skip"]=="benched", "guard bench zeroes the stake (tier 3)")
