@@ -24,6 +24,9 @@
   .livebar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);
       border-left:4px solid var(--line);border-radius:10px;padding:8px 14px;margin:-4px 0 14px;box-shadow:var(--shadow);font-size:13px}
   .livebar.on{border-left-color:var(--up)}
+  /* a window that has CLOSED: amber, so it reads as "resolved" not "live" */
+  .btcbar.closed{border-left-color:#e6a03c}
+  .livebar.on.closed{border-left-color:#e6a03c}
   .livebar .up{color:var(--up)}.livebar .dn{color:var(--dn)}
   .livedot{width:9px;height:9px;border-radius:50%;background:var(--up);animation:hbpulse 2s ease-out infinite;flex:none}
   .livedot.off{background:var(--mut);animation:none}
@@ -513,45 +516,73 @@ function tickCd(){
 // --- live BTC price (Coinbase spot = the bot's primary feed source) ---------
 // Fetched client-side every ~6s so it ticks between the bot's 5-min publishes;
 // falls back to the bot's last published feed if the direct fetch is blocked.
-let BTCP=null;
+let BTCP=null, CND={};          // CND: unix-minute ts -> {o,c}, a rolling ~15min candle cache
+const GRACE_S=25;               // hold the just-closed window's reference this long into the new one
 async function fetchBtc(){
   const now=Math.floor(Date.now()/1000), t0=Math.floor(now/300)*300;
-  const start=new Date((t0-120)*1000).toISOString(), end=new Date((now+60)*1000).toISOString();
+  // reach back a full extra window so the PREVIOUS interval's open is always cached
+  const start=new Date((t0-420)*1000).toISOString(), end=new Date((now+60)*1000).toISOString();
   const url="https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60&start="+encodeURIComponent(start)+"&end="+encodeURIComponent(end);
   for(const w of PROXIES){
     try{ const r=await fetch(w(url),{cache:"no-store"}); if(!r.ok) continue; const j=await r.json();
       if(!Array.isArray(j)) continue;
-      let open=null,last=null,lastT=-1,pc=null,pcT=-1;
+      let last=null,lastT=-1;
       j.forEach(row=>{ if(!Array.isArray(row)||row.length<5) return; const tt=+row[0],o=+row[3],c=+row[4];
-        if(tt===t0) open=o; if(tt<t0&&tt>pcT){pcT=tt;pc=c;} if(tt>lastT){lastT=tt;last=c;} });
-      if(open==null&&pc!=null) open=pc;
-      if(last!=null) return {price:last, open:open, t0:t0, t1:t0+300, src:"Coinbase", live:true};
+        CND[tt]={o:o,c:c}; if(tt>lastT){lastT=tt;last=c;} });
+      for(const k in CND){ if(+k < t0-900) delete CND[k]; }        // prune
+      if(last!=null) return {price:last, t0:t0, t1:t0+300, src:"Coinbase", live:true};
     }catch(e){}
   }
+  return null;
+}
+function curPrice(){
+  if(BTCP&&BTCP.price!=null) return BTCP.price;
+  if(LAST&&LAST.feed&&LAST.feed.price!=null) return LAST.feed.price;   // fallback: bot's published feed
+  return null;
+}
+// An interval's strike (price to beat) is its own open, which is the SAME instant as the
+// close of the minute-candle ending at t0. So a window's strike is knowable the moment it
+// turns, and — crucially — stays recoverable after it closes, from the cache.
+function strikeOf(t0){
+  if(CND[t0]&&CND[t0].o!=null) return CND[t0].o;
+  if(CND[t0-60]&&CND[t0-60].c!=null) return CND[t0-60].c;
+  if(LAST&&LAST.feed&&LAST.feed.t0===t0&&LAST.feed.open!=null) return LAST.feed.open;
   return null;
 }
 async function tickBtc(){ const b=await fetchBtc(); if(b) BTCP=b; drawBtcBar(); }
 function drawBtcBar(){
   const el=$("btcbar"); if(!el) return;
-  let f=BTCP;
-  if(!f && LAST && LAST.feed && LAST.feed.price!=null)   // fallback: bot's last published feed
-    f={price:LAST.feed.price, open:LAST.feed.open, t0:LAST.feed.t0, t1:(LAST.feed.t0||0)+300, src:LAST.feed.src||"feed", live:false, stamp:LAST.feed.at};
-  if(!f){ el.innerHTML='<span class="mut">BTC price unavailable</span>'; return; }
+  const px=curPrice();
+  if(px==null){ el.className="btcbar"; el.innerHTML='<span class="mut">BTC price unavailable</span>'; return; }
   const usd=v=>"$"+(+v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  const px=f.price, open=f.open, d=(open!=null)?px-open:null;
-  const now=Math.floor(Date.now()/1000), left=Math.max(0,(f.t1||0)-now);
-  const mmss=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");
-  const slug="btc-updown-5m-"+(f.t0||Math.floor(now/300)*300);
-  // the ONLY reference that matters (fixed for the whole window): the interval
-  // open — BTC must close ABOVE it for Up, BELOW it for Down.
+  const now=Math.floor(Date.now()/1000), t0=Math.floor(now/300)*300, secsIn=now-t0;
+  const live=!!(BTCP&&BTCP.live), src=(BTCP&&BTCP.src)||((LAST&&LAST.feed&&LAST.feed.src)||"feed");
+  // GRACE WINDOW: for the first GRACE_S seconds of a new interval, keep showing the one that
+  // just CLOSED — its strike and where BTC settled against it — instead of swapping to the new
+  // reference the instant it stops mattering. Lets a viewer actually read the outcome.
+  const pStrike=strikeOf(t0-300), pSettle=strikeOf(t0);   // prev close == this open, same instant
+  if(secsIn<GRACE_S && pStrike!=null && pSettle!=null){
+    const d=pSettle-pStrike;
+    el.className="btcbar closed";
+    el.innerHTML=`<b class="btcpx">₿ ${usd(px)}</b>`
+      +`<span class="mut">${esc(src)} · <b>last window closed</b> · beat</span> <b class="btcline">${usd(pStrike)}</b> `
+      +`<span class="mut">settled</span> <b class="btcline">${usd(pSettle)}</b> `
+      +(d>0?`<b class="up">▲ +$${d.toFixed(2)} → Up won</b>`
+        :d<0?`<b class="dn">▼ −$${Math.abs(d).toFixed(2)} → Down won</b>`
+        :'<span class="mut">dead flat → tie</span>')
+      +`<span class="mut"> · new reference in ${GRACE_S-secsIn}s</span>`;
+    return;
+  }
+  el.className="btcbar";
+  const slug="btc-updown-5m-"+t0, open=strikeOf(t0), d=(open!=null)?px-open:null;
+  const left=Math.max(0,(t0+300)-now), mmss=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");
   const side = d==null?"" : d>0?`<b class="up">▲ +$${d.toFixed(2)} above → Up leads</b>`
                             : d<0?`<b class="dn">▼ −$${Math.abs(d).toFixed(2)} below → Down leads</b>`
                             : `<span class="mut">right at the line</span>`;
-  const stale=(!f.live && f.stamp)?` <span class="mut">(as of ${ago(f.stamp)})</span>`:"";
   el.innerHTML=`<b class="btcpx">₿ ${usd(px)}</b>`
-    +`<span class="mut">${esc(f.src||"Coinbase")} · <a class="pml" target="_blank" rel="noopener" href="https://polymarket.com/event/${slug}" title="BTC must close above this for Up, below it for Down — fixed for the whole 5-min window">price to beat</a></span> `
+    +`<span class="mut">${esc(src)} · <a class="pml" target="_blank" rel="noopener" href="https://polymarket.com/event/${slug}" title="BTC must close above this for Up, below it for Down — fixed for the whole 5-min window">price to beat</a></span> `
     +`<b class="btcline">${open!=null?usd(open):"—"}</b> ${side}`
-    +`<span class="mut"> · ${mmss} to close${stale}${f.live?"":' · <b class="dn">feed blocked</b>'}</span>`;
+    +`<span class="mut"> · ${mmss} to close${live?"":' · <b class="dn">feed blocked</b>'}</span>`;
 }
 // --- live-trade indicator: which engine currently holds an open position ----
 function drawLiveTrade(){
@@ -559,25 +590,67 @@ function drawLiveTrade(){
   const eng=(LAST&&LAST.btc&&LAST.btc.engines)||{};
   const engs=["loose","floor","band","value","fade","reversal","reversal2","latentfire","strict"];
   const now=Math.floor(Date.now()/1000);
-  let parts=[];
+  const usd=v=>"$"+(+v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  const cur=curPrice();
+  // Group positions by the interval they belong to — the strike is a property of the
+  // WINDOW, not the engine, so it's shown once per group and every engine is judged
+  // against it. A closed window keeps its strike + settle so you can read who won.
+  const groups={};
   engs.forEach(id=>{
     const trs=(eng[id]||{}).trades||[];
     const t=trs.find(x=>x.status==="open")||trs.find(x=>x.status==="pending");
     if(!t) return;
-    const meta=ENGMETA[id]||{label:id,lg:""};
-    const nm=`<b class="${meta.lg}">${meta.label.charAt(0).toUpperCase()+meta.label.slice(1)}</b>`;
-    const side=t.side==="up"?'<b class="up">▲ UP</b>':'<b class="dn">▼ DOWN</b>';
-    if(t.status==="pending")
-      parts.push(`${nm} ${side} @ ${(t.entry*100).toFixed(1)}¢ <span class="mut">· interval closed, awaiting settle</span>`);
-    else{
-      const left=Math.max(0,(t.t1||0)-now), mm=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");
-      parts.push(`${nm} ${side} @ ${(t.entry*100).toFixed(1)}¢ <span class="mut">· ${t.passCount}/10 · ${mm} left</span>`);
-    }
+    const g=groups[t.t0]||(groups[t.t0]={t0:t.t0,t1:t.t1,strike:null,settle:null,live:false,items:[]});
+    if(typeof t.btcOpen==="number") g.strike=t.btcOpen;
+    if(typeof t.btcClose==="number") g.settle=t.btcClose;
+    if(t.status==="open") g.live=true;
+    g.items.push({id,t});
   });
-  el.className = parts.length ? "livebar on" : "livebar";
-  el.innerHTML = parts.length
-    ? `<span class="livedot"></span><b>IN TRADE</b> ${parts.join(' &nbsp;·&nbsp; ')}`
-    : `<span class="livedot off"></span><span class="mut">No open position — waiting for the next signal.</span>`;
+  const keys=Object.keys(groups).map(Number).sort((a,b)=>b-a);
+  if(!keys.length){
+    el.className="livebar";
+    el.innerHTML=`<span class="livedot off"></span><span class="mut">No open position — waiting for the next signal.</span>`;
+    return;
+  }
+  const anyLive=keys.some(k=>groups[k].live);
+  const blocks=keys.map(k=>{
+    const g=groups[k], closed=!g.live;
+    // strike from the trade record; fall back to the cached candle for that window
+    const strike=(g.strike!=null)?g.strike:strikeOf(g.t0);
+    // a closed window settles at its own close, which is the NEXT window's open
+    const settle=closed?((g.settle!=null)?g.settle:strikeOf(g.t0+300)):null;
+    const ref=(strike!=null)?`<span class="mut">beat</span> <b class="btcline">${usd(strike)}</b>`:'<span class="mut">beat —</span>';
+    let mark="";
+    if(closed && strike!=null && settle!=null){
+      const d=settle-strike;
+      mark=` <span class="mut">· settled</span> <b class="btcline">${usd(settle)}</b> `
+        +(d>0?'<b class="up">▲ Up won</b>':d<0?'<b class="dn">▼ Down won</b>':'<span class="mut">tie</span>');
+    } else if(!closed && strike!=null && cur!=null){
+      const d=cur-strike;
+      mark=` <span class="mut">· now</span> <b class="btcline">${usd(cur)}</b> `
+        +(d>0?`<b class="up">▲ +$${d.toFixed(2)}</b>`:d<0?`<b class="dn">▼ −$${Math.abs(d).toFixed(2)}</b>`:'<span class="mut">at the line</span>');
+    }
+    const px=closed?settle:cur;
+    const each=g.items.map(({id,t})=>{
+      const meta=ENGMETA[id]||{label:id,lg:""};
+      const nm=`<b class="${meta.lg}">${meta.label.charAt(0).toUpperCase()+meta.label.slice(1)}</b>`;
+      const side=t.side==="up"?'<b class="up">▲UP</b>':'<b class="dn">▼DOWN</b>';
+      let verdict="";
+      if(strike!=null && px!=null){
+        const d=px-strike, good=(t.side==="up")?(d>0):(d<0);
+        verdict = (d===0) ? ' <span class="mut">tie</span>'
+          : closed ? (good?' <b class="up">WON</b>':' <b class="dn">LOST</b>')
+                   : (good?' <b class="up">ahead</b>':' <b class="dn">behind</b>');
+      }
+      return `${nm} ${side} @ ${(t.entry*100).toFixed(1)}¢${verdict}`;
+    }).join(' &nbsp;·&nbsp; ');
+    const left=Math.max(0,(g.t1||0)-now);
+    const tail=closed?'<span class="mut"> · awaiting settle</span>'
+      :`<span class="mut"> · ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")} left</span>`;
+    return `${ref}${mark}${tail} &nbsp;|&nbsp; ${each}`;
+  });
+  el.className="livebar on"+(anyLive?"":" closed");
+  el.innerHTML=`<span class="livedot${anyLive?"":" off"}"></span><b>${anyLive?"IN TRADE":"JUST CLOSED"}</b> `+blocks.join('<br>');
 }
 render(); setInterval(render, 30000); setInterval(tickCd, 1000); setInterval(drawLiveTrade, 1000);
 tickBtc(); setInterval(tickBtc, 6000); setInterval(drawBtcBar, 1000); drawLiveTrade();
