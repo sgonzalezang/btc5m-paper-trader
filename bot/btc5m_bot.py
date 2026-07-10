@@ -68,7 +68,7 @@ PROFILES = {
 # flagship ARE the pre-registered day-60 gate and cap verdicts. The 7 retired
 # engines are terminal kills (momentum/value/fade fee-death is structural, not
 # parametric); their books and histories stay intact but they never trade again.
-ENGINES = ["impulse_v2", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "latentfire"]
+ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "latentfire"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None, retired=True),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None, retired=True),
@@ -139,6 +139,13 @@ ENGINE_CFG = {
     # pre-registered day-60 gate verdict (does the gate pay at live fills?).
     "reversal_v2": dict(label="Rev v2 ctrl", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                         revThr=0.12, revEntryMax=0.53, revWinMin=255, holdToClose=True, shadow=True),
+    # impulse50 — the flagship's flat-stake twin (added 2026-07-10 at user request):
+    # identical gate, cap and timing, but a CONSTANT $50 stake and no Kelly skip.
+    # It takes every gate+cap pass the sizer would sometimes wave off, so the
+    # paired delta vs impulse_v2 answers "does the sizing pay?" with live data.
+    "impulse50": dict(label="Impulse $50", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                      revThr=0.12, revEntryMax=0.53, revWinMin=255, holdToClose=True,
+                      impGate=True, eff6Min=0.10, cnt12Max=6, shadow=True),
 }
 # impulse_v2 sizing/learning state defaults (persisted under st["impulse"]).
 # qlo/qhi are the bucketed win-prob estimates (effective cost < / >= 50c) with
@@ -1555,6 +1562,11 @@ def selftest():
     bctl = mkimp(); ctl = bctl.evaluate(now, "reversal_v2")  # ungated control fires on the same setup, flat $50
     ok(ctl["enter"] and ctl["side"]=="down" and not ctl.get("stakeUsd"),
        "reversal_v2 control fires ungated at the flat stake", f"enter={ctl['enter']}")
+    b50 = mkimp(); f50 = b50.evaluate(now, "impulse50")      # flat twin: same gate, constant $50, no Kelly skip
+    b50s = mkimp(ask=0.50, bid=0.49); f50s = b50s.evaluate(now, "impulse50")  # a fill the sizer would skip (f<=0)
+    ok(f50["enter"] and not f50.get("stakeUsd") and f50s["enter"],
+       "impulse50 twin fires flat $50, including fills the Kelly sizer skips",
+       f"cheap={f50['enter']} at50c={f50s['enter']}")
     bctl.mkt = mkrev(0.50, 0.49, left=240)                   # 240s left < 255 — v2 window is first-45s only
     bctl.prev_ivl = dict(t0=bctl.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)
     ok(not bctl.evaluate(now,"reversal_v2")["enter"], "reversal_v2 blocks after the first 45 seconds")
