@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC 5m Bot — Season One Recap & the New Flagship</title>
+<style>
+  :root{--bg:#12161c;--panel:#1a2029;--panel2:#20272f;--ink:#e8ebef;--mut:#8b96a3;--line:#2a323d;
+        --btc:#f7931a;--blue:#6fb2ff;--up:#34c07c;--dn:#e06c4f;--shadow:0 2px 10px rgba(0,0,0,.35)}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45}
+  header{background:#0d1116;border-bottom:3px solid var(--btc);padding:16px;box-shadow:var(--shadow)}
+  header h1{margin:0;font-size:20px}header h1 .b{color:var(--btc)}
+  header .sub{color:var(--mut);font-size:13px;margin-top:3px;max-width:1100px}
+  .wrap{max-width:1100px;margin:0 auto;padding:14px 12px 60px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;background:var(--panel);border:1px solid var(--line);
+       border-left:4px solid var(--btc);border-radius:10px;padding:12px 14px;margin:14px 0;box-shadow:var(--shadow);font-size:14px}
+  h3.sec{margin:26px 0 4px;font-size:16px;color:var(--btc)}
+  .note{color:var(--mut);font-size:12.5px;margin:2px 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+  .eng{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow)}
+  .eng h4{margin:0 0 2px;font-size:14px;display:flex;gap:6px;align-items:center}
+  .eng .pnl{font-size:20px;font-variant-numeric:tabular-nums}
+  .eng .meta{color:var(--mut);font-size:12px;font-variant-numeric:tabular-nums}
+  .eng .why{font-size:12px;color:var(--mut);margin-top:5px;border-top:1px dashed var(--line);padding-top:5px}
+  .neg{color:var(--dn)}.pos{color:var(--up)}
+  .chip{font-size:10px;padding:1px 6px;border-radius:8px;background:#333;color:#999}
+  .chipf{background:#4d321f;color:#ffb26b}.chips{background:#1f3a4d;color:#7fd4ff}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px;box-shadow:var(--shadow)}
+  th,td{padding:8px 10px;text-align:right;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  td:first-child,th:first-child{text-align:left}
+  tr:last-child td{border-bottom:none}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow);margin:10px 0}
+  .spec{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .spec b{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:3px 9px;font-size:12.5px;font-weight:600}
+  .fine{color:var(--mut);font-size:11.5px;line-height:1.5;margin-top:18px;border-top:1px solid var(--line);padding-top:10px}
+  a{color:var(--blue)}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="b">₿</span> BTC 5m Bot — Season One Recap &amp; the New Flagship</h1>
+  <div class="sub">For the friends following along. Every number below is from the paper bot's real ledgers or from simulations against 60 days of Coinbase data with Polymarket's exact fee formula. Simulated, not financial advice.</div>
+</header>
+<div class="wrap">
+
+  <div class="bar"><b>TL;DR</b><span>The first eight engines looked smart and lost
+  <b class="neg">−$10,649</b> across ~2,900 settled trades. A 31-agent research program tested ~45 ideas against the fees;
+  44 died. The one survivor — <b>fade an isolated spike</b> — is now live on paper as <b style="color:#ff8f2b">Impulse v2</b>,
+  with a pre-registered 60-day pass/fail so the data, not the vibes, decides.</span></div>
+
+  <h3 class="sec">Season one — what the first eight engines actually did</h3>
+  <div class="note">Lifetime paper results, real order-book fills, real taker fees (fee = shares × 0.07 × p × (1−p); a 50c entry must win 51.75% just to break even).</div>
+  <div class="grid">
+    <div class="eng"><h4><span style="color:var(--blue)">Loose</span><span class="chip">RETIRED</span></h4>
+      <div class="pnl neg">−$2,779</div><div class="meta">687 settled · 54.6% wins · −$4.05/trade</div>
+      <div class="why">Won more than it lost and still bled: paid ~59c for ~55% events. The book was smarter.</div></div>
+    <div class="eng"><h4><span style="color:#e0559a">Fade</span><span class="chip">RETIRED</span></h4>
+      <div class="pnl neg">−$1,914</div><div class="meta">519 settled · 44.7% wins · −$3.69/trade</div>
+      <div class="why">Betting against Loose pays double vig. A negative-sum market has no free mirror trade.</div></div>
+    <div class="eng"><h4><span style="color:#3fb6a8">Band</span><span class="chip">RETIRED</span></h4>
+      <div class="pnl neg">−$1,938</div><div class="meta">538 settled · 57.8% wins · −$3.60/trade</div>
+      <div class="why">The "quality filter" measured a move the same size as feed noise. 58% wins, still fee-dead.</div></div>
+    <div class="eng"><h4><span style="color:#8f7bff">Floor</span><span class="chip">RETIRED</span></h4>
+      <div class="pnl neg">−$1,908</div><div class="meta">569 settled · 58.7% wins · −$3.35/trade</div>
+      <div class="why">Best win rate of the family. Entry prices ate the entire edge before fees even started.</div></div>
+    <div class="eng"><h4><span style="color:#8bc34a">Value</span><span class="chip">RETIRED</span></h4>
+      <div class="pnl neg">−$1,769</div><div class="meta">488 settled · 54.7% wins · −$3.62/trade</div>
+      <div class="why">Its "bargains" were the winner's curse: cheap vs our model because the market disagreed, correctly.</div></div>
+    <div class="eng"><h4><span style="color:#ff5252">Latent Fire</span><span class="chip">RETIRED</span></h4>
+      <div class="pnl neg">−$206</div><div class="meta">26 settled · 42.3% wins</div>
+      <div class="why">The right idea (regime-gate the reversal) with the wrong gate: its 1-hour chop filter flipped sign out of sample.</div></div>
+    <div class="eng"><h4><span style="color:#facc15">Reversal2</span><span class="chip">RETIRED</span></h4>
+      <div class="pnl neg">−$61</div><div class="meta">77 settled · 49.4% wins</div>
+      <div class="why">Thin-book fallback that fired 0 of 67 times when it mattered. Dead code, retired.</div></div>
+    <div class="eng"><h4><span style="color:var(--btc)">Strict</span><span class="chip">RETIRED</span></h4>
+      <div class="pnl neg">−$74</div><div class="meta">3 settled · all 10 guards</div>
+      <div class="why">Almost never fired; when it did, it was just Loose with extra steps.</div></div>
+  </div>
+  <div class="box" style="margin-top:10px"><b>The autopsy, one line:</b> the momentum family's losses were ~52% overpaying and ~48% fees —
+  a zero-fee world would <b>not</b> have saved them. High win rates hid negative economics: they kept buying 55% outcomes at 60c.</div>
+
+  <h3 class="sec">What survived 45 hypotheses</h3>
+  <div class="box">
+    Session filters, chart patterns, ETH lead-lag, funding dials, tie-rule tricks, stop-losses, hedges, timed exits,
+    adaptive thresholds — all tested on 60 days (17,280 intervals), all dead. One effect survived hostile verification, twice,
+    by independent re-implementations:
+    <div class="spec" style="margin-top:8px">
+      <b>after an ISOLATED ≥12bps spike</b><b>calm hour before it (≤6 big moves)</b><b>efficient last 30 min</b>
+      <b>the next 5 minutes reverses ~55%</b>
+    </div>
+    No train→test sign flip (the only overlay in the whole program without one), positive in all six 10-day folds,
+    and it turned the one losing stretch positive. The cascade it excludes — fading moves inside a volatile run — is exactly break-even garbage.
+    Alongside it, the research confirmed the <b>cost model</b>: what contrarian entries really cost (~48.6c weighted), and that
+    ~a third of signals must be <b>skipped</b>, not chased, when the book prices them above 53c.
+  </div>
+
+  <h3 class="sec">Impulse v2 — the new flagship <span class="chip chipf" style="font-size:11px">LIVE ON PAPER</span></h3>
+  <div class="box">
+    <div class="spec">
+      <b>trigger: prior 5-min move ≥12bps</b><b>only if isolated (gate above)</b><b>buy the reverse ≤53¢</b>
+      <b>enter in the first 45s only</b><b>hold to resolution — no stops</b><b>quarter-Kelly sizing</b><b>a skip is a decision</b>
+    </div>
+    Sizing runs off a learned win-rate estimate that starts humble and must earn confidence; if the edge dies, stakes shrink toward
+    zero automatically (guard tiers + a hard bench). Two zero-risk shadow books run beside it — the same strategy ungated, and at the old
+    55c cap — so at day 60 we can prove, to the penny, whether the gate and the cap earn their keep. Verdict criteria were written down
+    <b>before</b> launch: ≥ +1c/share with a confidence interval above zero = scale; below −0.5c = kill. Ambiguous counts as kill.
+  </div>
+
+  <h3 class="sec">The receipts — past 60 days, replayed</h3>
+  <div class="note">Flat $50 per trade so the strategy, not compounding, does the work. ~1,400 fills. Ranges are 5th to 95th percentile across fill draws.</div>
+  <table>
+    <tr><th>Impulse v2, backtest</th><th>median</th><th>range</th></tr>
+    <tr><td>Base fill assumptions</td><td class="pos">+$9,881</td><td>+$7,675 … +$12,134</td></tr>
+    <tr><td>Conservative fills (2c richer, fewer available)</td><td class="pos">+$5,596</td><td>+$3,462 … +$8,057</td></tr>
+    <tr><td>Worst case: cheap fills always hide losers</td><td class="pos">+$812</td><td>the honest floor of the estimate</td></tr>
+  </table>
+
+  <h3 class="sec">60-day look-ahead — 300 simulated futures per scenario</h3>
+  <div class="note">Semi Monte Carlo: real history resampled in 5-day blocks so hot and cold regimes stay clumped, plus deliberately hostile worlds. Flat $50 stakes.</div>
+  <table>
+    <tr><th>Future</th><th>median</th><th>range</th></tr>
+    <tr><td>History repeats</td><td class="pos">+$9,944</td><td>+$5,702 … +$13,726</td></tr>
+    <tr><td>Edge decays 2 points</td><td class="pos">+$5,550</td><td>+$2,271 … +$9,154</td></tr>
+    <tr><td>Cold regime (worst 20 days on repeat)</td><td class="pos">+$6,019</td><td>+$2,242 … +$9,916</td></tr>
+    <tr><td>Edge gone (49% wins, rich fills)</td><td class="neg">−$2,341</td><td>−$4,972 … +$981</td></tr>
+  </table>
+  <div class="note">That last row is why the sizing exists: at flat stakes the dead world loses ~$2.3k; with the deployed adaptive sizing the same world ends near flat, because the estimator notices and stops staking.</div>
+
+  <h3 class="sec">On a $500 bankroll — quarter-Kelly, as actually deployed</h3>
+  <div class="note">First stakes ≈ $11 (the sizer starts humble), hard-capped at 5% of bank per trade and $200 by book depth. Compounding numbers — read them as trajectories, not promises.</div>
+  <table>
+    <tr><th>Scenario</th><th>median</th><th>range</th><th>max drawdown</th></tr>
+    <tr><td>Backtest, past 60 days</td><td class="pos">+$12,898</td><td>+$3,357 … +$21,966</td><td>30%</td></tr>
+    <tr><td>History repeats</td><td class="pos">+$13,139</td><td>+$2,794 … +$24,899</td><td>29%</td></tr>
+    <tr><td>Edge decays 2 points</td><td class="pos">+$5,632</td><td>+$1,020 … +$17,476</td><td>33%</td></tr>
+    <tr><td>Edge gone*</td><td>+$1,149*</td><td>+$86 … +$7,614</td><td>38%</td></tr>
+  </table>
+  <div class="note">*The dead-world row stays positive only because Kelly then buys nothing but the very cheapest fills, and the simulation
+  assumes a cheap fill keeps a fair chance of winning. If the market prices those cheap for a reason (the big open question), this row turns
+  negative — bounded, but negative. The live shadow books settle this question with real data by day 60.</div>
+
+  <div class="fine">
+    <b>Honesty labels.</b> Paper trading only; every fill walks a real order book and pays the real taker fee, but no real money moves.
+    The backtest is partially in-sample: the 53c cap was tuned on the same 60 days it is scored on, and the fill distribution comes from
+    3 days of live ledger stretched across 60. Expected throughput ≈ 20–25 fills/day; the pre-registered success bar is per-share
+    (≥ +1c/share, CI &gt; 0 at day 60), not the dollar totals above. Momentum engines' books are frozen, not deleted — their history stays
+    on the <a href="live.html">live dashboard</a>. Nothing here is financial advice; the bot's author is a law student, not your fiduciary.
+  </div>
+</div>
+</body>
+</html>

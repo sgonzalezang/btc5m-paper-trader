@@ -1,0 +1,48 @@
+{
+ "verifier": "adversarial: regime robustness & out-of-sample",
+ "finding": "FILL MODEL: contrarian entry after >=12bps prior move (microstructure family)",
+ "refuted": false,
+ "confidence": "medium",
+ "reproduction": {
+  "status": "EXACT reproduction from data/ via independent code (regime_attack.py)",
+  "pm_uncensored_c20": "n=49/216; p5 .469 p25 .505 p50 .525 p75 .555 p95 .595 == claimed",
+  "avail_le_55c": "0.694 == claimed 69.4%",
+  "ledger_fills": "n=155; entry p25 .47 p50 .51 p90 .55; share-wtd mean .4861 == claimed",
+  "join_ask_minus_c20": "n=28 median -0.020 mean -0.0289 == claimed",
+  "fillability": "70/82 = 85.4% == claimed"
+ },
+ "resplits": {
+  "note": "underlying data spans only 3 days (pm) / 32h (ledger), so 'by week' degenerates; used per-UTC-day + thirds",
+  "ledger_thirds_wtd_entry": [0.4908, 0.4734, 0.4947],
+  "ledger_thirds_entry_median": [0.51, 0.495, 0.506],
+  "ledger_test_third_n": 52,
+  "pm_thirds_c20_median": [0.535, 0.52, 0.505],
+  "pm_thirds_avail": [0.5625, 0.75, 0.765],
+  "pm_test_third_n": 17,
+  "verdict": "core fill quantiles stable within ~1.5c across all folds; availability stable-or-improving; ledger TEST n=52 >= 30"
+ },
+ "kaufman_regimes": {
+  "ledger_calm_n130_wtd": 0.4844, "ledger_trend_n25_wtd": 0.4952,
+  "pm_calm_n44": {"c20_med": 0.525, "avail": 0.7045},
+  "pm_trend_n5": {"c20_med": 0.535, "avail": 0.6},
+  "verdict": "holds in calm; trending side within ~1c on ledger (n=25) but uncensored trending coverage is n=5 — untested there; directionally availability drops when trending (consistent with the finding's own skip-rate caveat)"
+ },
+ "window_representativeness": {
+  "calm_share_eff_le_048_sample_window": 0.8378,
+  "calm_share_eff_le_048_full_60d": 0.8138,
+  "verdict": "the 3-day sample window is NOT unusually calm vs 60d history (p95 eff .63 vs .67); a strongly trending stretch is still unobserved directly, but the window is representative"
+ },
+ "unstable_subclaims": {
+  "join_ask_2c_below_mid": "NOT stable: chronological halves mean -0.049 (n=14) vs -0.009 (n=14); total n=28 < 30. Treat the 'entering fast is ~2-3c cheaper than p20' bonus as 0 to -2c, not -2.9c.",
+  "prior_move_size_gradient": "REVERSES in third_1 (12-16bps med .565 vs >=16bps .535); only holds in thirds 2-3 with n=7-9. Do not parameterize backtests on the size gradient.",
+  "avail_ci_1h_block_boot": {"full": [0.545, 0.826], "test_third": [0.562, 0.941], "note": "69% availability carries ~+/-13pp uncertainty"}
+ },
+ "why_not_refuted": "Headline effect reproduced exactly. The deliverable is a COST INPUT (fill quantiles + 31% skip rate), not an edge claim, and its core numbers are stable across day/thirds splits, both Kaufman regimes on the ledger side, and TEST n=52 trades >= 30. The finding itself already flags the fragile parts (p20 is mid-ish, reversal edge unresolvable, skips above 55c). Weaknesses found (join drift, size-gradient reversal, thin trending coverage n=5 uncensored) degrade sub-claims by ~1c, not the recipe.",
+ "required_amendments": [
+  "Drop or halve the '-2.9c fast-entry bonus' from the join (unstable, n=28).",
+  "Do not use the 12-16 vs >=16bps price gradient as a backtest parameter (unstable across thirds).",
+  "Quote availability as 0.69 [0.55, 0.83] and re-estimate before relying on it in a trending regime (uncensored trending n=5)."
+ ],
+ "scripts": ["regime_attack.py"],
+ "tables": ["regime_attack_results.json"]
+}

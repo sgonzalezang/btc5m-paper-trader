@@ -1,0 +1,1047 @@
+{
+  "summary": "Deep quant research: harvest data, test 10 hypothesis families, adversarially verify, synthesize best model",
+  "agentCount": 31,
+  "logs": [
+    "harvest done: 6/6 agents succeeded",
+    "  cb: cb5m.json:17280, cb1m.json:20155, cbdaily.json:365 | issues: None material. All files columnar {t,o,h,l,c,v}, strictly ascending, deduped by t, verified post-write. Only anomaly: 5 ",
+    "  eth: eth5m.json:17280 | issues: Task prompt had \"undefined\" placeholders for the brief path, output root, and end date. Resolved them as: brief at /priv",
+    "  bn: bn5m.json:17280 | issues: Task template had unresolved placeholders (\"undefined\" for scratch root and end date); resolved scratch root from BRIEF.",
+    "  deriv: funding.json:1440, premium5m.json:16848, oi5m.json:8640 | issues: Binance fapi.binance.com is georestricted from this host (error: \"Service unavailable from a restricted location\") — all",
+    "  ledger: state_snapshot.json:1, state_prereset.json:1, trades.json:3157, ivlhist.json:20, englist.json:9, ledger_summary.json:14 | issues: The task template's <SCRATCH> variable rendered as \"undefined\"; I resolved it to the session scratchpad (/private/tmp/cl",
+    "  pm: pm_res_3d.json:863, pm_prices_sample.json:216 | issues: Task template had \"undefined\" placeholders for the scratch path and time window; resolved SCRATCH from BRIEF.md's locati",
+    "hyp:seasonality -> 5 findings, 0 promising",
+    "hyp:pathshape -> 4 findings, 0 promising",
+    "hyp:fairvalue -> 5 findings, 0 promising",
+    "hyp:crossasset -> 5 findings, 0 promising",
+    "hyp:microstructure -> 5 findings, 1 promising",
+    "hyp:regime -> 5 findings, 1 promising",
+    "hyp:sizing -> 5 findings, 1 promising",
+    "hyp:tieflat -> 5 findings, 0 promising",
+    "hyp:reversal60 -> 5 findings, 1 promising",
+    "hyp:exits -> 5 findings, 0 promising",
+    "verify microstructure / \"FILL MODEL: contrarian entry after >=12bps prior move — uncensored book ~20s in: p5 .47/p25 .505/p50 .525/p75 .555/p95 .595; real capped fills: p25 .47/p50 .51/p90 .55, share-wtd mean .486; ~69% of signals fillable <=55c\": CONFIRMED (3/3 uphold)",
+    "verify sizing / \"Fee-adjusted Kelly = 6.9% of bankroll; flat $50 is already ~0.73x full Kelly, and quarter-to-half Kelly ($17-$34 at $1k) dominates it on risk\": CONFIRMED (2/3 uphold)",
+    "verify reversal60 / \"BEST SPEC — fixed 12bps contrarian, hold-to-close, cap 53c, no adaptation: clears fees on TEST (+2.6c/share) but is regime-conditional\": CONFIRMED (2/3 uphold)",
+    "verify regime / \"Winner: 'isolated impulse' gate — eff6 >= A AND cnt12 <= B (fade the big move only when the trailing 30min was efficient and the prior hour had few 12bps events)\": CONFIRMED (3/3 uphold)",
+    "hypothesis+verify complete: 4 confirmed findings across 10/10 families"
+  ],
+  "result": {
+    "harvest": [
+      {
+        "key": "cb",
+        "issues": "None material. All files columnar {t,o,h,l,c,v}, strictly ascending, deduped by t, verified post-write. Only anomaly: 5 missing 1m candles in cb5m's companion cb1m (2 gap runs), consistent with Coinbase returning no candle for zero-trade minutes rather than a data error; consumers of cb1m should tolerate rare 1-bar holes. Endpoint returned candles newest-first per window; handled via dict-by-timestamp then sort. Harvest script and machine-readable report saved at /private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/work/harvest-cb/harvest.py and .../work/harvest-cb/report.json. numpy unavailable; stdlib used. 0.15s sleep between all calls, one retry per window (no retries were needed)."
+      },
+      {
+        "key": "eth",
+        "issues": "Task prompt had \"undefined\" placeholders for the brief path, output root, and end date. Resolved them as: brief at /private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/BRIEF.md, output under that scratchpad, end date = now (2026-07-10T11:55Z, aligned to 300s). No API issues: 58 GET requests, 0 retries, 0 gaps (17280/17280 expected candles, 2026-05-11T11:55Z through 2026-07-10T11:50Z opens). Harvest script saved at <SCRATCH>/work/harvest_eth5m.py for audit."
+      },
+      {
+        "key": "bn",
+        "issues": "Task template had unresolved placeholders (\"undefined\" for scratch root and end date); resolved scratch root from BRIEF.md at /private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/BRIEF.md and used current time (2026-07-10, aligned to 5m boundary) as the end of the 60-day window. No georestriction encountered; primary binance.vision host worked throughout. numpy not installed; stdlib only (sufficient for harvest)."
+      },
+      {
+        "key": "deriv",
+        "issues": "Binance fapi.binance.com is georestricted from this host (error: \"Service unavailable from a restricted location\") — all three primary endpoints unusable; no workaround attempted. Substitutes used per the brief's allowed-source list: (1) funding from Deribit (the specified fallback) — note rate column is Deribit interest_8h sampled hourly, not Binance's discrete 8h funding events; (2) premium5m and oi5m from data.binance.vision archives (Binance's own public UM-futures data mirror, explicitly allowed in the brief) — these lag ~1 day, so premium5m ends 2026-07-09 23:55 UTC and oi5m ends 2026-07-10 00:00 UTC (no same-day data). binance.vision funding files only cover through June (monthly-only), so Deribit was used for the full 60d funding series to keep one consistent source. premium5m has a single missing 5m candle inherent to the source archive. Each file's \"source\" field documents provenance. Harvest script for audit: /private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/work/perp/harvest_perp.py"
+      },
+      {
+        "key": "ledger",
+        "issues": "The task template's <SCRATCH> variable rendered as \"undefined\"; I resolved it to the session scratchpad (/private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad) where BRIEF.md lives. numpy unavailable; used stdlib. state.json.bak-pretrue had 96 loose trades, only 24 distinct after dedup — included as src=\"bak_pretrue\". Pre-reset archive contains two engines absent from current engineCfg: \"calm\" and \"capless\". Summary pnl/wins/losses count settled trades only, so figures differ slightly from the brief's live-book numbers (e.g. loose current -2787.34 vs brief's -2922; likely snapshot timing). Harvest script saved at <SCRATCH>/work/harvest-ledger/harvest.py."
+      },
+      {
+        "key": "pm",
+        "issues": "Task template had \"undefined\" placeholders for the scratch path and time window; resolved SCRATCH from BRIEF.md's location (the session scratchpad) and used \"last 3 days ending now\" (span 1783425300..1783684200, 864 aligned t0s). 1 of 864 gamma slugs returned no closed market (863 kept). Zero HTTP 429s and zero errors on both gamma and CLOB. All outcomes fields verified as [\"Up\",\"Down\"] via outcomes.index(\"Up\") before reading outcomePrices/clobTokenIds. Note: in 32/216 sampled markets pLast (last minute-bar price before t0+300) disagrees in sign with up_won — these are genuine final-seconds flips (median |pLast-0.5|=0.19 on disagreements vs 0.42 overall), inherent to fidelity=1 granularity, not a data defect. Harvest script and log at /private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/work/harvest_pm/harvest.py and harvest.log."
+      }
+    ],
+    "families": [
+      {
+        "family": "seasonality",
+        "findings": 5,
+        "confirmed": 0
+      },
+      {
+        "family": "pathshape",
+        "findings": 4,
+        "confirmed": 0
+      },
+      {
+        "family": "fairvalue",
+        "findings": 5,
+        "confirmed": 0
+      },
+      {
+        "family": "crossasset",
+        "findings": 5,
+        "confirmed": 0
+      },
+      {
+        "family": "microstructure",
+        "findings": 5,
+        "confirmed": 1
+      },
+      {
+        "family": "regime",
+        "findings": 5,
+        "confirmed": 1
+      },
+      {
+        "family": "sizing",
+        "findings": 5,
+        "confirmed": 1
+      },
+      {
+        "family": "tieflat",
+        "findings": 5,
+        "confirmed": 0
+      },
+      {
+        "family": "reversal60",
+        "findings": 5,
+        "confirmed": 1
+      },
+      {
+        "family": "exits",
+        "findings": 5,
+        "confirmed": 0
+      }
+    ],
+    "confirmed": [
+      {
+        "family": "microstructure",
+        "title": "FILL MODEL: contrarian entry after >=12bps prior move — uncensored book ~20s in: p5 .47/p25 .505/p50 .525/p75 .555/p95 .595; real capped fills: p25 .47/p50 .51/p90 .55, share-wtd mean .486; ~69% of signals fillable <=55c",
+        "method": "Buffered open-to-open prior moves from cb5m joined to pm_prices_sample (49 signal intervals of 216) for the uncensored CLOB minute-point distribution of the contrarian side; ground truth from 155 live reversal-family ledger fills (real book-walk avg + 1c slip, entrySec p50=9s, censored at the 55c revEntryMax cap); t0-join of both (n=28) to measure ask-vs-minute-mid; spread from signals.log (n=1,482, median 1c, p95 2c). Scripts: work/microstructure/ledger_fill.py + thinbook_spread.py; tables fill_dist.json, signal_sample.json.",
+        "effect": "Backtest recipe: fill = ask+1c where ask at ~9s post-open runs ~2c BELOW the minute-mid (join median -0.020, mean -0.029, n=28) — i.e. entering fast is slightly cheaper than the p20 snapshot implies. Capped-at-55c fills: p5 .39/p10 .414/p25 .47/p50 .51/p75 .53/p90 .55/p95 .55, share-wtd mean .4861 (q*=.5036). Uncensored availability: 69.4% of signals price <=55c+slip at ~20s (the other ~31% sit .555-.60 and must be modeled as SKIPS, not 50c fills); live fillability 70/82 eligible intervals (85%). Larger prior moves price the contrarian side richer: c20 median .505 (12-16bps) vs .535 (>=16bps). By ~60s the contrarian mid disperses violently (p25 .295/p75 .605) — late entries inherit adverse selection.",
+        "n": 155,
+        "train": "c20 median .53, avail .656, ledger entry median .51 (n=105)",
+        "test": "Chronological 2/3-1/3 split: fill quantiles stable (ledger entry median .51 both halves; c20 .53 vs .505; availability .66 vs .77). Block-bootstrap (1h) CIs in sigtests.json.",
+        "feeAdjustedEdge": "This is a COST INPUT, not an edge claim: at wtd fill .486 the hurdle is q*=.5036; the live family won 52.3% pooled (+1.9pp net, PnL +$345 = +$621 misprice - $276 fee), but the last-third win rate is .380 (n=50, block-boot CI .12-.62) — the fill distribution is TEST-stable, the reversal edge at these fills is not resolvable at this n.",
+        "verdict": "promising",
+        "notes": "Promising = the deliverable itself (fill distribution + availability) is robust and replicated out-of-sample; every reversal backtest should use these quantiles with a 31% skip rate above the 55c cap. Caveat: p20/p60 are prices-history minute buckets (nearest point within 90s), mid-ish not asks — hence the ledger anchoring. Paths: work/microstructure/fill_dist.json, thinbook_spread.json.",
+        "votes": [
+          {
+            "refuted": false,
+            "confidence": "high",
+            "reason": "Not refuted. The headline (fill distribution, availability, share-weighted fill .486 => q*=.5036 hurdle) reproduces essentially exactly from raw data with independent code. Attacks survived: (1) Look-ahead — p20 is a prices-history minute point nearest-within-90s of t0+20 (can be up to t0+110s, and is a mid, not an ask), so the \"uncensored ~20s book\" is mislabeled timing; but the family disclosed exactly this caveat and anchored the recipe on 155 real ledger fills at ~9s, which carry no look-ahead; the signal itself (prior open-to-open move) is known at t0. (2) Boundary — strict consecutive-candle buffered construction reproduces exactly; no artifact. (3) Threshold sensitivity — 12->14.4bps: median .525/.525, avail .714/.725; 9.6bps: median .515, avail .802; effect survives +/-20%. Cap sensitivity is steep (avail .245@50c, .714@55c, .959@60c) but that steepness is the content of the finding, not an artifact. (4) Multiple comparisons — this is a descriptive cost-input measurement, not a p-value edge claim, and it explicitly disclaims edge (last-third win .38, unresolved), which I reproduced. Real caveats to carry forward: the 155 fills come from only 70 unique intervals (engines co-fire), so independent n is ~70 and implied CIs are ~1.5x too tight; the pm sample spans only 3 days and availability has a wide CI [0.58, 0.83] (1h block bootstrap); ~21% of ledger entries are censored at the 55c cap (max .552), so uncapped-tail behavior comes only from the mid-proxy. None of these overturn the deliverable: use the quantiles with a ~31% (CI 17-42%) skip rate above 55c, and do not treat the reversal edge at these fills as established."
+          },
+          {
+            "refuted": false,
+            "confidence": "high",
+            "reason": "The finding survives the fees/fills attack as what it claims to be — a cost input, not an edge. Adversarial checks: (1) feeEntry matches shares*0.07*p*(1-p) to 1e-6 on all 155 trades; (2) fillFrac=1.0 on all fills, zero feeExit, zero hedge/stop legs — no hidden double vig; (3) cap discipline holds (0 entries>0.56, 0 asks>0.55); (4) 9/155 fills show effective slip 1.15-1.19c vs the modeled +1c — immaterial and in the non-flattering direction; (5) the model is CONSERVATIVE vs reality: on the joined set EV at real ledger fills is -0.009/share vs -0.038/share at modeled c20+1c fills, and live fillability 85% exceeds modeled 69% availability, so backtests using these quantiles are not flattered. Two amendments required: the '-2c ask-below-minute-mid' recipe number is censoring-inflated (c20<=.54 subgroup median -1.5c; the -6.9c mean in the n=5 c20>.54 subgroup is mechanically selected by the 55c cap) — use ~-1.5c or the ledger quantiles directly; and honest fills confirm the reversal EDGE itself is below break-even at current n (uncensored pm-sample: n=34, mean honest fill .514, win .441 vs q* .531 -> EV -0.090/share; last-third win .38-.39 << q*=.5036) — but the finding explicitly discloses this and claims only the fill distribution, so it is not grounds for refutation of the deliverable. Verdict details: work/verify-microstructure/VERDICT_feesfills_v2.json."
+          },
+          {
+            "refuted": false,
+            "confidence": "medium",
+            "reason": "Core deliverable survives the regime/OOS attack. Data spans only 3 days (pm) / 32h (ledger) so weekly splits degenerate; using per-UTC-day and thirds splits instead: ledger share-wtd entry is .4908/.4734/.4947 across thirds (median .51/.495/.506) and .4818/.4953 across days — stable within ~1.5c — and the chronological TEST third has n=52 trades (>=30). PM-sample c20 median drifts .535->.52->.505 with availability .56->.75->.76 (no collapse). Kaufman-efficiency segmentation: ledger calm (n=130) wtd .4844 vs trending (n=25) .4952 — stable within ~1c; sample window is NOT unusually calm (calm share 83.8% vs 81.4% over 60d). Three sub-claims are NOT robust and must be amended: (1) the \"ask ~2c below minute-mid\" fast-entry bonus is unstable (join n=28<30; halves mean -0.049 vs -0.009) — treat as 0 to -2c, not -2.9c; (2) the prior-move size gradient (.505 for 12-16bps vs .535 for >=16bps) REVERSES in the first third and should not be parameterized; (3) uncensored trending-regime coverage is n=5 signals — availability in a strongly trending stretch is effectively unobserved, and the 69% availability carries a wide 1h-block-bootstrap CI [.55, .83] ([.56, .94] on the TEST third). Since the finding is explicitly a cost input (fill quantiles + 31% skip rate), is honest about its fragile parts, and its headline quantiles replicate and hold across every re-split and both regimes at TEST n>=30 on the trade-level data, \"promising as a cost input\" stands. Confidence medium rather than high because everything rests on a single 3-day window. Full tables: work/verify-microstructure/regime_attack_results.json and VERDICT_regime_oos.json."
+          }
+        ],
+        "survives": true
+      },
+      {
+        "family": "regime",
+        "title": "Winner: 'isolated impulse' gate — eff6 >= A AND cnt12 <= B (fade the big move only when the trailing 30min was efficient and the prior hour had few 12bps events)",
+        "method": "Buffered open-to-open construction on cb5m (17,280 candles, 60d, gapless), 3,971 trigger trades (66/day). Walk-forward: 2-D grid calibration (A in 0.06-0.40, B in 0-8; objective total net pnl, constraint gated n >= max(20, 25% of fold)) on fold k, evaluated on fold k+1, pooled over 5 OOS folds. Then brief-standard TRAIN(40d)/TEST(20d) with 1h-block bootstrap (10k reps). Scripts: work/regime/regime_tournament.py, work/regime/deepdive_combo.py",
+        "effect": "Pooled walk-forward OOS: +2.97 c/share, wr 55.72%, retention 40.6%, worst fold -3.33c (vs ungated +0.17c, worst -5.02c; latentfire +0.22c, worst -5.92c). Beats ungated in 4/5 OOS folds and cuts the disaster-fold loss by a third. TRAIN-calibrated gate (A=0.32, B=6): TRAIN gated +3.20c where ungated TRAIN was -0.61c (gate-effect block-bootstrap p<0.0001); TEST gated +4.02c/share, wr 56.76% vs breakeven 52.75%, p(pnl<=0)=0.015, retention 52%. TEST sensitivity surface is a broad positive plateau (min +2.0c over A in 0.06-0.38 x B in 1-7), not a spike.",
+        "n": 1468,
+        "test": "TEST (last 20d, gate frozen from TRAIN): +4.02 c/share (+$3.94 per $50 trade), wr 56.76% on n=717, block-bootstrap p(pnl<=0)=0.0147. Caveat: the gate's incremental effect on TEST alone is p=0.128 because TEST was a good period for reversal overall; the p<0.0001 TRAIN gate effect + persistence on TEST is what clears the brief's bar.",
+        "train": "TRAIN (first 40d, n=2,597 ungated / 1,144 gated): ungated -0.61 c/share (wr 52.14%, BELOW breakeven); gated +3.20 c/share, wr 55.94%; gate-effect 1h-block bootstrap p < 0.0001",
+        "feeAdjustedEdge": "+4.02 c/share net of exact fee at p=0.51 on TEST = +$3.94 per $50 trade; gated wr 56.76% vs q*(0.51)=52.75%. Fill realism: pm_prices_sample p20 median 49.5c + 1c slip => 51c is a fair-to-conservative fill. Deploy calibration on trailing 20d (as of 2026-07-10): A=0.10, B=6, ~37-50 gated trades/day.",
+        "verdict": "promising",
+        "notes": "eff6 = Kaufman efficiency |o[i]-o[i-6]|/sum|o[j+1]-o[j]| over the 6 open-to-open moves ending at the trigger; cnt12 = count of |move|>=12bps among the 12 moves in the hour BEFORE the trigger (trigger excluded). Mechanism: reversal works fading an isolated impulse; it is coin-flip-or-worse mid-cascade (eff6 bottom quintile <0.15: wr 49.6% TRAIN / 49.4% TEST; cnt>=7: 48.9% TRAIN). Honesty note: combo form was chosen after a quintile diagnostic, but the pattern is visible in TRAIN alone (diag_monotone.json). ~12.8% of trades resolve with |move|<2bps where the Coinbase proxy carries ~11% resolution noise — bounds a ~1.4% outcome-label error, too small to flip the TEST margin. Full tables: work/regime/tournament_results.json, tournament_summary.tsv, deepdive_results.json, deploy_spec.json",
+        "votes": [
+          {
+            "refuted": false,
+            "confidence": "medium",
+            "reason": "Independently re-derived from data/cb5m.json with fresh code: all headline numbers reproduce essentially exactly (TEST gated +4.015c vs claimed +4.02c; wr 56.76% n=717; boot p 0.0152 vs 0.0147; walk-forward pooled OOS +2.97c n=1468 worst -3.33c; TRAIN calibration independently selects A=0.32,B=6). No look-ahead (all features from opens known at t0), correct buffered open-to-open construction on a gapless series, no tie artifact (0 exact ties; 11% label-noise worst case still +2.48c), both fade directions positive. Threshold sensitivity survives +-20% on A, B, and the 12bps trigger (TEST gated stays +3.4 to +4.05c). Main legitimate hit: the advertised TRAIN gate-effect p<0.0001 is selection-inflated — a circular-shift null over the 162-cell calibration grid gives corrected p~0.03, and the winner was chosen among 11 tournament candidates on OOS folds overlapping TEST (Bonferroni x11 on TEST gated-pnl p=0.015 -> ~0.17; TEST-alone incremental gate p=0.126, as the finding itself disclosed). But the cleanest selection-honest statistic — walk-forward pooled-OOS incremental gate effect (+2.81pp wr) — has block-bootstrap p=0.0011, ~0.012 after x11 Bonferroni, borderline at the brief's 0.01 bar, and efficiency-regime gating was already validated on prior independent data. Net: the effect is real as measured and robust; the statistical strength of the GATE increment is weaker than advertised (borderline rather than overwhelming), hence medium confidence rather than high. Edge also halves if fills are 53c instead of 51c (pm_prices_sample supports 50.5-51c as fair). Verifier scripts: scratchpad/work/verify-regime/{repro.py,attack.py}."
+          },
+          {
+            "refuted": false,
+            "confidence": "medium",
+            "reason": "Reproduced exactly, and the edge survives honest fills in every central estimate — but the +4.02c headline is overstated by roughly 1-2.5c. Fee math checks out (fee 1.749c at p=0.51, breakeven wr 52.75%, +$3.94/$50 arithmetic correct). The fills attack found one real flaw: the finding justifies the 51c fill with the UNCONDITIONAL pm p20 median (49.5c, confirmed). I refetched CLOB prices-history for all 215 trigger markets in the 3-day pm_res_3d span (pre-entry point at ~t0+4s, actual Chainlink resolutions, saved to work/verify-regime/trig_prices.json): conditional on the 12bps trigger the reversal side is NOT 50c — gated mean mid 52.40c (SE 0.4c), i.e. the market already leans toward reversal. At mid+1c slip the decomposed edge is 0.5676 - 0.534 - fee = +1.62c/share (breakeven wr 55.14% < 56.76% TEST wr), still above water but 60% below the headline. Three pieces of market reality then argue the true fill is better than those mids: (1) the paper bot's own recorded CLOB asks on 137 real reversal trades average 48.2c (entry+slip mean 49.2c, gated-subset entry mean 50.0c, fillFrac 1.0, no partial-fill drag); (2) on the 32 gated markets both datasets cover, bot ask sits a median 1.5c BELOW the prices-history mid; (3) the live gated subset realized +7.53c/share net of exact fees (n=71) vs -2.79c ungated — out-of-sample-of-the-backtest confirmation of both the gate and the fills. No exit leg exists (hold-to-resolution), so no double fee applies; PM-vs-Coinbase label agreement was 48/49 and 23/23 in my samples. Residual risks keeping confidence at medium and the honest deployable estimate at ~+1.5 to +3c rather than +4c: entry price is informative (gated expensive-half wr 64.6% vs cheap-half 46.8%, z=1.86), so the engine's 55c cap keeps the half where the market disagrees with the fade — a worst-case capped construction on mids goes to ~0 to -1.6c — and the live bot skipped 22% of cb5m triggers. Scripts/tables: work/verify-regime/{repro.py,fills.py,ledger.py,refetch.py,analyze_trig.py,reconcile.py,trig_prices.json,verify_summary.json}."
+          },
+          {
+            "refuted": false,
+            "confidence": "high",
+            "reason": "Headline reproduced exactly from data/cb5m.json with independent code (TRAIN calibration lands on A=0.32/B=6; TEST gated +4.015 c/sh, wr 0.5676, n=717, block-boot p=0.0152; walk-forward pooled OOS +2.973 c/sh n=1468, worst fold -3.333c — all within <1% of claim; I actually count the gate beating ungated in 5/5 OOS folds, not 4/5). Adversarial re-splits all pass: weekly (gate beats ungated 9/9 weeks, gated positive 8/9 — only the days-7-14 crash week negative, and still better than ungated); thirds (frozen gate +2.07/+3.89/+4.02 c/sh vs ungated -0.74/-0.56/+2.64; calibrating on first third alone picks (0.40,6) and stays OOS-positive). Regime segmentation by trailing-24h Kaufman efficiency strengthens the finding: the gate's value concentrates in TRENDING regimes where ungated reversal loses (trending tercile ungated -0.44c -> gated +3.85c, block-boot p=0.001; top-decile trending ungated -3.50c -> gated +4.23c; on the 10 most-trending days gated is ~flat -0.34c vs ungated -2.05c, i.e. it would have survived a strongly trending stretch). TEST n=717 >= 30. Parameters: A wanders across 10d folds (0.06-0.40) but the TEST sensitivity surface is a true plateau (min +2.0 c/sh, every cell positive over A 0.06-0.38 x B 1-7), so the effect is not threshold-dependent. Caveats confirmed, all already disclosed in the finding: TEST-alone incremental gate effect p=0.129 (TEST was reversal-friendly overall — evidence rests on TRAIN p<0.001 + TEST persistence); calm-tercile gate effect is ~zero (p=0.31) with TEST-calm gated mildly negative (-1.16c, n=283, p(>=0)=0.35, noise-level). Audit trail: work/verify-regime/{repro.py,attack.py,attack2.py,repro_out.json,attack_out.json,VERDICT.md}."
+          }
+        ],
+        "survives": true
+      },
+      {
+        "family": "sizing",
+        "title": "Fee-adjusted Kelly = 6.9% of bankroll; flat $50 is already ~0.73x full Kelly, and quarter-to-half Kelly ($17-$34 at $1k) dominates it on risk",
+        "method": "Closed-form Kelly for a binary bought at p with entry fee 0.07*p*(1-p): cost c=p+fee, odds b=(1-c)/c, f*=q-(1-q)/b. At the verified point (q=0.56, p=0.51): c=0.5275, f*=6.88% ($68.8 at $1k); ignoring fees Kelly would be 10.2%, so the fee cuts Kelly by a third. Simulated flat $50 vs f*/4, f*/2, f* (fraction of current bankroll, compounding) on the 60d gated stream via 1-hour-block bootstrap (3000-4000 reps), fills fixed p=0.51 (sensitivities: live empirical fill dist and p=0.53), 11% flip on sub-2bps outcomes, gas included. Scripts/tables: work/sizing/kelly_sim.py, kelly_table.json, kelly_sim_results.json, kelly_sens.py, kelly_sens_results.json (under /private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/).",
+        "effect": "TEST (last 20d, p=0.51 fills, full signal cadence): quarter-Kelly median terminal $2,752 with median maxDD 27.8%, p95 DD 43.8%, P(bankroll<$500)=0.1%; flat $50 median $4,333 but median DD 40.9%, p95 DD 93.5%, P(<$500)=4.1%; half-Kelly median $5,799, DD 49.8%; full Kelly median $11,510 but median DD 79.1%, P(net loss)=11.8%. Under TRAIN-like regime (realized q=0.518 < hurdle 0.5275) full Kelly sized to q=0.56 is near-certain wipeout (median terminal $1, P(<$500)=98.5%) while quarter-Kelly preserves the most ($381 median). At live cadence (~20 tr/day) same ordering, smaller magnitudes.",
+        "n": 1018,
+        "train": "gated q=0.5182 (n=2065), below fee hurdle at p=0.51 — sizing cannot rescue it; used as the overbetting stress regime",
+        "test": "gated q=0.5629 (n=1018), 1h-block bootstrap CI95 [0.534, 0.592], P(q<=q*(0.51)=0.5275)=0.008 — clears the fee hurdle on TEST",
+        "feeAdjustedEdge": "TEST at p=0.51: EV = 0.5629-0.5275 = +3.5c/share = +6.7% per $ staked after fee+gas; the sizing layer sits on an edge that clears q*(p) on TEST",
+        "verdict": "promising",
+        "notes": "Actionable mechanics for THIS paper system: with a $1k notional bankroll the current flat $50 stake is effectively near-full-Kelly given fee-adjusted f*=6.9%; quarter-to-half Kelly (stake 1.7-3.4% of current bankroll, i.e. $17-$34 initially) buys ~30% median-DD reduction and a 40x cut in P(bankroll<$500) at TEST-median-growth cost, and is the only tested size that survives the TRAIN regime where q was overestimated. Key assumption documented: fills at p=0.51 (live reversal-family median entry, n=155); the rosier live-fill-distribution variant (mean fill 0.49) assumes q independent of fill and is kept only as sensitivity in kelly_sim_results.json.",
+        "votes": [
+          {
+            "refuted": false,
+            "confidence": "high",
+            "reason": "Not refuted. Attacks by lens: BOUNDARY/OVERLAP — construction is properly buffered open-to-open per the brief; my independent implementation with explicit candle-contiguity checks matches the claimed n and q exactly, so no boundary-gap artifact. LOOK-AHEAD — trigger move (o[i]-o[i-1])/o[i-1] and Kaufman efficiency use only opens up to t0, all known at decision time t0+20s; fills fixed at the live-ledger median 0.51 (n=155, verified), not at model-implied prices; outcome uses the Coinbase proxy with the brief's 11% sub-2bps flip applied in the sim. No look-ahead found. THRESHOLD SENSITIVITY — all 9 combos of move threshold {9.6, 12, 14.4}bps x eff gate {0.384, 0.48, 0.576} (+-20%) keep TEST q in 0.5365-0.5657, above the p=0.51 fee hurdle 0.5275; effect survives. MULTIPLE COMPARISONS — the one soft spot: 'clears the fee hurdle on TEST' has uncorrected p~0.008-0.011, which does not survive a Bonferroni discount across the program's ~10+ families, and TRAIN q=0.5182 is BELOW the hurdle at every threshold combo (regime-dependent edge, formally failing the brief's p<0.01-on-TRAIN bar). So the absolute growth numbers ($2.7k-$11.5k medians) should not be trusted. However, the finding already discloses this and uses TRAIN as its overbetting stress case, and its actionable core — flat $50 is ~0.7x full Kelly at the point estimate, full Kelly is fragile (f* swings 1.4%-13.7% across the TEST CI, and at the lower CI bound flat $50 is 3.6x full Kelly), quarter-to-half Kelly dominates flat on drawdown/ruin risk and is the only size that survives the TRAIN regime — is exactly the claim that gets STRONGER, not weaker, when the edge estimate is discounted. Verdict 'promising' as a sizing/risk-control finding is fair; only caveat to carry forward is that its growth projections inherit the fragility of the TEST-only edge."
+          },
+          {
+            "refuted": true,
+            "confidence": "medium",
+            "reason": "The headline reproduces exactly, but the Kelly design point (q=0.56 at p=0.51 fills) fails honest-fill scrutiny on both available market-reality datasets. (1) pm_prices_sample matched to the gated stream (44 TEST-window matches): only 70% of signals are fillable under the bot's 55c cap (side p20 + 1c slip); fillable q=0.452 < q*(0.51)=0.5275, exact-fee EV -13%/$, while unfillable signals carry q=0.77 — the book charges >55c exactly when the reversal wins, so assuming 0.51 fills on all 1018 TEST signals imports unfillable wins at a fillable price. A 30-trade overlap calibration shows the 20s snapshot overstates real bot entries by only ~1.5c median, so this is not a timing artifact. (2) The bot's own 155 real fills: entries >=0.50 (n=92) have q=0.522 vs hurdle 0.543 (-2.1c/share, below break-even), and the exact design bucket 0.50-0.52 has q=0.436 vs hurdle 0.531; all live profit sits in sub-0.50 fills; aggregate ledger EV +4.45%/$ is statistically zero (hour-block CI95 [-22%,+29%], P(<=0)=0.37). Kelly is knife-edge in p (f* = +10.7% at 0.49, +2.8% at 0.53, negative at 0.55), and at the ledger's realized q=0.5226 with p=0.51, f* = -1.0% — the correct Kelly stake is zero, not $17-$34. The claimed \"+6.7%/$ edge that clears q*(p) on TEST\" is therefore not attainable at the stated fills, and the sim's growth medians are fantasy at those prices. Confidence medium (small honest-fill samples: n=44 pm matches, n=155 ledger) — and the qualitative direction (flat $50 is overbet; smaller is safer) actually survives and strengthens, but the quantitative sizing recommendation rests on an unattainable (q,p) pair. Evidence: work/verify-sizing/{repro.py,verify.py,attack_fills.py,attack_calibrate.py,attack_summary.json}."
+          },
+          {
+            "refuted": false,
+            "confidence": "high",
+            "reason": "Reproduced independently from data/cb5m.json within 1-4% on every headline number: TRAIN/TEST gated q (0.5182 n=2065 / 0.5629 n=1018, exact), fee-adjusted f*=6.88% at (q=0.56,p=0.51), no-fee Kelly 10.2%, and the p=0.51 fixed-fill 1h-block bootstrap sim (flat50 med $4,317 vs claimed $4,333, DD 0.401 vs 0.409; kelly_q $2,759/0.274 vs $2,752/0.278; kelly_f $11,791/0.786 vs $11,510/0.791; TRAIN-stress kelly_f median $1, P(<500)=0.988). TEST q bootstrap CI [0.534,0.592], P(q<=hurdle)=0.0076 also re-verified. TEST n=1018 >= 30. Adversarial re-splits all pass: in 9 weekly folds, quarter-Kelly beat flat $50 on max drawdown in every single week and on terminal wealth in all 4 losing weeks (worst week: flat50 ruined to ~$0 while f*/4 preserved $409 — it survives the trending/losing stretch, flat does not); TEST halves and thirds all clear the fee hurdle (q 0.539-0.587) with unchanged sizing ordering; TEST edge clears the hurdle in all three within-gate Kaufman-efficiency terciles and on both calm and trending days (0.5627 vs 0.5630). Caveat, already acknowledged in the finding: the Kelly fraction itself is not fold-stable — weekly q spans 0.479-0.608 so fold f* swings -10.2% to +16.9% and flips sign in 4/9 weeks, and only the last third of the 60d clears the hurdle — which is exactly why the quarter-to-half-Kelly (not full-Kelly) recommendation is the robust part of the claim. Verification artifacts: scratchpad/work/verify-sizing/{repro.py,repro_results.json,attack.py,attack_results.json}."
+          }
+        ],
+        "survives": true
+      },
+      {
+        "family": "reversal60",
+        "title": "BEST SPEC — fixed 12bps contrarian, hold-to-close, cap 53c, no adaptation: clears fees on TEST (+2.6c/share) but is regime-conditional",
+        "method": "spec assembled from (a)-(d): buffered |prior open-to-open move| >= 12bps on Coinbase 5m -> buy other side, effective cost (ask+1c) <= 0.53, enter early, hold to resolution, no threshold adaptation, no timed exits; move-size sub-analysis 12-20 vs 20+bps",
+        "effect": "TEST (last 20d): q=0.5539, n=1374, +0.0264/share at 51c (approximately +$2.59/trade at $50 stake), block-boot p vs 0.5 = 0.000, p vs breakeven = 0.025. Full walk-forward span (days 10-60) at 51c: +0.0017/share (n=3619), i.e. breakeven through the dead regime. Live corroboration: reversal engine +$201.85 on 70 trades (+$2.88/trade) at median entry 0.51. Move-size: 20+bps TEST q=0.5648 (+0.0373/share, n=579) vs 12-20bps 0.5459 (+0.0184, n=795), but TRAIN inverts (20+ = 0.518 < 12-20 = 0.526), so the size gradient is TEST-only — keep 12bps, do not upweight big moves.",
+        "n": 1374,
+        "train": "q=0.5228, -0.0047/share at 51c — fails fee hurdle in first 40d",
+        "test": "q=0.5539, +0.0264/share at 51c, p vs breakeven 0.025; +0.001/share at pessimistic 53.5c fill",
+        "feeAdjustedEdge": "+0.026/share at 51c on TEST; approximately 0 at 53.5c fill; +0.002/share over the full 50d walk-forward span",
+        "verdict": "promising",
+        "notes": "Promising strictly per the TEST-clears-fees bar, with two honest caveats: (1) TRAIN fails the hurdle and TRAIN p vs 0.5 = 0.011 just misses the p<0.01 bar — the edge lives in the last ~30 days plus days 0-10, so pair it with the validated efficiency regime gate rather than running always-on; (2) economics die above 53c fills. Full spec + all numbers: work/reversal60/best_spec.json.",
+        "votes": [
+          {
+            "refuted": false,
+            "confidence": "medium",
+            "reason": "Not refuted as stated, but the headline overstates tradeability. The candle-level effect is real and reproduced exactly (TEST q=0.5539, n=1374, +0.0264/share at 51c, p vs 0.5 ~0.000), is not a construction artifact (buffered open-to-open verified in independent code, 0 gaps in 17,280 candles, tie->Up honored, no look-ahead in the signal), survives threshold shifts of +-20% (TEST net51 +0.013 to +0.027 across 9.6-16bps) and worst-case oracle noise on sub-2bps outcomes (net51 band +0.011 to +0.042). However two attacks bite: (1) multiple comparisons — TEST p vs BREAKEVEN is only 0.025 one-sided and dies under any family Bonferroni (m=5 -> 0.127), and TRAIN fails the fee hurdle, so the 'clears fees' claim rests on a single marginal p in a many-test program; (2) fill realism — matched pm_prices_sample shows the contrarian side costs median 53.5c at t0+20s (76% of signals >51c), giving EV -0.021/share at actual snapshot costs; the finding's '53.5c pessimistic fill' is actually the median. The 51c economics require selective fills, which the live book (verified: n=70, +$201.85, median 0.51) shows are attainable but only over 2 days in the strongest regime. Net: the reversal effect exists and the finding's own caveats are honest, but 'promising' should be read as breakeven-to-thin at realistic fills and strictly conditional on the efficiency regime gate plus <=51-53c fill discipline. Artifacts: work/verify-reversal60/av_repro.py, av_repro_out.json, av_attack.py."
+          },
+          {
+            "refuted": true,
+            "confidence": "high",
+            "reason": "The candle-level signal reproduces exactly (TEST q=0.5539, n=1374, +0.0264/share at 51c), but the headline \"clears fees\" rests on an assumed 51c fill the market does not offer. pm_prices_sample.json: contrarian side at t0+20s costs median 52.5c (mid, not ask) -> 53.5c effective with +1c slip, EV -0.021/share at actual prices; only 39% of signals are <=51c. The spec's 53c cap triggers adverse selection: cap-conditional fills (22/49) win only 45.5% (EV -0.062/share) while skipped expensive signals would have won 59.3% -- the early PM price is informative and the cap keeps the losers. The cited live corroboration (+$2.88/trade at median 51c) decomposes into +$308 from 13 deep-discount (<45c) entries and ~$0.28/trade at spec-typical 49-53c entries (51-53c band: -$5.56/trade), over only 1.33 days with fillFrac hardwired to 1.0. Same-window PM resolutions (n=215) give q=0.5349, below break-even q*(0.535)=0.5524. At honest fills the edge is at best break-even and likely negative, failing the brief's TEST-clears-fees bar."
+          },
+          {
+            "refuted": false,
+            "confidence": "medium",
+            "reason": "Headline reproduces digit-for-digit and TEST clears fees with n=1374 (>=30) across all 3 TEST weeks independently, so the claim as stated survives. Caveats confirmed and sharpened: effect fails brief bar #4 (TRAIN p<0.01) as disclosed; only 5/9 weeks and 1/3 full-span thirds clear fees; first TEST third loses at 51c; economics die above 53c fills. NEW adverse fact: the Kaufman-efficiency segmentation INVERTS between TRAIN (calm -1.05c, trending +1.53c/share) and TEST (calm +3.4c, trending +0.5c, p vs breakeven 0.45), so the finding's recommendation to pair with the eff<=0.48 gate is unsupported on this 60d sample — on TRAIN the gate picks the losing subset. Worst trending days lose up to -11.7c/share and 12bps is never the per-fold optimal threshold (per-fold best swings 8-25bps, sign flips in 2/6 folds). Treat as a fragile, regime-conditional TEST-only edge; do not treat the efficiency gate as a validated fix at 60d scale. Artifacts: /private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/work/verify-reversal60/attack3_regime_oos.py and attack3_out.json."
+          }
+        ],
+        "survives": true
+      }
+    ],
+    "deadSummary": [
+      {
+        "family": "seasonality",
+        "dead": [
+          "Session filter (Asia/Europe/US/Late) on the 12bps reversal rule: TRAIN p>=0.23 everywhere, session ranking inverts on TEST; TRAIN-selected sessions lose -0.0053/share net on TEST vs +0.0264 unconditional.",
+          "Session filter inside latentfire's eff<=0.48 gate: same inversion pattern, all TRAIN p>=0.37 — gating does not reveal hidden session structure.",
+          "UTC-hour bucket selection: no hour clears p<0.01 on TRAIN; selected set unstable across TRAIN halves (Jaccard 0.19); TEST advantage p=0.28.",
+          "Weekday/weekend split: weekend TEST q=0.599 has zero TRAIN support (diff +0.3pp, p=0.89) — TEST-side noise.",
+          "Vol-scaled trigger threshold = k x trailing-7d same-session median |move|, all k in 0.8-4.0: never beats fixed 12bps on TRAIN net EV materially, and trade-count-matched variant is significantly worse on TEST (-1.57pp rev rate, block-boot p=0.0087).",
+          "Momentum-persistence session filter (2-4bps first-60s drift, cb1m 14d): all TRAIN session diffs p>=0.31, ranks flip on TEST; no session lifts P(hold) past the ~0.65-0.67 fee hurdle at realistic 62-66c fills.",
+          "pm_prices_sample momentum EV check (n=55 over ~3d): +0.077/share point estimate but s.e. ~0.06 — insufficient n, not evidence against the established fee-dead verdict."
+        ],
+        "rejectedTitles": [
+          "Session filter on the reversal rule is dead (raw AND inside latentfire's efficiency gate)",
+          "Hour-of-day and weekday/weekend filters are dead (unstable selections, TEST advantage is noise)",
+          "Vol-scaled reversal trigger (k x rolling per-session vol) is significantly WORSE than the fixed 12bps threshold",
+          "Intraday vol seasonality is real and stable, but it is throughput seasonality, not win-rate seasonality",
+          "Context: the reversal edge itself is nonstationary across the 60d window — always-on fails fees on TRAIN, clears on TEST; momentum has no session structure either"
+        ]
+      },
+      {
+        "family": "pathshape",
+        "dead": [
+          "Late-spike fraction |last-60s leg|/|full move| (and signed variant): no effect at 8bps (TRAIN p=0.40); within 12bps the signed version flips from +3.1pp TRAIN to -17.9pp TEST. Late spikes do NOT revert more; if anything TEST hints the opposite, but TRAIN shows nothing.",
+          "Monotone-drift vs V-shape/zigzag (sign flips across the five 1m legs): TRAIN suggested monotone moves revert MORE (60.0% vs 54.3%, p=0.20), TEST reversed the ordering (48.5% vs 50.6%). Noise.",
+          "Wickiness (high-low)/|net| of the prior interval: all terciles within noise, TRAIN p=0.53-0.60 at both thresholds.",
+          "Volume spike vs trailing hour: TRAIN p=0.33-0.73, non-monotone terciles, no TEST persistence.",
+          "Lag 2-6 sign autocorrelation at any magnitude bucket: k=2 >=12bps was the only TRAIN blip (52.1%, p=0.018) and it died on TEST (48.8%).",
+          "Run-length conditioning: continuation after n=2..5 same-sign intervals (magnitude-conditioned) never persists TRAIN->TEST; L==1 vs L>=2 filter on the reversal trigger is null both ways.",
+          "Raising the reversal trigger to 20bps: TEST shows 56.5% but TRAIN only 51.8% (below 12-20 bucket) — dose escalation does not replicate across splits.",
+          "Lowering the trigger to 8-12bps: 51.2% TRAIN / 50.2% TEST — far below q*(0.51)=52.75%, fee-dead."
+        ],
+        "rejectedTitles": [
+          "Path-shape features are null: no shape filter improves plain 12bps reversal",
+          "60d recalibration of lag-1 reversal: real but weaker than the 10d estimate; 55c entry cap is negative-EV",
+          "Sign memory is strictly one lag deep: lags 2-6 flat at every magnitude",
+          "Run/streak structure adds nothing: continuation after n same-sign intervals is noise, and streak length does not modulate the lag-1 reversal"
+        ]
+      },
+      {
+        "family": "fairvalue",
+        "dead": [
+          "s=20 FV is unbuildable from 1m candles: interpolating drift inside the first candle uses its 60s close (look-ahead); the striking s=20 'momentum' calibration miss (fv 0.40-0.45 -> realized 0.267) is that artifact, not signal. Sub-minute data required.",
+          "FV at s=150 via avg(close@120s, close@180s) injects 30s of future — inflated the value sim from -3.6c to +36c/share on TEST. Any FV input must lag the decision time.",
+          "Polymarket prices-history (fidelity=1) prints are last-trade samples within +/-90s, not fillable quotes: all residual sim profit concentrated in fv-p gaps >= 0.12 (stale prints); gapcap 0.10 kills it.",
+          "Buy-when-book<FV-margin at s=60: negative on TRAIN and TEST at every margin (TEST m=0.03: -9.3c/share, bb p=0.016 for the LOSS).",
+          "Systematic book-vs-FV bias: +0.8c at s=60 (bb p=0.048, fails p<0.01 bar), -0.3c at s=150 — no exploitable level bias.",
+          "Vol-regime bucketing of book-FV (low/mid/high EWMA terciles): signs flip across horizons (+1.4c low-vol s=60, -1.6c mid-vol s=150) — noise, no stable regime mispricing.",
+          "side==down filter on the value ledger (+$1,557 'improvement') is regime luck in a 2-day window, unlike the side-balanced entry>=0.65 floor.",
+          "Entry caps (<=0.60, <=0.65) on the value engine — the intuitive fix — make the ledger WORSE (-$34, -$476); the engine's problem is its mid-range 'bargains', not its expensive fills.",
+          "Lambda extremes: EWMA lambda 0.80 and 0.99 both clearly worse than 0.94-0.96 on TRAIN QMLE; the live bot's range%/1.6 vol proxy is replaceable but was NOT the main cause of value-engine losses (finding 5)."
+        ],
+        "rejectedTitles": [
+          "FV model calibrates well out-of-sample (Brier skill 12%/25%/42% at s=60/120/180)",
+          "No systematic book mispricing: the book is at least as informed as the FV model",
+          "The naive FV-vs-book sim 'edge' was 100% artifact: look-ahead + stale prints",
+          "Value engine autopsy: all losses live at 50-65c entries; best single gate is an entry FLOOR >= 0.65, not a cap",
+          "'Cheap vs model' is adverse selection — winner's curse quantified at ~5pts"
+        ]
+      },
+      {
+        "family": "crossasset",
+        "dead": [
+          "ETH t-1 sign -> BTC t direction, unconditional (all magnitude buckets 47.7-52.0% train, none persist; best train p=0.024 in [2,6)bps flips to 49.6% on test)",
+          "ETH big-move/BTC-quiet conditional lead (ETH>=8/12/16/20bps with BTC<6bps: all ~50% train, 40-47% test)",
+          "ETH residual (BTC-hedged) sign as a signal (47-52%, no train significance that persists)",
+          "Last-minute (60s) pre-interval momentum, both directions - train says fade (47.1%, p=0.02), test says ride (53.1%), per-day rate flaps 0.39-0.57",
+          "120s and 180s pre-interval lookbacks (train reversal p=0.005 and p<0.001 respectively, both flip to >50% follow on test)",
+          "Binance-Coinbase basis-change convergence at 0.5/1/1.5/2/3bps thresholds (51% train, 49% test)",
+          "Binance prior as an independent signal (indistinguishable from Coinbase prior, adds nothing)",
+          "Divergence-sign interaction inside reversal setups (train p=0.0005, ordering reverses on test - overfit)",
+          "Funding/premium terciles as a momentum-hold dial (flat 47-51% across all terciles, both series)"
+        ],
+        "rejectedTitles": [
+          "ETH prior-interval move does not lead BTC 5m direction",
+          "Last-minute pre-interval momentum has no stable sign",
+          "Polymarket book does NOT price pre-t0 momentum at 20s in - cost is not the blocker, signal stability is",
+          "Binance-Coinbase one-interval divergence carries no convergence information",
+          "Funding/premium tercile is a directionally consistent but statistically unproven dial on reversal rate"
+        ]
+      },
+      {
+        "family": "microstructure",
+        "dead": [
+          "Tie-rule Up premium in flat regimes: flat(<4bps) up_rate .545 fails the bar (TRAIN p=.51, ALL p=.092); 60d Coinbase P(close>=open)=.4966 and exact ties 9/17,280 make the tie rule worth ~3bp of probability vs a 175bp fee at 50c. Do not build Up-bias strategies on it.",
+          "Momentum rescue via fee reduction/maker fills: gross mispricing per share is negative in both chronological halves (-0.6c TRAIN, -4.1c TEST); zero-fee momentum still loses ~$3.2k of its $6.1k. The book at 20-50s already prices continuation better than the engines.",
+          "Favorite-longshot exploitation at 20s: buying the 45-50c underdog against the anti-predictive weak favorite is +2.4pp over hurdle but z~0.6 (n=168); the 71%-winning 55-60c favorite bucket has fee-adjusted binomial p=0.11 (n=38) — both underpowered, the latter momentum-flavored and suspect.",
+          "reversal2/latentfire gamma-fallback fills as extra capacity: used 0/67 times live; reversal2 entries are a strict subset of reversal's. One-sided books at the open did not occur in the current window.",
+          "p20 as a signal input for any other model: Brier skill vs constant-0.5 is +0.005 on TEST — the 20-second book is noise; skill only appears from p60 onward, i.e. after the move you would be trying to predict.",
+          "Late (>=60s) contrarian entries: the contrarian mid disperses to p25 .295/p75 .605 by ~60s — waiting for a cheaper reversal fill mostly selects continuation cases (adverse selection); the ledger's winning fills happened at median 9s."
+        ],
+        "rejectedTitles": [
+          "The 20-second book is nearly uninformative (TEST Brier skill +0.005 vs constant-0.5); no exploitable favorite-longshot bias early",
+          "Tie-rule / flat-regime Up premium does not exist at tradable size",
+          "Ledger autopsy: momentum loses ~52% to overpaying and ~48% to fees — zero fees would NOT rescue it; reversal family is the exact mirror",
+          "Thin books are a mid-interval momentum problem, not a reversal-at-open problem: gamma fallback fired 0/67; zero dead markets in 3 days"
+        ]
+      },
+      {
+        "family": "regime",
+        "dead": [
+          "Short/long vol ratio (1h/6h mean-abs-move) gate: pooled walk-forward OOS -0.145 c/share, direction flips le/ge across folds — no stable relationship (quintiles non-monotone both TRAIN and TEST)",
+          "ATR percentile gate (ATR12 rank vs trailing 288): -0.113 c/share OOS, unstable direction; TRAIN top-quintile looked bad (48.6%) but TEST flipped (58.0%)",
+          "Range compression gate (6-candle range / 24-candle range): -0.813 c/share OOS, worst worst-fold of all candidates (-6.82c)",
+          "Minutes-since-last-event gate: worst candidate, -1.79 c/share OOS with direction flips; the gap signal that matters is already captured by cnt12",
+          "eff24 (2h Kaufman efficiency) gate: -0.06 c/share OOS — the regime information lives at the 30min window, not 2h",
+          "eff12 walk-forward threshold gate: +0.76 c/share OOS but calibrated thresholds swung 0.10-0.80 with le/ge direction flips — not deployable",
+          "eff12-x-volratio and eff24-x-volratio combos (the requested efficiency-x-volratio family): -0.18 and -0.60 c/share OOS — vol ratio adds noise, not signal, to any efficiency gate",
+          "evcount standalone (cnt12 threshold): +1.11 c/share OOS but calibration path flipped direction 3 times in 5 folds (ge1/le1/le6/ge1/le3) and one OOS fold kept only 39/1224 trades — only trustworthy as the cnt<=B arm of the combo",
+          "Recalibrating the incumbent eff12<=0.48 latentfire threshold: no threshold or direction of 1h efficiency survives walk-forward; the gate concept, not the constant, is stale"
+        ],
+        "rejectedTitles": [
+          "Incumbent latentfire gate (eff12 <= 0.48, win 12) is dead weight over 60d — the 10d 'choppy is good' finding does not generalize",
+          "Sign reversal at short windows: ultra-choppy conditions are actively toxic for reversal (mechanism behind the winning gate)",
+          "Recalibration spec: refit every 10 days on a trailing 10-20d window, min 250 trigger trades, cap step change at |dA|<=0.10 and |dB|<=1",
+          "Base-rate nonstationarity dwarfs every gate: reversal itself died for 20 of the 60 days and no candidate gate rescued it"
+        ]
+      },
+      {
+        "family": "sizing",
+        "dead": [
+          "Daily loss caps as free drawdown control: at live cadence (~5 tr/day, TEST) every cap's EV cost is ~2x its median-DD reduction (L150: -7.0% EV / -3.8% DD; L50: -44.5% / -23.8%); at full cadence loss caps burn 63-77% of EV and L150/L200 even increase median $ drawdown. Strictly dominated by reducing stake fraction.",
+          "Daily trade caps: same pattern (N3: -57% EV / -24% DD on TEST at live cadence); the apparent full-60d benefit of caps comes entirely from truncating the -EV TRAIN regime, i.e. hindsight luck.",
+          "Adaptive allocation on the real ledger (trades.json incl. pre-reset): only 4 trading days of daily pnl across 10 engines — Hedge -$838 and Thompson -$1,657 vs best static +$202; nothing learnable at this history length.",
+          "Static equal-weight across arms: -$942 on TEST and -$4,855 over 60d — worse than every alternative except the momentum arm; diversification across known-bad engines is not protection.",
+          "Full Kelly at the verified design point (f*=6.9%): highest median TEST wealth but 79% median drawdown, 11.8% P(net loss), and near-certain wipeout (median terminal $1) under the TRAIN regime where realized q undershot the assumed 0.56 — unusable operating point given finding-2 regime drift.",
+          "Sizing off the live empirical fill distribution while holding q fixed at the measured value: makes even the fee-dead TRAIN regime profitable, but assumes win prob is independent of fill price (cheap fills = market disagrees more), which is unsupported; demoted to sensitivity only.",
+          "First live-cadence caps run (work/sizing/caps_livefreq.py): a single 10% thinning draw landed below break-even by chance and produced meaningless EV-cost percentages (>100%); superseded by per-rep re-thinning in caps_livefreq2.py."
+        ],
+        "rejectedTitles": [
+          "The reversal edge is not stationary over 60d: fee-dead in the first 40 days, and the efficiency gate's benefit flips sign between TRAIN and TEST",
+          "Adaptive allocation (Thompson, Hedge) does NOT beat 100% latentfire — it is insurance against picking a bad arm, at ~30-37% of TEST pnl",
+          "Daily loss caps and trade caps are NOT EV-neutral variance tools here — EV cost runs ~2x the drawdown reduction at every level tested; dominated by staking less",
+          "Fill price is the dominant sizing lever: 2c of entry price moves EV more than any Kelly-fraction or cap decision"
+        ]
+      },
+      {
+        "family": "tieflat",
+        "dead": [
+          "Ex-ante quiet-vol Up bias: P(Up) in bottom trailing-vol decile is 0.470 on TEST (0.514 TRAIN, boot p=0.17) — sign-flips out of sample; pooled D0-D2 TEST 0.490. The core tie-rule trade idea is dead.",
+          "Realized-flat Up bias as an edge: P(Up|realized |move|<1bps)=0.52 in Coinbase data, but (i) uses future information (realized flatness), and (ii) actual Polymarket resolutions in the same bucket run 0.508 vs proxy 0.556 — the bias is partly proxy artifact.",
+          "Price discreteness / exact ties: Coinbase c==o occurs in only 0.052% of 17,268 intervals; sub-0.25bps micro-moves resolve Up only 8/18 in actuals. No discreteness channel.",
+          "Buy Up at p20<=0.52 in forecast-vol bottom decile: n=0 tradable markets in the entire 3-day live-price sample (D0 regimes absent in the recent vol environment); relaxed D0-D2 version n=19 with PnL CI of +/-0.21/share — unpowered, and proxy TEST win rate 0.490 vs 0.5375 break-even says negative at scale.",
+          "Quiet-regime session interaction: TEST quiet-x-US P(Up)=0.535 (n=346) looks tempting but is post-hoc, fails the p<0.01 TRAIN bar (Asia/EU both ~0.47), and is exactly the multiple-testing noise the brief warns about.",
+          "Session-level flatness targeting: session differences in flat fraction are small (18.6%-22.0% <2bps) relative to the vol-decile gradient (7.6%-36.3%) — session adds nothing once trailing vol is conditioned on."
+        ],
+        "rejectedTitles": [
+          "Flatness is strongly forecastable from trailing vol (structure, not edge)",
+          "No ex-ante Up bias in quiet regimes: P(Up) by trailing-vol decile is flat/negative on TEST",
+          "Realized-flat Up bias is largely a Coinbase-proxy artifact, not an oracle effect",
+          "Oracle-proxy noise concentrates below 1bps, not 2bps (methodological, for other agents)",
+          "Book prices quiet intervals fair; 'buy Up cheap when vol bottom-decile' is untestable-as-specified and negative by proxy"
+        ]
+      },
+      {
+        "family": "reversal60",
+        "dead": [
+          "Walk-forward trailing-10d threshold re-selection (forced and with abstain): -0.0044 and -0.0019/share vs +0.0017 for fixed 12bps over days 10-60; also loses on TEST (b_walkforward.json)",
+          "Timed exits at +2/+3/+4 min: second taker fee + 1c spread make all of them dominated by hold-to-close (model sim n=955 and empirical pm p150 check n=49 agree; d_exits.json)",
+          "Low thresholds 6-8bps: q_TRAIN approximately 0.519 with p-vs-breakeven approximately 0.9; sub-1c TEST edge at 51c; never clears fees anywhere",
+          "25bps threshold: TRAIN q=0.5105 (worse than 12bps), n collapses to approximately 1000 full-period; no improvement over 20bps",
+          "Treating the 10d 56% as the long-run parameter: 60d truth is 53.3% at 12bps; days 10-30 were flat-to-inverted (window q 0.477 and 0.507), so always-on sizing based on 56% overstates edge approximately 2x",
+          "Entries in the 53-55c band (live revEntryMax=0.55): EV negative at TEST q for 12bps signals; the cap should be 53c (54c only for 20+bps signals, whose TRAIN behavior inverts anyway)",
+          "Upweighting 20+bps moves for their higher TEST q (0.5648): the size gradient does not exist on TRAIN (0.518 < 0.526 for 12-20bps) — TEST-only pattern, not actionable"
+        ],
+        "rejectedTitles": [
+          "60d truth: reversal direction persists but at 53.3%, not 56%; edge is non-stationary and fails the 51c fee hurdle on TRAIN",
+          "Walk-forward threshold selection is worse than fixed 12bps — the parameter is not improvable by trailing calibration",
+          "Entry-price truth: contrarian side costs a median 52.5c at t0+20s, and EV turns negative above 53c — the live 55c cap is 2c too loose",
+          "Timed exits at +2/+3/+4 min are fee-dead; hold-to-close dominates"
+        ]
+      },
+      {
+        "family": "exits",
+        "dead": [
+          "FV-threshold stop-loss overlay, all 24 swept configs (X 0.10-0.45, fire-from 60/120/180s): TRAIN-best +$1,881 flips to -$849 on TEST, boot p=0.25; sd drops 13% but maxDD worsens — not even good variance control (work/exits/sim_results.json)",
+          "Opposite-side hedge overlay: numerically identical to selling out at every config (within $3); double fee + spread makes it strictly dominated by doing nothing (work/exits/sim_results.json)",
+          "Stops/hedges on the reversal-family book specifically (n=155): every config sign-flips between TRAIN and TEST, worst case TRAIN +$47 -> TEST -$1,529; the live +EV book must be held to resolution",
+          "'Recoverable loser' salvage (65% of losers touched fv>=0.5 post-entry, median salvage 95% of cost): pure hindsight max — any implementable trigger that captures it fires on winners at rates that erase the gain (work/exits/autopsy.json)",
+          "Buy-the-favorite at 20s (the book's actual entry timing): 50.9% win at 54.3c fill, -5.1c/share after fees — informationless; independently corroborates 'momentum is fee-dead'",
+          "Buy-the-favorite at 150s: 73.9% win vs 75.4% breakeven, -1.3c/share — information fully priced by 150s",
+          "Ledger entrySec-bucket conditioning within momentum engines (n=2,046): non-monotone (-5.7/-0.7/-7.1/+2.1 $/trade), guard-timing confounded — no usable timing signal from the ledger itself"
+        ],
+        "rejectedTitles": [
+          "Adverse-excursion autopsy: losers look recoverable in hindsight, but there is no exploitable asymmetry at any trigger",
+          "Stop-loss overlay (sell when modeled Up price < X): TRAIN-best gain of +$1,881 sign-flips to -$849 on TEST",
+          "Opposite-side hedge is arithmetically identical to selling out — same failure, plus a second gas fee",
+          "Entry timing: the book's actual ~24s entries are informationless; waiting to 60s helps by +8.9c/share paired but the effect decays and misses the bar",
+          "Mechanism: the market over-discounts early adverse excursions — dips at 60s still win 35-40%, which is why every exit overlay loses here"
+        ]
+      }
+    ],
+    "design": {
+      "path": "/private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/DESIGN.md",
+      "summary": "Best Model v2 (rev 2) written to DESIGN.md, superseding the earlier rev-1 DESIGN.md and FINAL-DESIGN.md v2.1 which were drafted before the verification round completed. The pivotal update: four findings now carry survives:true (fill model 3-0, isolated-impulse regime gate 3-0, Kelly sizing 2-1, reversal60 spec 2-1), so the gated impulse engine is reinstated as the sole live flagship (v2.1 had demoted it to shadow when the gate was believed unverified). Design kills 7 of 9 engines terminally (loose/floor/band/strict/value/fade/reversal2), converts reversal to a zero-stake paired control, and rebuilds latentfire as impulse_v2: 12bps buffered contrarian trigger, eff6>=0.10 AND cnt12<=6 gate (deploy-calibrated, refittable within the verified TEST plateau A in [0.06,0.38] x B in [1,7]), effective-cost cap 0.53, first-45s entry, hold to resolution, quarter-Kelly sizing on a shrunk qhat fed by a stake-independent measurement book. Perpetual learning loop runs nightly (metrics/asserts/qhat) with 10-day rate-limited walk-forward gate refits (trailing 20d, min 250 triggers, |dA|<=0.10, |dB|<=1), shadow-first promotion via paired 1h-block-bootstrap CIs, asymmetric retirement/revival, and a regret-vs-frozen-baseline kill switch. Risk: three-tier base-rate guard with quantified latencies, $250 breaker, no stops/hedges/caps (all verified-dead). Validation: Phase 0 conformance, day-14 survival gate, day-60 decision (~1,200 measurement fills, 72-90%+ power at the verified q scenarios vs the .4898 hurdle), plus pre-registered day-60 gate and cap verdicts including the cap-adverse-selection check both refuted votes demanded. Honest expected edge: +1.5 to +3c/share central (about +$1.5-3 per $50 trade), worst-case fill construction near zero, regime-death tail handled by guard tiers rather than assumed away.",
+      "decisions": [
+        "Gated flagship reinstated: the eff6/cnt12 isolated-impulse gate survived 3-lens verification 3-0 (walk-forward OOS +2.97c/share, live gated +7.53c vs ungated -2.79c), reversing v2.1's demotion which predated the verification result; ungated reversal_v2 becomes a zero-stake paired control since it fails the fee hurdle on TRAIN",
+        "Old eff12<=0.48 latentfire gate stays DEAD (+0.22c OOS, dead weight over 60d); 6 momentum/value/fade engines plus reversal2 killed terminally with no revival path",
+        "Entry cap frozen at 0.53 effective cost per the CONFIRMED reversal60 spec, but the cap-adverse-selection risk flagged by both refuted votes is pre-registered as a day-60 measured verdict with a cap55_shadow counterfactual book; the cap is not loop-refittable",
+        "Learning loop runs nightly but only metrics/asserts/qhat move nightly; gate constants refit every 10 days (5-day refits are verified thrash) via trailing-20d walk-forward, min 250 trigger signals, step caps |dA|<=0.10 |dB|<=1, hard-bounded to the verified TEST plateau; shadow-first promotion requires 10d/400 paired signals with paired block-boot 90% CI > 0; regret_vs_frozen < -$50 at day 30 freezes all refits",
+        "Sizing is quarter-Kelly fraction-of-bank on shrunk qhat with f_full<=0 => skip and no stake floor; qhat learns from a stake-independent measurement book to avoid self-censoring; no daily loss/trade caps, no stops/hedges (all verified EV-negative or sign-flipping); half-Kelly only as the post-SUCCESS scaling step",
+        "Three-tier base-rate guard (haircut at 15d/-1c and 7d/-2c, hard bench at -3c/-4c) with simulation-quantified latencies handles the regime-death tail; scoring always uses Polymarket resolutions, never the Coinbase proxy",
+        "Validation pre-registered: Phase 0 conformance vs the CONFIRMED 53c-cap fill quantiles (.45/.49/.51), day-14 kill gate, day-60 decision at ~1,200 measurement fills with 72-90%+ power at the verified q scenarios against the .4898 hurdle, one day-90 extension max, and explicit success (>=+1c, CI>0) / fail (<=-0.5c or CI upper < +0.5c) thresholds"
+      ]
+    },
+    "critique": {
+      "overall": "This is an unusually honest design — the +1.5-3c central estimate, the measurement-book/sized-book split, pre-registered kill and cap verdicts, frozen cost model (every quoted break-even reproduces exactly against the brief's fee formula), and terminal kills of the six fee-dead engines are all correct and well-evidenced. Two load-bearing weaknesses remain. First, the gate increment — the thing that makes impulse_v2 the sole staked arm — is weaker than the text represents: TEST increment p=0.13 in both the original and the verifier's artifacts, the +2.97c pooled OOS is best-of-11 in the tournament, and the '0.01-0.03 selection-corrected p' is a TRAIN-side null being quoted where a TEST number belongs; the flagship/control architecture survives this, the rhetoric does not, and the design must say plainly that the increment is unproven pending the day-60 paired verdict. Second, the sizing loop couples a single pooled qhat to a price-censored sized book while the program's own verification artifacts contradict each other on whether entry price predicts outcome (verify-regime: expensive fills win more; verify-sizing: q flat, fillable pm subset q .45) — bucket-level qhat monitoring is the minimum patch, and the qhat seed must stop reusing the triple-counted n=71 live subset. Beyond that, the critique is about complexity budget: ~20 measurement fills/day cannot adjudicate six shadow books, a three-tier guard, and two adaptation-audit baselines by day 60; cutting the fast-track promotion path, one guard tier, rev20_shadow, and one redundant baseline loses nothing the evidence can currently resolve. The one genuine brief conflict is the efficiency-direction flip versus validated PRIOR#2, which needs explicit reconciliation (trigger-inclusive eff6 is a different animal than trigger-diluted eff12 — say so). With the six mustFix items applied, the design is fit to launch as a paper program; without the gate-increment restatement and the qhat bucket monitor, it launches on a stated edge its own artifacts do not support.",
+      "mustFix": [
+        "Gate-increment evidence is overstated. The artifacts say: TEST gate-effect boot p = 0.1276 (work/regime/deploy_spec.json, independently reproduced at 0.1263 in work/verify-regime/verify_summary.json); the design's '~0.01-0.03 selection-corrected gate-increment p' is a TRAIN-side circular-shift null (work/verify-regime/attack.py section 4), not a TEST result, and must be labeled as such. Additionally the +2.97c pooled OOS is the best of an 11-candidate tournament (work/regime/tournament_results.json); fold-level increments (+1.7,+5.2,+1.5,+0.8,+3.3c, n=5 folds, mean +2.5c, SD 1.8c) are nominally p~0.04 BEFORE correcting for selection over 11 gate families, i.e. not individually significant after. The architecture (gated flagship + reversal_v2 paired control + day-60 verdict) survives this, but section 0 must state plainly: the LEVEL of the gated arm clears fees on TEST (p=0.015); the INCREMENT over ungated does not (p=0.13) and is an open question the shadows exist to answer. Note TEST ungated is itself +2.64c with p=0.018.",
+        "A single pooled qhat is applied to a price-censored sized book while the design's own verification artifacts DISAGREE on the sign of price-informativeness: verify-regime found gated cheap-half wr .468 vs expensive-half .646 (z=1.9, cap keeps the worse half), while verify-sizing's ledger autopsy found q essentially flat across price (.5238 below 50c vs .5217 above; all profit from cheapness) and its pm-matched sample found fillable q .4516 vs unfillable .7692 (work/verify-sizing/attack_summary.json). If q varies with price, qhat estimated on the full measurement book systematically mis-sizes the cost<qhat sized subset, and the mechanical expansion rule ('~79% becomes tradeable once qhat>.5275') expands into exactly the segment in dispute. Fix: compute and log qhat in at least two price buckets (cost <0.50 / >=0.50) from day 1, pre-register a bucket-divergence alarm, and forbid the sized-book expansion past a cost level until the bucket-level q at that level clears its own hurdle.",
+        "qhat launch seed .5117 = (41+200)/(71+400) is derived from the SAME 3-day live gated n=71 subset that was used to select the gate (verify-regime live corroboration) and to justify flagship promotion — triple use of the smallest, most favorable dataset in the program. checks.json already computed the neutral full-ledger seed: .5063 (seed_from_ledger_155_at_5226). Use that or the plain prior 0.5; the favorable seed directly enlarges the day-1 sized book on contaminated evidence.",
+        "Direction flip vs the brief's validated PRIOR#2 is never reconciled. The brief says low efficiency (choppy, eff12<=0.48) gives ~60% reversal and HIGH efficiency LOSES; the new frozen gate requires eff6 >= A. These are reconcilable only because eff6 INCLUDES the trigger leg (pseudocode legs end at o[-1]), so high eff6 means 'quiet background + isolated impulse', not 'trending' — but the design never says this, and the tournament's standalone-eff6 per-fold calibrations even flip inequality direction across folds ('le 0.54', 'ge 0.4', 'le 0.76'...). Add one honest paragraph: either the mechanism distinction (trigger-inclusive eff6 vs trigger-diluted eff12) or an explicit retirement of PRIOR#2 as 10-day regime noise. The brief mandates consistency with priors; silently contradicting one is a methodology violation.",
+        "Phase-1 kill bar is weaker than it reads. 'net/share <= -2c AND 90% CI excluding 0' at n~280 (per-share SD ~50c, SE ~3c) only fires below ~ -5c/share; a true q~.45 disaster (EV ~ -4c) is roughly a coin flip to survive day 14. Either make the kill 'mean <= -2c' alone (accepting some false kills — this is paper) or state the effective ~ -5c bar and explicitly assign the q=.45 case to tier-3 (7d < -4c on >=120), which is then the real day-14 defense.",
+        "Internal inconsistency in the one-sided-book rule: 'final skip only at window close' is unreachable because entry requires left >= revWinMin = 255s — after t0+45s a re-polled two-sided book can never produce an entry ('early' fails). Make the skip final at t0+45s and align pseudocode, skip-reason logging, and the availability denominator. Also the pseudocode's measure_book.record(fillable) runs on every eval poll — dedupe by t0 or the measurement book (the program's primary instrument) double-counts intervals."
+      ]
+    },
+    "final": {
+      "path": "/private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/FINAL-DESIGN.md",
+      "summary": "Wrote FINAL-DESIGN.md (v3) applying the full red-team review to DESIGN.md rev 2. Every claim in the review was first verified against the artifacts (deploy_spec.json, verify_summary.json, tournament_results.json, attack_summary.json, checks.json, best_spec.json) and all six mustFix items were confirmed correct — none rebutted. Section 0 now states plainly that the gated arm's LEVEL clears fees on TEST (p=0.015) while the gate INCREMENT does not (TEST p=0.1276/0.1263; the ~0.01-0.03 figure re-labeled as a TRAIN-side circular-shift null; +2.97c pooled OOS flagged as best-of-11 with fold increments mean +2.52c SD 1.78c, nominal p~0.03-0.04 pre-selection). Sizing is now bucketed qhat (p_eff <0.50 / >=0.50) with neutral ledger seeds (.5057/.5068, pooled .5063) replacing the triple-used n=71 seed .5117; at these seeds the hi bucket is structurally unsized until its own q clears its own costs, deleting the mechanical 79%-expansion rule. PRIOR#2 reconciled via the trigger-inclusive-eff6 mechanism paragraph with explicit retirement of the eff12<=0.48 parameterization. Phase-1 kill changed to mean<=-2c alone (11% false-kill at +1.6c, 75% fire at -4c; old rule's effective -5c bar withdrawn), disaster case assigned to the guard bench. One-sided-book skip made final at t0+45s with measurement-book dedupe by t0 and a single availability definition. All 5 shouldCuts applied (fast-track promotion deleted; rev20_shadow -> diagnostic line; guard collapsed to haircut+bench+breaker; gate_train_shadow -> logged counterfactual with 90+day horizon; +7.5c live row -> contamination footnote). All 7 missing items added: nightly proxy-agreement monitor (2 days <97% freezes entries), guard seeding from the pre-launch censored ledger with week-1 residual pre-registered, Phase 0 REPLACES fill/availability anchors (min n=100), mandatory 60d replay dry-run before the loop may move live params, measurement-fill refit objective, venue fee/tick log-and-flag hash class, and the >25%-outage refit-window rule. Document remains implementable against ENGINE_CFG + per-engine eval functions + a nightly job, with corrected pseudocode and a closing verified-numbers appendix.",
+      "changes": [
+        "Section 0 rewritten: level-vs-increment distinction stated plainly with artifact numbers (MF1)",
+        "qhat split into two price buckets with divergence alarm and bucket-gated expansion; mechanical qhat>.5275 expansion rule deleted (MF2)",
+        "qhat launch seeds replaced with neutral full-ledger values .5057/.5068 (pooled .5063); contaminated .5117 seed withdrawn (MF3)",
+        "PRIOR#2 reconciliation paragraph added (trigger-inclusive eff6 = impulse isolation vs trigger-diluted eff12 = trend); eff12<=0.48 parameterization explicitly retired (MF4)",
+        "Phase-1 kill changed to mean<=-2c alone with stated false-kill/fire probabilities; q~.45 disaster assigned to guard bench tier (MF5)",
+        "One-sided-book skip made final at t0+45s; skip logging deduped per (eid,t0) with last-in-window snapshot; measure_book.record deduped by t0; availability denominator defined once (MF6)",
+        "Cut: fast-track promotion path (SC1), rev20_shadow promotable slot -> nightly diagnostic (SC2), guard tiers 1+2 collapsed to single 7d/-2c haircut (SC3), gate_train_shadow -> deterministic logged counterfactual, frozen_baseline kept (SC4), +7.5c live n=71 row demoted to contamination footnote (SC5)",
+        "Added: nightly Coinbase-vs-Polymarket proxy-agreement monitor with freeze rule (M1)",
+        "Added: guard windows seeded from pre-launch censored ledger n=123; week-1 residual exposure pre-registered (M2)",
+        "Added: Phase 0 replaces fill/availability anchors with min-n=100 measurement; alarm-band text unified (M3)",
+        "Added: blocking 60d replay dry-run of the nightly job before any live-parameter change (M4)",
+        "Added: gate-refit objective switched to measurement-book realized fills from first refit (M5)",
+        "Added: venue fee-schedule/tick fields in nightly hash as log-and-flag class (M6)",
+        "Added: refit windows >25% outage do not refit regardless of signal count (M7)",
+        "Pseudocode updated: bucketed Kelly sizing, guard haircut hook, dedupe fixes, early-window pending logic",
+        "Appendix of independently reproduced numbers added for verifier audit"
+      ]
+    }
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Harvest"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 2,
+      "title": "Hypotheses"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 3,
+      "title": "Verify"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 4,
+      "title": "Synthesize"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "harvest:cb",
+      "phaseIndex": 1,
+      "phaseTitle": "Harvest",
+      "agentId": "a8c457563fa70e108",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751615,
+      "lastProgressAt": 1783691751615,
+      "cached": true,
+      "resultPreview": "{\"written\":[{\"path\":\"/private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/data/cb5m.json\",\"rows\":17280,\"note\":\"BTC-USD 5m, 60 days (t 1778500500..1783684200), 58 requests, 0 failed windows, 0 gap runs / 0 missing intervals — complete\"},{\"path\":\"/private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/data/cb1m.json\",\"rows\":20155,\"…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "harvest:eth",
+      "phaseIndex": 1,
+      "phaseTitle": "Harvest",
+      "agentId": "ab8d1d831002c74e2",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751615,
+      "lastProgressAt": 1783691751615,
+      "cached": true,
+      "resultPreview": "{\"issues\":\"Task prompt had \\\"undefined\\\" placeholders for the brief path, output root, and end date. Resolved them as: brief at /private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/BRIEF.md, output under that scratchpad, end date = now (2026-07-10T11:55Z, aligned to 300s). No API issues: 58 GET requests, 0 retries, 0 gaps (17280/17280 expected candles, 2026-05-1…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "harvest:bn",
+      "phaseIndex": 1,
+      "phaseTitle": "Harvest",
+      "agentId": "aa9f13fe154514379",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751615,
+      "lastProgressAt": 1783691751615,
+      "cached": true,
+      "resultPreview": "{\"written\":[{\"path\":\"/private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/data/bn5m.json\",\"rows\":17280,\"note\":\"Binance SPOT BTCUSDT 5m klines from data-api.binance.vision (primary host, no fallback needed). Columnar {t,o,h,l,c,v}, t in seconds, ascending, deduped. Span 2026-05-11T11:55:00Z to 2026-07-10T11:50:00Z (60 days exactly, 17280 = 60*288). Zero gaps, zer…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 4,
+      "label": "harvest:deriv",
+      "phaseIndex": 1,
+      "phaseTitle": "Harvest",
+      "agentId": "a7f229366e3099f12",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751615,
+      "lastProgressAt": 1783691751615,
+      "cached": true,
+      "resultPreview": "{\"issues\":\"Binance fapi.binance.com is georestricted from this host (error: \\\"Service unavailable from a restricted location\\\") — all three primary endpoints unusable; no workaround attempted. Substitutes used per the brief's allowed-source list: (1) funding from Deribit (the specified fallback) — note rate column is Deribit interest_8h sampled hourly, not Binance's discrete 8h funding events; (2)…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 5,
+      "label": "harvest:ledger",
+      "phaseIndex": 1,
+      "phaseTitle": "Harvest",
+      "agentId": "a6b5b9c8879bd2039",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751615,
+      "lastProgressAt": 1783691751615,
+      "cached": true,
+      "resultPreview": "{\"issues\":\"The task template's <SCRATCH> variable rendered as \\\"undefined\\\"; I resolved it to the session scratchpad (/private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad) where BRIEF.md lives. numpy unavailable; used stdlib. state.json.bak-pretrue had 96 loose trades, only 24 distinct after dedup — included as src=\\\"bak_pretrue\\\". Pre-reset archive contains two…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 6,
+      "label": "harvest:pm",
+      "phaseIndex": 1,
+      "phaseTitle": "Harvest",
+      "agentId": "ab77aee9e322e2433",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751615,
+      "lastProgressAt": 1783691751615,
+      "cached": true,
+      "resultPreview": "{\"issues\":\"Task template had \\\"undefined\\\" placeholders for the scratch path and time window; resolved SCRATCH from BRIEF.md's location (the session scratchpad) and used \\\"last 3 days ending now\\\" (span 1783425300..1783684200, 864 aligned t0s). 1 of 864 gamma slugs returned no closed market (863 kept). Zero HTTP 429s and zero errors on both gamma and CLOB. All outcomes fields verified as [\\\"Up\\\",\\…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 7,
+      "label": "hyp:seasonality",
+      "phaseIndex": 2,
+      "phaseTitle": "Hypotheses",
+      "agentId": "a3bc0bc66253bea0e",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751621,
+      "lastProgressAt": 1783691751621,
+      "cached": true,
+      "resultPreview": "{\"hypothesis\":\"Time-of-day / day-of-week structure: do session/hour/weekend effects or session-vol scaling create or modulate tradable edges in the 5m reversal and momentum rules? Concrete answer: NO — latentfire should gain neither a session filter nor a vol-scaled threshold. Volatility has strong, stable intraday seasonality (US hours ~1.6-1.9x Asia/Europe), but the reversal WIN RATE has no sess…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 8,
+      "label": "hyp:pathshape",
+      "phaseIndex": 2,
+      "phaseTitle": "Hypotheses",
+      "agentId": "acac01b075b474eec",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751621,
+      "lastProgressAt": 1783691751621,
+      "cached": true,
+      "resultPreview": "{\"hypothesis\":\"Prior-interval path SHAPE (late-spike concentration, monotone-vs-V leg structure, wickiness, volume spike) predicts next-interval reversal better than raw magnitude; plus lag-k sign memory and same-sign-run structure on 60d. ANSWER: No. All four shape features are null both at the 8bps screen and within the actual >=12bps trigger set — no shape filter raises reversal's net edge vs p…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 9,
+      "label": "hyp:fairvalue",
+      "phaseIndex": 2,
+      "phaseTitle": "Hypotheses",
+      "agentId": "a844dd4910cc644e0",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751621,
+      "lastProgressAt": 1783691751621,
+      "cached": true,
+      "resultPreview": "{\"hypothesis\":\"A calibrated Gaussian fair-value model — EWMA 5m vol + FV(Up)=Phi(d/(sigma*sqrt((300-s)/300))) — can find exploitable mispricings in the Polymarket BTC 5m book (buy when book < FV - margin).\",\"findings\":[{\"title\":\"FV model calibrates well out-of-sample (Brier skill 12%/25%/42% at s=60/120/180)\",\"method\":\"EWMA vol on cb5m intra-interval log returns, lambda swept {0.80..0.99} by Gauss…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 10,
+      "label": "hyp:crossasset",
+      "phaseIndex": 2,
+      "phaseTitle": "Hypotheses",
+      "agentId": "ac8542b7e67bfe428",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751621,
+      "lastProgressAt": 1783691751621,
+      "cached": true,
+      "resultPreview": "{\"dataUsed\":\"cb5m.json, eth5m.json, bn5m.json (identical 17,280-interval 60d 5m grids, verified), cb1m.json (14d, 20,155 rows), funding.json (Deribit BTC-PERPETUAL hourly interest_8h, 1,440 rows; Binance fapi georestricted), premium5m.json (binance.vision premiumIndexKlines 5m, 16,848 rows), pm_prices_sample.json (216 markets, ~3d, p20/p60/p150/pLast). All under <SCRATCH>/data/. Scripts and result…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 11,
+      "label": "hyp:microstructure",
+      "phaseIndex": 2,
+      "phaseTitle": "Hypotheses",
+      "agentId": "a27ede35d5946b1d6",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751621,
+      "lastProgressAt": 1783691751621,
+      "cached": true,
+      "resultPreview": "{\"dataUsed\":\"pm_prices_sample.json (216 markets = every 4th over ~3d; CLOB prices-history minute points p20/p60/p150/pLast, 216/216 populated), pm_res_3d.json (863 resolutions, up_rate .5075), trades.json (3,157 paper trades; 2,046 clean momentum + 155 reversal-family in the current post-reset book), ledger_summary.json, cb5m.json (60d Coinbase 5m for buffered prior moves and base rates), plus rea…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 12,
+      "label": "hyp:regime",
+      "phaseIndex": 2,
+      "phaseTitle": "Hypotheses",
+      "agentId": "a2b3e2e3b0c89dd57",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751621,
+      "lastProgressAt": 1783691751621,
+      "cached": true,
+      "resultPreview": "{\"hypothesis\":\"Regime-gate tournament for the buffered reversal strategy (prior |open-to-open move| >= 12bps, buy other side at 51c, exact fee 0.07*p*(1-p), hold to close): which trailing regime gate best selects profitable reversal trades on cb5m 60d, evaluated strictly walk-forward (six 10d folds, calibrate fold k -> evaluate fold k+1), vs ungated and vs the incumbent latentfire gate (eff12<=0.4…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 13,
+      "label": "hyp:sizing",
+      "phaseIndex": 2,
+      "phaseTitle": "Hypotheses",
+      "agentId": "a6ec8fdde2e282202",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751621,
+      "lastProgressAt": 1783691751621,
+      "cached": true,
+      "resultPreview": "{\"hypothesis\":\"Sizing and adaptive allocation for the paper book: (a) fee-adjusted Kelly for the verified reversal edge (q~0.56 @ p~0.51) with flat-$50 vs quarter/half/full Kelly block-bootstrap simulation on a 60d buffered reversal signal stream ($1,000 bankroll); (b) Thompson sampling and Hedge over engine/rule daily pnl vs 100% latentfire static; (c) daily loss caps and trade caps as variance t…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 14,
+      "label": "hyp:tieflat",
+      "phaseIndex": 2,
+      "phaseTitle": "Hypotheses",
+      "agentId": "ac8de095ef786b7e9",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751621,
+      "lastProgressAt": 1783691751621,
+      "cached": true,
+      "resultPreview": "{\"hypothesis\":\"Tie rule + flat-interval structure: do quiet intervals carry a structural Up bias (close>=open resolves Up, plus price discreteness) that the book fails to price? Answer: NO. Flatness is highly forecastable from trailing vol, but ex-ante quiet regimes show no Up bias on TEST (0.47-0.49), the realized-flat Up bias in Coinbase data (~0.52) is partly a proxy artifact (actual Polymarket…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 15,
+      "label": "hyp:reversal60",
+      "phaseIndex": 2,
+      "phaseTitle": "Hypotheses",
+      "agentId": "a468cc1be14cba363",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751621,
+      "lastProgressAt": 1783691751621,
+      "cached": true,
+      "resultPreview": "{\"hypothesis\":\"Reversal edge at 60-day scale + parameter truth: does the validated 10d reversal edge (fade prior |move|>=12bps, ~56%) hold over 60 days, and what are its true optimal parameters (threshold, entry price cap, exit timing, walk-forward adaptation)?\",\"findings\":[{\"title\":\"60d truth: reversal direction persists but at 53.3%, not 56%; edge is non-stationary and fails the 51c fee hurdle o…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 16,
+      "label": "hyp:exits",
+      "phaseIndex": 2,
+      "phaseTitle": "Hypotheses",
+      "agentId": "a1a2b48386d49a34e",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691751622,
+      "lastProgressAt": 1783691751622,
+      "cached": true,
+      "resultPreview": "{\"hypothesis\":\"In-trade management for 5m BTC binaries: can stop-losses, opposite-side hedges, or entry-timing shifts cut losses without destroying EV, given the double-fee + 2c-spread cost of any second transaction? Prior expectation (brief finding #4): exit overlays are variance control only, never edge. Verdict after testing on this structure: confirmed — every exit/hedge overlay is EV-negative…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 17,
+      "label": "verify:microstructure:snoop",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "aff7862d563a57e97",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691753914,
+      "queuedAt": 1783691751624,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "high",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783692007758,
+      "tokens": 51404,
+      "toolCalls": 12,
+      "durationMs": 253844,
+      "resultPreview": "{\"refuted\":false,\"confidence\":\"high\",\"reproduced\":\"Re-derived independently from raw files (scripts: work/verify-microstructure/indep_repro.py, indep_attack.py; verdict: indep_verdict.json). Uncensored contrarian c20 distribution from cb5m buffered open-to-open joined to pm_prices_sample: 49/216 signal intervals, quantiles p5 .469 / p25 .505 / p50 .525 / p75 .555 / p95 .595 — exact match. Ledger r…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 18,
+      "label": "verify:microstructure:costs",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "a831171a24ff8922b",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691753710,
+      "queuedAt": 1783691751624,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "high",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783691983041,
+      "tokens": 55197,
+      "toolCalls": 16,
+      "durationMs": 229331,
+      "resultPreview": "{\"refuted\":false,\"confidence\":\"high\",\"reproduced\":\"Every headline number reproduced from data/ (script: work/verify-microstructure/repro_feesfills_v2.py): pm-sample n=49/216 with c20 quantiles p5 .469/p25 .505/p50 .525/p75 .555/p95 .595 (exact), availability <=55c+slip 69.4% (exact); ledger n=155 entry quantiles p25 .47/p50 .51/p90 .55, share-wtd entry .4861, q*=.5036 (exact); win 52.26%, PnL +$34…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 19,
+      "label": "verify:microstructure:oos",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "ab08c964a58fbfbd5",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691753844,
+      "queuedAt": 1783691751624,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "medium",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783691978276,
+      "tokens": 56671,
+      "toolCalls": 12,
+      "durationMs": 224432,
+      "resultPreview": "{\"refuted\":false,\"confidence\":\"medium\",\"reproduced\":\"EXACT reproduction via independent code (work/verify-microstructure/regime_attack.py): uncensored contrarian c20 n=49/216 with p5 .469/p25 .505/p50 .525/p75 .555/p95 .595; availability <=55c+slip 0.694; ledger fills n=155 entry p25 .47/p50 .51/p90 .55, share-wtd mean .4861; join n=28 median -0.020 mean -0.0289; fillability 70/82=85.4%. All match…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 20,
+      "label": "verify:regime:snoop",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "af0a5461b5dc5b493",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691753839,
+      "queuedAt": 1783691751637,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "medium",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783692161448,
+      "tokens": 60142,
+      "toolCalls": 17,
+      "durationMs": 407609,
+      "resultPreview": "{\"refuted\":false,\"confidence\":\"medium\",\"reason\":\"Independently re-derived from data/cb5m.json with fresh code: all headline numbers reproduce essentially exactly (TEST gated +4.015c vs claimed +4.02c; wr 56.76% n=717; boot p 0.0152 vs 0.0147; walk-forward pooled OOS +2.97c n=1468 worst -3.33c; TRAIN calibration independently selects A=0.32,B=6). No look-ahead (all features from opens known at t0),…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 21,
+      "label": "verify:regime:costs",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "aa72bbb741b5a8349",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691753683,
+      "queuedAt": 1783691751637,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "medium",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783692608961,
+      "tokens": 85577,
+      "toolCalls": 27,
+      "durationMs": 855278,
+      "resultPreview": "{\"refuted\":false,\"confidence\":\"medium\",\"reason\":\"Reproduced exactly, and the edge survives honest fills in every central estimate — but the +4.02c headline is overstated by roughly 1-2.5c. Fee math checks out (fee 1.749c at p=0.51, breakeven wr 52.75%, +$3.94/$50 arithmetic correct). The fills attack found one real flaw: the finding justifies the 51c fill with the UNCONDITIONAL pm p20 median (49.5…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 22,
+      "label": "verify:regime:oos",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "a1f7e955dc8b13967",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691757995,
+      "queuedAt": 1783691751637,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "high",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783692093066,
+      "tokens": 65760,
+      "toolCalls": 20,
+      "durationMs": 335071,
+      "resultPreview": "{\"refuted\":false,\"confidence\":\"high\",\"reason\":\"Headline reproduced exactly from data/cb5m.json with independent code (TRAIN calibration lands on A=0.32/B=6; TEST gated +4.015 c/sh, wr 0.5676, n=717, block-boot p=0.0152; walk-forward pooled OOS +2.973 c/sh n=1468, worst fold -3.333c — all within <1% of claim; I actually count the gate beating ungated in 5/5 OOS folds, not 4/5). Adversarial re-split…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 23,
+      "label": "verify:sizing:snoop",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "aca0882ffbace1afb",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691753672,
+      "queuedAt": 1783691751641,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "high",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783691967672,
+      "tokens": 45945,
+      "toolCalls": 12,
+      "durationMs": 214000,
+      "resultPreview": "{\"refuted\":false,\"confidence\":\"high\",\"reproduced\":\"Re-derived everything independently from data/cb5m.json and data/trades.json (own code: work/verify-sizing/verify.py, results in verify_results.json). (1) Gated stream (buffered open-to-open, |m|>=12bps, eff<=0.48 over trailing 12, contiguity-checked): TRAIN q=0.51816 n=2065, TEST q=0.56287 n=1018 — exact match to claimed 0.5182/2065 and 0.5629/10…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 24,
+      "label": "verify:sizing:costs",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "a679eac2e49ecced8",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691753731,
+      "queuedAt": 1783691751641,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "medium",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783692270988,
+      "tokens": 84787,
+      "toolCalls": 26,
+      "durationMs": 517257,
+      "resultPreview": "{\"refuted\":true,\"confidence\":\"medium\",\"reason\":\"The headline reproduces exactly, but the Kelly design point (q=0.56 at p=0.51 fills) fails honest-fill scrutiny on both available market-reality datasets. (1) pm_prices_sample matched to the gated stream (44 TEST-window matches): only 70% of signals are fillable under the bot's 55c cap (side p20 + 1c slip); fillable q=0.452 < q*(0.51)=0.5275, exact-f…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 25,
+      "label": "verify:sizing:oos",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "a26e20bbe230c6a15",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691754045,
+      "queuedAt": 1783691751641,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "high",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783692042455,
+      "tokens": 59814,
+      "toolCalls": 16,
+      "durationMs": 288410,
+      "resultPreview": "{\"refuted\":false,\"confidence\":\"high\",\"reason\":\"Reproduced independently from data/cb5m.json within 1-4% on every headline number: TRAIN/TEST gated q (0.5182 n=2065 / 0.5629 n=1018, exact), fee-adjusted f*=6.88% at (q=0.56,p=0.51), no-fee Kelly 10.2%, and the p=0.51 fixed-fill 1h-block bootstrap sim (flat50 med $4,317 vs claimed $4,333, DD 0.401 vs 0.409; kelly_q $2,759/0.274 vs $2,752/0.278; kelly…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 26,
+      "label": "verify:reversal60:snoop",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "a2cb3dbe4c7eb780d",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691753995,
+      "queuedAt": 1783691751645,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "medium",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783692043507,
+      "tokens": 48855,
+      "toolCalls": 14,
+      "durationMs": 289510,
+      "resultPreview": "{\"confidence\":\"medium\",\"reason\":\"Not refuted as stated, but the headline overstates tradeability. The candle-level effect is real and reproduced exactly (TEST q=0.5539, n=1374, +0.0264/share at 51c, p vs 0.5 ~0.000), is not a construction artifact (buffered open-to-open verified in independent code, 0 gaps in 17,280 candles, tie->Up honored, no look-ahead in the signal), survives threshold shifts …"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 27,
+      "label": "verify:reversal60:costs",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "afa1d194586acff2c",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691970285,
+      "queuedAt": 1783691751645,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "high",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783692297180,
+      "tokens": 55388,
+      "toolCalls": 16,
+      "durationMs": 326895,
+      "resultPreview": "{\"refuted\":true,\"confidence\":\"high\",\"reason\":\"The candle-level signal reproduces exactly (TEST q=0.5539, n=1374, +0.0264/share at 51c), but the headline \\\"clears fees\\\" rests on an assumed 51c fill the market does not offer. pm_prices_sample.json: contrarian side at t0+20s costs median 52.5c (mid, not ask) -> 53.5c effective with +1c slip, EV -0.021/share at actual prices; only 39% of signals are …"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 28,
+      "label": "verify:reversal60:oos",
+      "phaseIndex": 3,
+      "phaseTitle": "Verify",
+      "agentId": "a3da510121f88bd48",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691981090,
+      "queuedAt": 1783691751646,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "medium",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783692182013,
+      "tokens": 47930,
+      "toolCalls": 11,
+      "durationMs": 200922,
+      "resultPreview": "{\"refuted\":false,\"confidence\":\"medium\",\"reason\":\"Headline reproduces digit-for-digit and TEST clears fees with n=1374 (>=30) across all 3 TEST weeks independently, so the claim as stated survives. Caveats confirmed and sharpened: effect fails brief bar #4 (TRAIN p<0.01) as disclosed; only 5/9 weeks and 1/3 full-span thirds clear fees; first TEST third loses at 51c; economics die above 53c fills. N…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 29,
+      "label": "architect",
+      "phaseIndex": 4,
+      "phaseTitle": "Synthesize",
+      "agentId": "a51f1ca63af60cff4",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783692615249,
+      "queuedAt": 1783692610243,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Best Model v2 (rev 2) written to DESIGN.md, superseding the…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783693115959,
+      "tokens": 117500,
+      "toolCalls": 13,
+      "durationMs": 500710,
+      "resultPreview": "{\"summary\":\"Best Model v2 (rev 2) written to DESIGN.md, superseding the earlier rev-1 DESIGN.md and FINAL-DESIGN.md v2.1 which were drafted before the verification round completed. The pivotal update: four findings now carry survives:true (fill model 3-0, isolated-impulse regime gate 3-0, Kelly sizing 2-1, reversal60 spec 2-1), so the gated impulse engine is reinstated as the sole live flagship (v…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 30,
+      "label": "critic",
+      "phaseIndex": 4,
+      "phaseTitle": "Synthesize",
+      "agentId": "a9f55ed22b6c1f132",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783693119995,
+      "queuedAt": 1783693117509,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "This is an unusually honest design — the +1.5-3c central es…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783693602706,
+      "tokens": 76821,
+      "toolCalls": 14,
+      "durationMs": 482710,
+      "resultPreview": "{\"mustFix\":[\"Gate-increment evidence is overstated. The artifacts say: TEST gate-effect boot p = 0.1276 (work/regime/deploy_spec.json, independently reproduced at 0.1263 in work/verify-regime/verify_summary.json); the design's '~0.01-0.03 selection-corrected gate-increment p' is a TRAIN-side circular-shift null (work/verify-regime/attack.py section 4), not a TEST result, and must be labeled as suc…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 31,
+      "label": "reviser",
+      "phaseIndex": 4,
+      "phaseTitle": "Synthesize",
+      "agentId": "a861d268622fe475f",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783693608517,
+      "queuedAt": 1783693604116,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "/private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76…",
+      "promptPreview": "You are a quant research subagent in a paper-trading research program.\nFIRST read the shared brief in full: undefined/BRIEF.md — it defines the market, the EXACT fee model, dataset schemas, and the methodology bar. Follow it exactly.\nHard rules: read-only on /Users/sgonzalez/btc5m-paper-trader (never modify anything there); write only under undefined; public GET APIs only, sleep >=0.15s between ca…",
+      "lastProgressAt": 1783694267983,
+      "tokens": 112995,
+      "toolCalls": 19,
+      "durationMs": 659466,
+      "resultPreview": "{\"finalPath\":\"/private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/FINAL-DESIGN.md\",\"summary\":\"Wrote FINAL-DESIGN.md (v3) applying the full red-team review to DESIGN.md rev 2. Every claim in the review was first verified against the artifacts (deploy_spec.json, verify_summary.json, tournament_results.json, attack_summary.json, checks.json, best_spec.json) and al…"
+    }
+  ],
+  "totalTokens": 1024786,
+  "totalToolCalls": 245
+}

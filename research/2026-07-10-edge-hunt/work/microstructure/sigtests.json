@@ -1,0 +1,68 @@
+{
+ "momentum_misprice_per_share": {
+  "obs_c": -1.795,
+  "ci_c": [
+   -5.245,
+   1.534
+  ],
+  "p_one_sided": 0.15575,
+  "n": 2046
+ },
+ "momentum_misprice_TRAIN": {
+  "n": 1366,
+  "obs_c": -0.633,
+  "ci_c": [
+   -4.925,
+   3.593
+  ]
+ },
+ "momentum_misprice_TEST": {
+  "n": 680,
+  "obs_c": -4.1,
+  "ci_c": [
+   -9.389,
+   1.305
+  ]
+ },
+ "fav_5560": {
+  "n": 38,
+  "wins": 27,
+  "winrate": 0.7105,
+  "mean_p20": 0.5674,
+  "fill": 0.5824,
+  "breakeven": 0.5994,
+  "p": 0.1075
+ },
+ "fav_5560_TRAIN": {
+  "n": 25,
+  "winrate": 0.72
+ },
+ "fav_5560_TEST": {
+  "n": 13,
+  "winrate": 0.6923
+ },
+ "revfam_win_ALL": {
+  "n": 155,
+  "win": 0.5226,
+  "ci": [
+   0.383,
+   0.6454
+  ]
+ },
+ "revfam_win_TRAIN": {
+  "n": 105,
+  "win": 0.5905,
+  "ci": [
+   0.4522,
+   0.7193
+  ]
+ },
+ "revfam_win_TEST": {
+  "n": 50,
+  "win": 0.38,
+  "ci": [
+   0.1224,
+   0.625
+  ]
+ }
+}

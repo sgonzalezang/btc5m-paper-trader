@@ -1,0 +1,28 @@
+{
+  "verifier": "adversarial-fills",
+  "reproduction": {
+    "script": "repro.py (independent implementation from cb5m.json)",
+    "total_triggers": 3971,
+    "train_cal": {"A": 0.32, "B": 6},
+    "train_gated": {"n": 1144, "wr": 0.5594, "pps_c": 3.195},
+    "test_gated": {"n": 717, "wr": 0.5676, "pps_c": 4.015, "boot_p_pnl_le0": 0.0152},
+    "train_gate_effect_boot_p": 0.0001,
+    "test_gate_effect_boot_p": 0.1263,
+    "match": "exact vs claim (+4.02c, wr 56.76%, n=717, p=0.0147)"
+  },
+  "fills_attack": {
+    "finding_cited_fill_basis": "unconditional pm p20 median 0.495 (confirmed) — but that is UNCONDITIONAL",
+    "refetch": "trig_prices.json: 215 triggered markets over 3d (pm_res_3d), pre-entry Up mid at ~t0+4s from CLOB prices-history, actual Chainlink resolutions",
+    "conditional_reversal_side_mid": {"all_triggers_mean": 0.5212, "gated_mean": 0.5240, "gated_se": 0.0041, "gated_p90": 0.566, "frac_gt_053_gated": 0.436},
+    "decomposed_EV_at_conditional_fills_c_per_share": {"mid+0.5c": 2.12, "mid+1c": 1.62, "mid+1.5c": 1.13, "mid+2c": 0.63, "se": 1.89},
+    "breakeven_wr_at_mid_plus_1c": 0.5514,
+    "test_wr": 0.5676,
+    "bot_ask_vs_refetch_mid_same32_gated_markets": {"median": -0.015, "mean": -0.0372, "note": "bot's real CLOB asks sit BELOW prices-history mids; prices-history overstates cost"},
+    "live_ledger_reversal_engines": {"n": 137, "ask_mean": 0.4818, "entry_mean_with_slip": 0.4919, "entry_p90": 0.55, "fillFrac_mean": 1.0, "realized_net_c_per_share": 2.46},
+    "live_gated_subset": {"n": 71, "wr": 0.577, "entry_mean": 0.50, "realized_net_c_per_share": 7.53},
+    "live_ungated_subset": {"n": 66, "wr": 0.470, "realized_net_c_per_share": -2.79},
+    "adverse_selection": {"gated_cheap_half_wr": 0.468, "gated_expensive_half_wr": 0.646, "z": 1.86, "note": "entry price is informative; 55c cap keeps the worse half — worst-case capped construction on mids goes negative (-1.6c), but the live capped engine realized strongly positive"},
+    "live_skip_rate_vs_cb5m_triggers": 0.22
+  },
+  "conclusion": "NOT refuted. Backtest reproduces exactly; fee math correct; live paper fills (real CLOB asks + 1c slip, fillFrac 1.0) average 49-51c on taken trades and realized gated pnl is positive. However the +4.02c headline leans on an unconditional price stat: conditional on the trigger the book charges ~52.4c mid; honest central estimate of the deployable edge is ~+1.6c to +3c/share, not +4c, with a worst-case (cap adverse-selection on mids) near zero."
+}

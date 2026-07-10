@@ -1,0 +1,25 @@
+{
+ "reproduction": {
+  "TEST": {"n": 1374, "q": 0.5539, "ev_at_51c": 0.0264, "boot_p_vs_0.5": 0.000, "boot_p_vs_breakeven": 0.0177},
+  "TRAIN": {"n": 2649, "q": 0.5228, "ev_at_51c": -0.0047},
+  "match_to_claim": "exact"
+ },
+ "fills_attack": {
+  "pm_sample_thr12": {"n": 49, "span_days": 3.0, "cost20_median_raw": 0.525, "frac_le_51_raw": 0.388,
+   "ev_at_actual_p20_plus_1c": -0.0213},
+  "cap53_conditional": {"fill_rate": 0.449, "n_fills": 22, "win_rate_fills": 0.4545,
+   "ev_per_share": -0.0620, "boot90CI": [-0.246, 0.119],
+   "skipped_would_have_won": 0.5926,
+   "note": "cap selects fills where the market disagrees with reversal; those lose"},
+  "p20_is_mid_not_ask": "prices-history fidelity=1, nearest within 90s; real ask >= this, numbers flatter the strategy",
+  "same_window_baseline": {"pm_res_3d_thr12_q": 0.5349, "n": 215, "breakeven_at_53.5c": 0.5524}
+ },
+ "live_corroboration_decomposed": {
+  "total": {"n": 70, "pnl": 201.85, "win": 0.5286, "span_days": 1.33, "fillFrac": "hardwired 1.0 (no partial-fill modeling)"},
+  "entry_lt_45c": {"n": 13, "win": 0.615, "pnl": 308.20},
+  "entry_49_to_53c": {"n": 32, "pnl_per_trade": 0.28},
+  "entry_51_to_53c": {"n": 19, "win": 0.474, "pnl_per_trade": -5.56},
+  "conclusion": "the +$2.88/trade claim is a composition artifact: all PnL comes from a 13-trade deep-discount tail; at the spec-typical 49-53c entries the engine made ~$0/trade"
+ },
+ "verdict": "REFUTED as stated: '+2.6c/share clears fees on TEST' holds only at an assumed 51c fill. At honest fills (pm mid ~52.5c +1c slip, ask >= mid) EV is <= +0.001 unconditionally and -0.06 conditional on the 53c cap actually filling; live book at 49-53c entries corroborates ~zero, not +$2.59/trade."
+}

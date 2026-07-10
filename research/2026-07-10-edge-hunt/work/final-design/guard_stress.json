@@ -1,0 +1,54 @@
+{
+ "window_q": [
+  [
+   404,
+   0.572
+  ],
+  [
+   396,
+   0.477
+  ],
+  [
+   1226,
+   0.507
+  ],
+  [
+   624,
+   0.553
+  ],
+  [
+   702,
+   0.528
+  ],
+  [
+   671,
+   0.58
+  ]
+ ],
+ "n_signals": 4023,
+ "span_days": 59.9,
+ "no_guard": {
+  "final": 2699898.4,
+  "maxdd_pct": 28.7,
+  "trades": 1333,
+  "guard_first_day": null,
+  "guard_days": 0,
+  "breaker_day": null
+ },
+ "guard_spec": {
+  "final": 2714838.5,
+  "maxdd_pct": 28.7,
+  "trades": 1333,
+  "guard_first_day": 17.1,
+  "guard_days": 5,
+  "breaker_day": null
+ },
+ "guard_fast": {
+  "final": 2666285.1,
+  "maxdd_pct": 28.7,
+  "trades": 1331,
+  "guard_first_day": 13.7,
+  "guard_days": 10,
+  "breaker_day": null
+ }
+}

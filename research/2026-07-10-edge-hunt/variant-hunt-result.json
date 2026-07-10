@@ -1,0 +1,237 @@
+{
+  "summary": "Hypothesize and test 3 engine variants off reversal_v2; adversarially verify; spec shadow candidates",
+  "agentCount": 7,
+  "logs": [
+    "variant:band -> 4 findings, 0 promising",
+    "variant:asym -> 3 findings, 0 promising",
+    "variant:impulse -> 3 findings, 1 promising",
+    "verify impulse / \"Flavor B: fixed deploy-spec impulse gate (eff6>=0.10 AND cnt12<=6) beats flagship per-share on TRAIN and TEST with no sign flip; matches flagship totals within noise\": CONFIRMED (3/3 uphold)",
+    "variant hunt: 1 confirmed across 3/3 families"
+  ],
+  "result": {
+    "families": [
+      {
+        "family": "impulse",
+        "findings": 3,
+        "confirmed": 1
+      },
+      {
+        "family": "band",
+        "findings": 4,
+        "confirmed": 0
+      },
+      {
+        "family": "asym",
+        "findings": 3,
+        "confirmed": 0
+      }
+    ],
+    "confirmed": [
+      {
+        "family": "impulse",
+        "title": "Flavor B: fixed deploy-spec impulse gate (eff6>=0.10 AND cnt12<=6) beats flagship per-share on TRAIN and TEST with no sign flip; matches flagship totals within noise",
+        "method": "Buffered open-to-open construction on cb5m 60d (gapless, contiguity automatic), conventions identical to work/regime/regime_tournament.py: trigger pm=moves[i-1] (>=12bps), eff6=|o[i]-o[i-6]|/sum|moves| (trigger included), cnt12=#{|move|>=12bps in the 12 moves before the trigger, trigger excluded}. Params FIXED from deploy_spec.json (no refitting). Chronological TRAIN first 40d / TEST last 20d, six 10d folds, 1h-block bootstrap (4000 reps), paired-vs-flagship = block-boot of complement pnl. Baseline reproduced exactly first (4023/.5334; TRAIN 2649/.5228; TEST 1374/.5539).",
+        "effect": "TRAIN: q_sel=.5418 (n=1733) vs q_comp=.4863 vs q_all=.5227, gate-effect block-boot p=0.0035; net +4.70c/share at .4774 fill vs flagship +2.78c. TEST: q_sel=.5669 (n=1009) vs q_comp=.5178 vs q_all=.5539, gate-effect p=0.033; net +7.20c vs flagship +5.90c. Retention 65.5% TRAIN / 73.4% TEST (45.7 signals/day; ~25 fills/day at 55% availability). All six folds net-positive: 7.95/1.29/4.24/5.35/4.86/9.46c — the gate flips the only losing flagship fold (fold 1: -1.76c ungated) positive. First overlay in the program with NO TRAIN->TEST sign flip.",
+        "n": 4022,
+        "test": "Paired vs flagship (variant-flagship = -complement): TEST delta -0.61c per flagship signal, block-boot CI90 [-1.62,+0.39], p(delta>=0)=.16; full-60d delta -0.01c, CI90 [-0.72,+0.70] — an exact wash at flat mean fill. Complement (n=1280) is fee-dead over 60d: q=.4953, +0.04c at .4774.",
+        "feeAdjustedEdge": "Selected: TEST +7.20c/share at .4774 fill, +6.20c at +1c (.4874), +5.20c at +2c (.4974) — clears q*=.4949 with wide margin at all three. Trending-fill adjustment: the complement is cascade-heavy (mean prior move 24.9bps vs 21.5 selected, cnt12>6 dominated), so richer complement fills apply: complement 60d net becomes -0.96c at +1c and -1.96c at +2c, pushing the paired delta vs flagship to ~0/positive. Selected subset is mildly trend-tilted on eff12 (.336 vs .267) but smaller-move, so its own fills are quoted conservatively at the flat mix + sensitivities.",
+        "verdict": "promising",
+        "shadowCfg": "\"impulse_shadow\": dict(label=\"ImpulseShadow\", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None, revThr=0.12, revEntryMax=0.53, revWinMin=255, holdToClose=True, impGate=True, impEffWin=6, impEffMin=0.10, impCntWin=12, impCntThr=0.12, impCntMax=6, stake=0.0)",
+        "notes": "Promising AS THE impulse_shadow CONFIRMATION on 60d, not as an immediate live swap: it beats flagship per-share on TEST with TRAIN persistence and matches totals within the paired CI (which spans 0 — per FINAL-DESIGN 5.2 today's verdict is correctly 'no change'; promotion needs 400+ paired forward signals with CI lower bound > 0). Gate features must be computed on buffered open-to-open moves exactly as above (eff6 includes the trigger move, cnt12 excludes it). Artifacts: work/variant-impulse/{impulse_test.py,impulse_results.json}.",
+        "votes": [
+          {
+            "refuted": false,
+            "confidence": "high",
+            "reason": "Independent re-derivation from raw cb5m.json (own code, own indexing, different seed, explicit per-signal contiguity checks) reproduces every headline number essentially exactly, far inside the 10-15% tolerance: baseline 4023/.5334 (TRAIN 2649/.5228, TEST 1374/.5539); Flavor B fixed gate TRAIN sel 1733/q=.5418/+4.70c and TEST sel 1009/q=.5669/+7.20c at .4774 fill (+6.20/+5.20c at +1c/+2c); all six folds net-positive (7.95/1.29/4.24/5.35/4.86/9.46c) with fold-1 ungated -1.76c confirmed; gate-effect block-boot p=0.002 TRAIN / 0.034 TEST; paired-vs-flagship TEST -0.61c CI90 [-1.63,+0.37] and full-60d -0.01c CI90 [-0.75,+0.68]; complement 1280/q=.4953/+0.05c fee-dead. Attacks all fail to break it: data is gapless (0 non-300s gaps in 17,280 candles) so buffered construction is sound; no look-ahead (eff6/cnt12 use only opens through the decision boundary, same information as the flagship trigger); +-20% sensitivity on A, B, and the 12bps trigger is a plateau (TRAIN +3.8 to +4.9c, TEST +5.8 to +7.5c, no sign flips); the deploy A=0.10 was calibrated on the trailing 20d (=TEST window), but the TRAIN-calibrated A=0.32 does equally well on TEST (+7.28c), so this lookahead does not drive the result. Real residual caveat: the gate form won a ~13-candidate tournament on the same 60d data, so a Bonferroni-style discount puts family-level TRAIN significance at ~0.05-0.09 (marginal) and TEST p=0.033 is program noise — but the finding already frames itself as shadow-confirmation only, concedes the paired delta vs flagship spans 0, and defers promotion to 400+ forward paired signals per FINAL-DESIGN 5.2. As stated, the claim does not overreach."
+          },
+          {
+            "refuted": false,
+            "confidence": "high",
+            "reason": "Not refuted. Independent reimplementation (different seed) reproduced every headline number essentially exactly: baseline 4023/.5334 (TRAIN 2649/.5228, TEST 1374/.5539); gate B TRAIN n=1733 q_sel=.5418 q_comp=.4863 net +4.70c; TEST n=1009 q_sel=.5669 q_comp=.5178 net +7.20/+6.20/+5.20c at .4774/+1c/+2c; all six folds match to 0.01c including the fold-1 flip; gate-effect block-boot p TRAIN 0.002 / TEST 0.040 (claimed .0035/.033); paired-vs-flagship TEST delta -0.61c CI90 [-1.61,+0.39] and 60d -0.01c CI90 [-0.74,+0.69], matching the finding's own admission that totals vs flagship are a wash. The adversarial fee/fill attack does NOT kill it: pm_prices_sample (49 matched signals, last ~3d) shows the selected subset's real contrarian cost is richer than the flat ledger mix (uncensored mean .5316, p50 .535) with availability ~47% (not 55%), but the ≤.53-censored honest fill is .4978 — right on the finding's already-quoted +2c sensitivity row — giving TEST net +5.16c vs q*(.4978)=.5153; even at the worst cap-allowed fill (.53, q*=.5474) TEST q_sel .5669 nets ~+2c. So honest fills cut volume (~20 fills/day) and ~2c/share, not viability. Caveats that temper but do not refute: (1) A=0.10 came from a trailing-20d calibration overlapping TEST, but TRAIN-calibrated A=0.32 gives TEST +7.28c and all 35 swept (A,B) combos beat or match flagship's +5.90c TEST net (plateau, not cherry-pick); (2) the 18 pm-available selected fills won only 44% at actual prices in that 3d slice — n far too small to be significant (SE ~12pp; same window's full selected set q=.5576, n=165) and the concern applies equally to the flagship's fill model. The finding's verdict is honestly calibrated: per-share lift real on TRAIN and TEST, totals within paired CI of flagship, promotion correctly deferred to the pre-registered forward paired-CI gate per FINAL-DESIGN 5.2."
+          },
+          {
+            "refuted": false,
+            "confidence": "high",
+            "reason": "Independent reimplementation reproduced every headline number exactly (well within tolerance), and the effect survives all adversarial re-splits in my lens: TRAIN persistence is explicit (gate effect +5.6pp, block-boot p=.003 — no TEST-only lift, no TRAIN->TEST sign flip); positive gate effect and positive selected net in all three 20d thirds, in a reversed split with TEST=first 20d (boot p=.022, +2.7c even at +2c fill), in 9/9 weekly folds for net and 7/9 for gate effect, and within every Kaufman eff12 regime cell (le/gt 0.48 and terciles), so it is not an eff12-proxy artifact. The deploy-spec A=0.10 lookahead (calibrated on trailing 20d = TEST) is not load-bearing: TRAIN-calibrated A=0.32 gives TEST +7.28c vs +7.20c. The one genuine weakness — paired delta vs flagship alternates sign by fold (leave-one-fold-out swings -13 to +11 share-units) and is a wash overall — is exactly what the finding itself claims ('no change today; promotion needs 400+ forward paired signals with CI lb>0'), so its hedged 'promising as shadow confirmation' verdict is correct as stated."
+          }
+        ],
+        "survives": true
+      }
+    ],
+    "synth": {
+      "summary": "VARIANTS.md written. Ranked verdicts: (1) impulse PROMISING — the fixed deploy-spec gate eff6>=0.10 AND cnt12<=6 is the program's only overlay with no TRAIN->TEST sign flip (TRAIN q_sel .5418/+4.70c p=.002-.0035; TEST .5669/+7.20c at .4774 fill, +6.20/+5.20c at +1c/+2c; all six folds positive incl. flipping flagship's only losing fold), but paired-vs-flagship totals are a wash (TEST -0.61c CI90 [-1.61,+0.39]; 60d -0.01c), so it ships as the zero-stake impulse_shadow already reserved in FINAL-DESIGN §2 — full ENGINE_CFG entry and eval-diff vs _reversal_v2_eval finalized (13-contiguous-candle history, eff6 includes trigger / cnt12 excludes it, gate features logged on every flagship signal so the complement book is free). (2) band DEAD as trigger machinery (12-20 band TEST paired -0.44c, -35-46% EV; size gradient TEST-only in both directions; >=16bps fill premium +1.2-2.4c is a cost the .53 cap converts to skips; rev20_shadow roster entry unchanged with a pre-registered day-60 sign check — a powered test needs ~17.5k fills/475 days so it can never clear §5.2). (3) asym DEAD in full (delta p=.32, ledger sign flips, no fill-side skew, ETH filters can't beat flagship) — no-encode re-confirmed on 6x data. Forward power math pre-registered for impulse_shadow: F1 complement-fill differential (1c detectable in ~120 comp fills ≈ 10d; 2c in ~3d), F2 selected absolute viability (489-647 fills = 20-26d at .4774 mix; 1,206-1,595 = 48-64d if fills land at the pm-sample .4978 mix), F3 gate effect 5pp (2,852-3,772 fills = 77-102d; day-60 power 60-71%), F4 §5.2 totals promotion honestly unreachable at the point estimate (delta ~0 flat / +0.31-0.62c trend-adjusted needs 12.8k-51k paired fills = 347-1,387d; CI half-width ±2.3-2.7c at the 400-fill minimum) — expected verdict 'no change', by design. 17-item dead list across the three families with kill numbers so nothing gets retested. Nothing contradicts FINAL-DESIGN v2.1; the doc integrates with §2/§5.2/§8.",
+      "path": "/private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/VARIANTS.md",
+      "ranked": [
+        "1. impulse — PROMISING [CANDIDATE]: eff6>=0.10 AND cnt12<=6 fixed gate; TRAIN +4.70c/TEST +7.20c per share at .4774 (+6.20/+5.20 at +1c/+2c), no sign flip, all 6 folds positive, gate-effect p=.002 TRAIN/.033 TEST; paired totals vs flagship a wash (-0.01c 60d, CI spans 0) -> zero-stake impulse_shadow only, promotable solely via FINAL-DESIGN §5.2",
+        "2. band — DEAD as trigger modification: 12-20 band TEST paired -0.44c and -35-46% total EV; monster premise TRAIN-inverted; >=16bps contrarian fills +1.2-2.4c richer but the .53 cap converts premium to skips; rev20_shadow stays roster-unchanged with a day-60 sign-check retirement criterion (powered test = ~17.5k fills / ~475 days, unreachable)",
+        "3. asym — DEAD in full: fadeUP-fadeDOWN +1.5pp p=.32 with live-ledger sign flips and no fill-side skew (0.3c, n=18/31); ETH confirmation +0.2/0.3pp can't beat flagship and tightened version is the standing TEST-only kill pattern; original no-encode decision re-confirmed on 6x the data"
+      ]
+    }
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Variants"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 2,
+      "title": "Verify"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 3,
+      "title": "Synthesize"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "variant:impulse",
+      "phaseIndex": 1,
+      "phaseTitle": "Variants",
+      "agentId": "a2881cedaf2a3ef1d",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691794848,
+      "queuedAt": 1783691793576,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Isolated impulse (calm-before-the-spike): a single sharp >=…",
+      "promptPreview": "You are a quant research subagent extending a completed research program.\nFIRST read undefined/BRIEF.md (market spec, EXACT fee model, dataset schemas, methodology bar) and undefined/FINAL-DESIGN.md (the locked v2.1 design you are building variants OFF of). Follow both exactly.\nTHE FLAGSHIP BASELINE you must pair every test against: reversal_v2 = buffered open-to-open prior |move| >= 12bps on Coin…",
+      "lastProgressAt": 1783692382142,
+      "tokens": 92821,
+      "toolCalls": 19,
+      "durationMs": 587294,
+      "resultPreview": "{\"hypothesis\":\"Isolated impulse (calm-before-the-spike): a single sharp >=12bps move preceded by calm reverts harder than one inside a volatile cascade or trend. VERDICT ON THE HYPOTHESIS AS STATED: the literal price-only form (pre-prior interval calm) is DEAD — it inverts TRAIN->TEST, the program's standing kill pattern. What survives both segments is the structural form at fixed deploy params (e…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "variant:band",
+      "phaseIndex": 1,
+      "phaseTitle": "Variants",
+      "agentId": "a73c486743e8ea213",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691794809,
+      "queuedAt": 1783691793576,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Magnitude band: mid-size impulses (12-20bps) are crowd over…",
+      "promptPreview": "You are a quant research subagent extending a completed research program.\nFIRST read undefined/BRIEF.md (market spec, EXACT fee model, dataset schemas, methodology bar) and undefined/FINAL-DESIGN.md (the locked v2.1 design you are building variants OFF of). Follow both exactly.\nTHE FLAGSHIP BASELINE you must pair every test against: reversal_v2 = buffered open-to-open prior |move| >= 12bps on Coin…",
+      "lastProgressAt": 1783692295373,
+      "tokens": 80827,
+      "toolCalls": 16,
+      "durationMs": 500563,
+      "resultPreview": "{\"hypothesis\":\"Magnitude band: mid-size impulses (12-20bps) are crowd overreaction and revert; monster moves (>=20bps) are news/informed flow that reverts less AND costs more to fade — so a band-limited trigger should beat take-all net of bucket-specific fills.\",\"findings\":[{\"title\":\"Band-limited 12-20bps trigger loses to take-all even at bucket-specific fills\",\"method\":\"cb5m 60d buffered open-to-…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "variant:asym",
+      "phaseIndex": 1,
+      "phaseTitle": "Variants",
+      "agentId": "a33680d4ab79fc71b",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783691796349,
+      "queuedAt": 1783691793576,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Variants off flagship reversal_v2 (12bps buffered contraria…",
+      "promptPreview": "You are a quant research subagent extending a completed research program.\nFIRST read undefined/BRIEF.md (market spec, EXACT fee model, dataset schemas, methodology bar) and undefined/FINAL-DESIGN.md (the locked v2.1 design you are building variants OFF of). Follow both exactly.\nTHE FLAGSHIP BASELINE you must pair every test against: reversal_v2 = buffered open-to-open prior |move| >= 12bps on Coin…",
+      "lastProgressAt": 1783692322513,
+      "tokens": 82997,
+      "toolCalls": 24,
+      "durationMs": 526164,
+      "resultPreview": "{\"hypothesis\":\"Variants off flagship reversal_v2 (12bps buffered contrarian, cap .53, hold-to-resolution): (1) fading up-moves (FOMO) differs exploitably from fading down-moves (panic), in outcomes and/or side-conditional fills; (2) a cross-asset joint impulse (BTC >=12bps AND ETH same-direction >=8bps in the same prior interval) reverts harder than a BTC-idiosyncratic impulse. Artifacts: /private…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 4,
+      "label": "verify:impulse:snoop",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a94459f89b641cf79",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783692385119,
+      "queuedAt": 1783692383726,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "high",
+      "promptPreview": "You are a quant research subagent extending a completed research program.\nFIRST read undefined/BRIEF.md (market spec, EXACT fee model, dataset schemas, methodology bar) and undefined/FINAL-DESIGN.md (the locked v2.1 design you are building variants OFF of). Follow both exactly.\nTHE FLAGSHIP BASELINE you must pair every test against: reversal_v2 = buffered open-to-open prior |move| >= 12bps on Coin…",
+      "lastProgressAt": 1783692666391,
+      "tokens": 72142,
+      "toolCalls": 14,
+      "durationMs": 281272,
+      "resultPreview": "{\"refuted\":false,\"confidence\":\"high\",\"reason\":\"Independent re-derivation from raw cb5m.json (own code, own indexing, different seed, explicit per-signal contiguity checks) reproduces every headline number essentially exactly, far inside the 10-15% tolerance: baseline 4023/.5334 (TRAIN 2649/.5228, TEST 1374/.5539); Flavor B fixed gate TRAIN sel 1733/q=.5418/+4.70c and TEST sel 1009/q=.5669/+7.20c a…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 5,
+      "label": "verify:impulse:costs",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "ac991e574d1da3b28",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783692385957,
+      "queuedAt": 1783692383726,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "high",
+      "promptPreview": "You are a quant research subagent extending a completed research program.\nFIRST read undefined/BRIEF.md (market spec, EXACT fee model, dataset schemas, methodology bar) and undefined/FINAL-DESIGN.md (the locked v2.1 design you are building variants OFF of). Follow both exactly.\nTHE FLAGSHIP BASELINE you must pair every test against: reversal_v2 = buffered open-to-open prior |move| >= 12bps on Coin…",
+      "lastProgressAt": 1783692727645,
+      "tokens": 85197,
+      "toolCalls": 18,
+      "durationMs": 341688,
+      "resultPreview": "{\"confidence\":\"high\",\"reason\":\"Not refuted. Independent reimplementation (different seed) reproduced every headline number essentially exactly: baseline 4023/.5334 (TRAIN 2649/.5228, TEST 1374/.5539); gate B TRAIN n=1733 q_sel=.5418 q_comp=.4863 net +4.70c; TEST n=1009 q_sel=.5669 q_comp=.5178 net +7.20/+6.20/+5.20c at .4774/+1c/+2c; all six folds match to 0.01c including the fold-1 flip; gate-eff…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 6,
+      "label": "verify:impulse:oos",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "aad4efdf996f28838",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783692385407,
+      "queuedAt": 1783692383726,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "high",
+      "promptPreview": "You are a quant research subagent extending a completed research program.\nFIRST read undefined/BRIEF.md (market spec, EXACT fee model, dataset schemas, methodology bar) and undefined/FINAL-DESIGN.md (the locked v2.1 design you are building variants OFF of). Follow both exactly.\nTHE FLAGSHIP BASELINE you must pair every test against: reversal_v2 = buffered open-to-open prior |move| >= 12bps on Coin…",
+      "lastProgressAt": 1783692797962,
+      "tokens": 99223,
+      "toolCalls": 22,
+      "durationMs": 412555,
+      "resultPreview": "{\"refuted\":false,\"confidence\":\"high\",\"reason\":\"Independent reimplementation reproduced every headline number exactly (well within tolerance), and the effect survives all adversarial re-splits in my lens: TRAIN persistence is explicit (gate effect +5.6pp, block-boot p=.003 — no TEST-only lift, no TRAIN->TEST sign flip); positive gate effect and positive selected net in all three 20d thirds, in a re…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 7,
+      "label": "variant-architect",
+      "phaseIndex": 3,
+      "phaseTitle": "Synthesize",
+      "agentId": "a1d1d00ea0a51e77d",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1783692804192,
+      "queuedAt": 1783692799395,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "/private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76…",
+      "promptPreview": "You are a quant research subagent extending a completed research program.\nFIRST read undefined/BRIEF.md (market spec, EXACT fee model, dataset schemas, methodology bar) and undefined/FINAL-DESIGN.md (the locked v2.1 design you are building variants OFF of). Follow both exactly.\nTHE FLAGSHIP BASELINE you must pair every test against: reversal_v2 = buffered open-to-open prior |move| >= 12bps on Coin…",
+      "lastProgressAt": 1783693245723,
+      "tokens": 84990,
+      "toolCalls": 11,
+      "durationMs": 441531,
+      "resultPreview": "{\"summary\":\"VARIANTS.md written. Ranked verdicts: (1) impulse PROMISING — the fixed deploy-spec gate eff6>=0.10 AND cnt12<=6 is the program's only overlay with no TRAIN->TEST sign flip (TRAIN q_sel .5418/+4.70c p=.002-.0035; TEST .5669/+7.20c at .4774 fill, +6.20/+5.20c at +1c/+2c; all six folds positive incl. flipping flagship's only losing fold), but paired-vs-flagship totals are a wash (TEST -0…"
+    }
+  ],
+  "totalTokens": 598197,
+  "totalToolCalls": 124
+}

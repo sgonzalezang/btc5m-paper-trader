@@ -1,0 +1,4 @@
+TEST: q_sel=0.5689 (n=689) q_rest=0.5387 (n=685) diff=+0.0303 p=0.2785
+hours selected 1st half TRAIN: [0, 1, 10, 12, 15, 16, 22, 23]
+hours selected 2nd half TRAIN: [0, 5, 6, 8, 9, 11, 16, 18, 20, 21, 22]
+overlap: [0, 16, 22]  jaccard=0.19

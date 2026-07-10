@@ -1,0 +1,34 @@
+{
+ "hist_fast": {
+  "final": 2666285.1,
+  "maxdd_pct": 28.7,
+  "dd_day": 49.0,
+  "guard_first": 13.7,
+  "bench_first": null,
+  "bench_days": 0
+ },
+ "hist_bench": {
+  "final": 1475265.2,
+  "maxdd_pct": 28.7,
+  "dd_day": 49.0,
+  "guard_first": 13.7,
+  "bench_first": 14.2,
+  "bench_days": 5
+ },
+ "disaster_fast": {
+  "final": 27342.2,
+  "maxdd_pct": 63.5,
+  "dd_day": 43.5,
+  "guard_first": 13.7,
+  "bench_first": null,
+  "bench_days": 0
+ },
+ "disaster_bench": {
+  "final": 18156.5,
+  "maxdd_pct": 31.8,
+  "dd_day": 56.2,
+  "guard_first": 13.7,
+  "bench_first": 14.2,
+  "bench_days": 27
+ }
+}

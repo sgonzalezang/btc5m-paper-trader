@@ -121,7 +121,7 @@
 <body>
 <header>
   <h1><span class="b">₿</span> BTC 5m Bot — Live Ledger <span class="b">· read-only</span></h1>
-  <div class="sub">Snapshot published by the headless paper bot · nested ablation: loose → +move floor → +move ceiling · value = fair-value gate · fade = opposite of loose · reversal = fade the last interval's big move · reversal2 = same, jumps in on a thin book · latent fire = reversal gated to choppy regimes · simulated, not financial advice</div>
+  <div class="sub">Snapshot published by the headless paper bot · FINAL-DESIGN v3 roster: <b>Impulse v2</b> = fade an isolated ≥12bps prior move (calm hour, efficient last 30min), ≤53¢, first 45s, hold to close, ¼-Kelly sized — the only live arm · <b>Rev v2 ctrl</b> (ungated ≤53¢) and <b>Rev 55c</b> (≤55¢) = zero-risk paired controls for the day-60 gate and cap verdicts · 8 retired engines keep their history but never trade again · simulated, not financial advice</div>
 </header>
 <div class="wrap">
   <div class="hb" id="hb"><span class="dot" id="dot"></span><b id="hbState">Loading…</b><span class="mut" id="hbMeta"></span></div>
@@ -300,7 +300,7 @@ const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
 // "rank"    = sorted by current P&L, best first.
 // ONE list drives the legend, the peak/trough table, the tooltip, the live bar and the
 // cards, so those surfaces can never disagree about ordering.
-const ENGS_GROUPED=["loose","floor","band","value","fade","strict","reversal","reversal2","latentfire"];
+const ENGS_GROUPED=["impulse_v2","reversal_v2","reversal","loose","floor","band","value","fade","strict","reversal2","latentfire"];
 let ENGSORT="rank";
 function engList(st){
   if(ENGSORT!=="rank") return ENGS_GROUPED.slice();
@@ -518,14 +518,21 @@ function draw(st){
   $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · hedge ${st.hedgeOn?"on":"off"} · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
   const eng=st.btc&&st.btc.engines||{};
-  const HUE={loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",value:"#8bc34a",fade:"#e0559a",reversal:"#26c6da",reversal2:"#facc15",latentfire:"#ff5252",strict:"var(--btc)"};
-  const LABEL={loose:"Loose",floor:"Floor",band:"Band",value:"Value",fade:"Fade",reversal:"Reversal",reversal2:"Reversal2",latentfire:"Latent Fire",strict:"Strict"};
+  const HUE={impulse_v2:"#ff8f2b",reversal_v2:"#7bd88f",loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",value:"#8bc34a",fade:"#e0559a",reversal:"#26c6da",reversal2:"#facc15",latentfire:"#ff5252",strict:"var(--btc)"};
+  const LABEL={impulse_v2:"Impulse v2",reversal_v2:"Rev v2 ctrl",loose:"Loose",floor:"Floor",band:"Band",value:"Value",fade:"Fade",reversal:"Rev 55c",reversal2:"Reversal2",latentfire:"Latent Fire",strict:"Strict"};
   const needLbl=(id)=>{
     const need=(S[id]||{}).need||(id==="strict"?10:st.loosePass);
     if(id==="strict") return `needs 10/10`;
     if(id==="fade") return `fades loose`;
     if(id==="value") return `ask < fair value`;
-    if(id==="reversal") return `fade big prior move → open`;
+    if(id==="impulse_v2"){
+      const im=st.impulse||{};
+      return `<b title="FINAL-DESIGN v3 flagship: fade an ISOLATED ≥12bps prior move (trailing 30min efficient AND ≤6 big moves in the prior hour), ≤53¢ fill, first 45s only, hold to close. Quarter-Kelly sized from its own bank; f≤0 / bench / bank<$250 = SKIP, and a skip is a logged decision.">fade isolated spikes · ¼-Kelly</b>`
+        +(im.bank!=null?` · bank $${Math.round(im.bank)}`:"")
+        +(im.benched?` · <b style="color:#ff5252">BENCHED</b>`:(im.haircut?` · guard haircut`:""));
+    }
+    if(id==="reversal_v2") return `ungated twin · ≤53¢ — its paired delta vs the flagship is the day-60 gate verdict`;
+    if(id==="reversal") return `ungated · ≤55¢ — settles the entry-cap dispute`;
     if(id==="reversal2") return `reversal + gamma fallback (jumps in)`;
     if(id==="latentfire") return `reversal, only in choppy regimes`;
     const cfg=(st.engineCfg||{})[id]||{};
@@ -537,7 +544,14 @@ function draw(st){
     else if(cfg.driftMax!=null) l+=` + <b title="only enters when early drift ≤${cfg.driftMax}% of the interval open">drift≤${cfg.driftMax}%</b>`;
     return l;
   };
-  const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span><span>${needLbl(id)}</span></h2>`
+  const chip=(id)=>{
+    const cfg=(st.engineCfg||{})[id]||{};
+    if(cfg.retired) return ` <b style="font-size:10px;padding:1px 6px;border-radius:8px;background:#333;color:#999;vertical-align:middle" title="terminal kill (FINAL-DESIGN v3): momentum/value/fade fee-death is structural — book and history preserved, never trades again">RETIRED</b>`;
+    if(cfg.shadow) return ` <b style="font-size:10px;padding:1px 6px;border-radius:8px;background:#1f3a4d;color:#7fd4ff;vertical-align:middle" title="zero-risk control book: paper-trades at flat $50 so its paired delta vs the flagship stays measurable to the penny">SHADOW</b>`;
+    if(id==="impulse_v2") return ` <b style="font-size:10px;padding:1px 6px;border-radius:8px;background:#4d321f;color:#ffb26b;vertical-align:middle" title="the only sized live arm">FLAGSHIP</b>`;
+    return "";
+  };
+  const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span>${chip(id)}<span>${needLbl(id)}</span></h2>`
     +(S[id]?tiles(S[id]):"")+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
   // Cards follow the SHARED order. In "grouped" this reproduces the ablation layout exactly
   // (loose|floor, band|value, fade|strict, reversal|reversal2, latentfire full-width);

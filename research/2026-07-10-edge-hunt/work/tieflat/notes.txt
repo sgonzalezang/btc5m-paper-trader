@@ -1,0 +1,40 @@
+TIEFLAT — tie rule + flat-interval structure. Scripts: tieflat_a.py, tieflat_c_d.py, tieflat_e.py
+Result JSONs: result_a_b.json, result_c_d.json, result_e.json
+Data: cb5m.json (17,280 candles, 0 gaps, 60.0d), pm_res_3d.json (863 resolutions, all matched),
+pm_prices_sample.json (216 markets). Split: TRAIN first 2/3 (n=11,512), TEST last 1/3 (n=5,756).
+Trailing vol = mean |move_bps| over prior 12 contiguous 5m intervals; decile edges from TRAIN only.
+D0 edge = 3.576 bps.
+
+(a) FLAT FRACTIONS (60d, n=17,268 usable)
+ overall: <1bps 10.0%, <2bps 20.4%. Exact Coinbase ties c==o: 9 (0.052%).
+ session: Asia 10.7/22.0, EU 9.2/18.6, US 10.1/20.6 (%, <1/<2bps)
+ vol decile: D0 17.6/36.3 ... D9 3.4/7.6 -> flatness is strongly forecastable from trailing vol.
+
+(b) P(Up) BY TRAILING-VOL DECILE (block bootstrap, 12-ivl blocks)
+ D0: TRAIN 0.5143 (p=0.17, n=1151) | TEST 0.4700 (p=0.84, n=317, ci 0.414-0.531)
+ D0-D2 pooled: TRAIN 0.5042 (p=0.32, n=3453) | TEST 0.4900 (p=0.76, n=1153, ci 0.463-0.519)
+ No decile passes p<0.01 TRAIN + persistence TEST. D4 (0.529/0.529) train p=0.024: fails bar, mid-decile, noise.
+ Diagnostic (NOT tradable, realized flatness): P(Up | |mv|<1bps) = 0.525 TRAIN / 0.514 TEST (Coinbase, tie-inclusive).
+
+(c) ANCHOR VS ACTUAL POLYMARKET RESOLUTIONS (3d overlap, n=863)
+ agreement by realized |move|: <1bps 73.0% (n=63) | 1-2bps 100% (n=73) | 2-4bps 99.2% (n=132) | >=4bps 100% (n=595)
+   -> oracle noise concentrates SUB-1BPS, not sub-2bps.
+ flattest bucket <1bps: proxy P(Up)=0.556 vs ACTUAL 0.508 [0.388,0.627] -> Coinbase proxy OVERSTATES Up when flat.
+ disagreement direction: proxyUp/actualDown 10 vs proxyDown/actualUp 7 (symmetric-ish).
+ |move|<0.25bps (n=18): actual Up 8/18 = 0.44 -> no oracle-side tie bonanza.
+ ex-ante D0 in 3d window: n=3 only (recent days too volatile; D0 untestable live).
+ overall actual P(Up) 3d: 0.508 (n=863).
+
+(d) PRICING + STRATEGY (pm_prices_sample, 216 markets, all matched to cb)
+ sample has NO D0 markets (decile counts: {1:6, 2:16, 3:17, 4:37, 5:31, 6:35, 7:28, 8:33, 9:13}).
+ p20 quantiles D0-D2 (n=22): q25 0.475, q50 0.495, q75 0.505 -> book prices quiet intervals ~fair, no Up premium.
+ STRATEGY buy Up @ p20<=0.52, vol D0: n=0. Relaxed D0-D2: n=19, win 0.526 [0.317,0.727] Wilson95,
+   mean PnL/share +0.0228 (no slip) / +0.0128 (+1c slip), bootstrap95 [-0.199,+0.225]. Uninformative.
+ Break-even q* at p20 fills: p=0.50 -> 0.5175, p=0.52 -> 0.5375. TEST P(Up) in D0-D2 = 0.490 << 0.5375.
+
+(e3) post-hoc session x quiet TEST: Asia 0.473 (376), EU 0.469 (431), US 0.535 (346) — post-hoc, fails bar, noise.
+
+CONCLUSION: no structural edge from the tie rule / flat intervals. The realized-flat Up bias seen in
+Coinbase data (0.52) is partly a proxy artifact (actual resolutions 0.508 in the same bucket), is not
+forecastable ex ante (quiet deciles TEST P(Up) 0.47-0.49), and the book prices quiet intervals fairly.
+Coinbase price discreteness produces essentially zero exact ties (0.05%).

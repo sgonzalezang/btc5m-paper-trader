@@ -1,0 +1,115 @@
+{
+ "lens": "regime robustness & out-of-sample",
+ "verdict": "NOT REFUTED \u2014 reproduced exactly; gate effect persists on TRAIN, weekly folds, alternate thirds, reversed split, and within both eff12 regimes; paired-vs-flagship delta confirmed as a wash (claim already states this)",
+ "reproduction_exact": {
+  "baseline": [
+   4023,
+   0.5334,
+   2649,
+   0.5228,
+   1374,
+   0.5539
+  ],
+  "B_train": {
+   "n": 1733,
+   "q_sel": 0.5418,
+   "q_comp": 0.4863,
+   "net_c": 4.7,
+   "boot_p_gate": 0.003
+  },
+  "B_test": {
+   "n": 1009,
+   "q_sel": 0.5669,
+   "q_comp": 0.5178,
+   "net_c": 7.2,
+   "boot_p_gate": 0.0323
+  },
+  "folds_net_c": [
+   7.95,
+   1.29,
+   4.24,
+   5.35,
+   4.86,
+   9.46
+  ],
+  "paired_delta_test_c": [
+   -0.625,
+   [
+    -1.642,
+    0.395
+   ],
+   0.1618
+  ],
+  "paired_delta_full_c": [
+   -0.011,
+   [
+    -0.73,
+    0.729
+   ]
+  ]
+ },
+ "adversarial_results": {
+  "lookahead_A032_train_calibrated_on_TEST": {
+   "n": 717,
+   "q": 0.5676,
+   "net_c": 7.28,
+   "note": "deploy-spec A=0.10 was trailing-20d(=TEST)-calibrated, but TRAIN-calibrated A=0.32 does equally well on TEST; plateau flat -> lookahead not load-bearing"
+  },
+  "weekly_9_folds": {
+   "gate_eff_pos": "7/9 (negatives are tiny-complement weeks 0 and 4)",
+   "net_sel_pos": "9/9"
+  },
+  "thirds_20d_gate_eff_pp": [
+   9.82,
+   4.76,
+   4.91
+  ],
+  "reversed_split_test_first20d": {
+   "net_sel_c_at_.4774": 4.7,
+   "at_+2c": 2.7,
+   "boot_p_gate": 0.022
+  },
+  "eff12_regime_segmentation_gate_eff_pp": {
+   "le048_full/TRAIN/TEST": [
+    5.34,
+    4.57,
+    5.97
+   ],
+   "gt048_full/TRAIN/TEST": [
+    6.93,
+    9.38,
+    2.63
+   ],
+   "terciles_lo_mid_hi": [
+    4.17,
+    5.57,
+    8.06
+   ],
+   "note": "gate effect positive in every eff12 regime cell; not an eff12 proxy artifact"
+  },
+  "paired_delta_instability": {
+   "per_fold_tot_shareunits": [
+    -3.84,
+    11.11,
+    12.45,
+    -11.92,
+    -0.56,
+    -7.81
+   ],
+   "leave_one_fold_out_full_tot": [
+    3.27,
+    -11.69,
+    -13.03,
+    11.35,
+    -0.01,
+    7.24
+   ],
+   "note": "delta vs flagship is fold-alternating noise around 0; consistent with the finding's own 'exact wash / no change today' framing; promotion bar (CI lb>0) clearly NOT met"
+  }
+ },
+ "kill_pattern_check": "TRAIN gate effect +5.55pp, block-boot p=0.003 \u2014 NOT TEST-only; no TRAIN->TEST sign flip in per-share nets anywhere (folds, weeks, thirds, regimes)",
+ "artifacts": [
+  "verify_regime_oos.py",
+  "verify_regime_oos_results.json"
+ ]
+}

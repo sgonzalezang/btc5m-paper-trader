@@ -1,0 +1,66 @@
+{
+ "static_latentfire": {
+  "full": 1574.3318040694496,
+  "test": 3301.1930549599742
+ },
+ "static_reversal": {
+  "full": 2204.1456334321147,
+  "test": 3290.786793212424
+ },
+ "static_momentum": {
+  "full": -23199.035072283412,
+  "test": -10358.683436724275
+ },
+ "static_cash": {
+  "full": 0.0,
+  "test": 0.0
+ },
+ "static_equal": {
+  "full": -4855.139408695462,
+  "test": -941.6758971379687
+ },
+ "hedge_eta*1": {
+  "full": -110.1793524979422,
+  "test": 2071.6367097295793,
+  "churn": 0.049030824706342346
+ },
+ "hedge_final_w": {
+  "latentfire": 0.349,
+  "reversal": 0.433,
+  "momentum": 0.0,
+  "cash": 0.218
+ },
+ "hedge_eta*3": {
+  "full": 270.0965057743287,
+  "test": 1921.5630086304184,
+  "churn": 0.1118454913868124
+ },
+ "hedge_eta*.3": {
+  "full": -1805.677557821893,
+  "test": 1296.5241635362045,
+  "churn": 0.01815296498864477
+ },
+ "thompson": {
+  "full": 1142.7967322703043,
+  "test": 2249.9705102023427,
+  "switches": 30.272499999999994
+ },
+ "ledger": {
+  "engines": [
+   "loose",
+   "strict",
+   "calm",
+   "floor",
+   "band",
+   "value",
+   "fade",
+   "reversal",
+   "reversal2",
+   "latentfire"
+  ],
+  "n_days": 4,
+  "hedge_total": -838.2966690956782,
+  "thompson_total": -1657.1906750000003,
+  "best_static": "reversal"
+ }
+}

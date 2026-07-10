@@ -1,0 +1,49 @@
+{
+ "reproduction": "PASSED: TRAIN 2065/q=0.5182, TEST 1018/q=0.5629, f*=0.0688 (no-fee 0.102), flat50=0.727x full Kelly at $1k; sim medians within ~2-3% of claimed (repro_results.json, verify_results.json)",
+ "attack_fills": {
+  "pm_p20_matched_gated": {
+   "n": 44,
+   "fillable_at_cap55_plus_slip": 31,
+   "q_fillable": 0.4516,
+   "q_unfillable": 0.7692,
+   "ev_per_dollar_fillable": -0.1296,
+   "note": "20s snapshot overstates bot entry by median +1.5c (30-trade overlap calibration); direction stands"
+  },
+  "ledger_155": {
+   "per_dollar_ev": 0.0445,
+   "hourblock_CI95": [
+    -0.2218,
+    0.2869
+   ],
+   "P_le_0": 0.369,
+   "fills_ge_050": {
+    "n": 92,
+    "q": 0.5217,
+    "mean_entry": 0.5254,
+    "hurdle": 0.5428,
+    "ev_share": -0.0211
+   },
+   "fills_lt_050": {
+    "n": 63,
+    "q": 0.5238,
+    "mean_entry": 0.4427,
+    "hurdle": 0.46,
+    "ev_share": 0.0638
+   },
+   "bucket_050_052": {
+    "n": 39,
+    "q": 0.436,
+    "hurdle": 0.531
+   }
+  },
+  "kelly_knife_edge": {
+   "f_at_p049": 0.1066,
+   "f_at_p051": 0.0688,
+   "f_at_p053": 0.0278,
+   "f_at_p055": -0.0169,
+   "f_at_ledger_q_p051": -0.0104,
+   "f_at_ledger_aggregates": 0.0271
+  }
+ },
+ "verdict": "refuted (design-point edge q=0.56@p=0.51 not attainable at honest fills; q conditional on fills>=0.50 is below q*(p) in BOTH pm price sample and the bot's own ledger; all live profit comes from sub-0.50 fills; aggregate ledger edge statistically zero). Qualitative de-risking direction (flat $50 overbet) survives and is in fact strengthened."
+}

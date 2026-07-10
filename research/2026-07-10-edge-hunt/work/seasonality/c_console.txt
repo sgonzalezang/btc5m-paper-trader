@@ -1,0 +1,55 @@
+== per-hour vol (median |5m move|, bps): TRAIN | TEST ==
+h00  5.40 |  5.95
+h01  6.57 |  8.13
+h02  5.93 |  6.91
+h03  4.50 |  6.39
+h04  4.58 |  6.00
+h05  4.98 |  5.98
+h06  5.18 |  5.27
+h07  5.02 |  5.30
+h08  4.95 |  5.52
+h09  4.68 |  5.48
+h10  4.96 |  4.14
+h11  4.72 |  5.42
+h12  6.14 |  6.13
+h13  7.10 |  9.13
+h14  9.00 |  8.67
+h15  8.32 |  9.76
+h16  8.02 |  7.66
+h17  6.95 |  6.95
+h18  5.98 |  5.33
+h19  5.55 |  5.56
+h20  4.66 |  4.98
+h21  4.66 |  5.50
+h22  6.18 |  5.79
+h23  5.06 |  5.53
+TRAIN session median vol (bps): {'Asia': 5.18, 'Europe': 5.03, 'US': 6.84, 'Late': 5.2}
+
+FIXED 12bps: TRAIN n=2379 q=0.5153 netEV=-0.0122 (72.1 tr/day)
+             TEST  n=1374 q=0.5539 netEV=+0.0264 (68.7 tr/day)
+
+== vol-scaled: trigger |r|>=k*vol_sess(7d roll)  (TRAIN sweep) ==
+k=0.8 n= 5530 q=0.5080 netEV=-0.0195 totalEVshares=  -108.0
+k=1.0 n= 4792 q=0.5054 netEV=-0.0221 totalEVshares=  -105.7
+k=1.2 n= 4201 q=0.5082 netEV=-0.0193 totalEVshares=   -81.0
+k=1.4 n= 3652 q=0.5055 netEV=-0.0220 totalEVshares=   -80.4
+k=1.6 n= 3194 q=0.5085 netEV=-0.0190 totalEVshares=   -60.8
+k=1.8 n= 2796 q=0.5139 netEV=-0.0135 totalEVshares=   -37.9
+k=2.0 n= 2436 q=0.5152 netEV=-0.0123 totalEVshares=   -30.0
+k=2.2 n= 2125 q=0.5129 netEV=-0.0146 totalEVshares=   -30.9
+k=2.4 n= 1864 q=0.5166 netEV=-0.0109 totalEVshares=   -20.2
+k=2.6 n= 1666 q=0.5204 netEV=-0.0071 totalEVshares=   -11.8
+k=2.8 n= 1478 q=0.5223 netEV=-0.0052 totalEVshares=    -7.6
+k=3.0 n= 1291 q=0.5198 netEV=-0.0077 totalEVshares=   -10.0
+k=3.2 n= 1143 q=0.5197 netEV=-0.0078 totalEVshares=    -8.9
+k=3.4 n= 1019 q=0.5182 netEV=-0.0093 totalEVshares=    -9.5
+k=3.6 n=  913 q=0.5170 netEV=-0.0105 totalEVshares=    -9.6
+k=3.8 n=  806 q=0.5186 netEV=-0.0089 totalEVshares=    -7.2
+k=4.0 n=  718 q=0.5084 netEV=-0.0191 totalEVshares=   -13.7
+
+TRAIN-selected: k_bestEV=2.8 (n>=300), k_matched=2.0 (trade count ~ fixed rule)
+k_bestEV=2.8: TEST n=781 q=0.5455 netEV=+0.0180 (39.0 tr/day) vs fixed TEST netEV=+0.0264
+k_matched=2.0: TEST n=1388 q=0.5382 netEV=+0.0107 (69.4 tr/day) vs fixed TEST netEV=+0.0264
+
+TEST diff (vol-scaled k=2.0 minus fixed): -0.0157  block-boot p=0.0087
+saved -> /private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/work/seasonality/c_results.json

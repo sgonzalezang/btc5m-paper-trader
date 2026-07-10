@@ -1,0 +1,31 @@
+{
+  "verifier_lens": "fees, fills, and market reality (independent v2 pass)",
+  "finding": "FILL MODEL: contrarian entry after >=12bps prior move (microstructure family)",
+  "refuted": false,
+  "reproduction_vs_claims": {
+    "pm_sample": "n=49/216 exact; c20 quantiles p5 .469/p25 .505/p50 .525/p75 .555/p95 .595 (claim .47/.505/.525/.555/.595) — exact",
+    "avail_le_55c": "0.6939 vs claim 0.694 — exact",
+    "ledger_entry_q": "n=155; p25 .47/p50 .51/p90 .55 — exact; share-wtd entry .4861, q*=.5036 — exact",
+    "winrate_pnl": "52.26%, PnL +$344.74 = +$621.03 misprice - $276.33 fees — exact",
+    "join": "n=28, mean -0.0289 exact; median -0.015 by midpoint convention (-0.020 interpolated) — within tolerance",
+    "fillability": "70/82 = 85.4% — exact",
+    "last_third_winrate": "last 51 = .3922; last 50 = .380 — matches claim",
+    "by_move_split": "c20 median .505 (12-16bps, n=21) vs .535 (>=16bps, n=28) — exact",
+    "spread_signals_log": "n=1,543 (log grew since claim n=1,482): median 1c, p95 2c, p99 3c, max 6c — matches; reversal-family signals n=75 median 1c p95 1c"
+  },
+  "fee_fill_attacks": {
+    "exact_fee_formula": "feeEntry == shares*0.07*entry*(1-entry) to 1e-6 on all 155 trades; gas $0.004 present",
+    "double_fee_legs": "feeExit = 0 on all 155; zero hedge legs, zero stops in the family — pure hold-to-resolution, no hidden second vig",
+    "partial_fills": "fillFrac = 1.0 on all 155; no partial-fill flattery at $50 stakes (depth beyond $50/trade remains unestablished)",
+    "cap_discipline": "0 entries > 0.56, 0 asks > 0.55 — censoring at revEntryMax exactly as described",
+    "slip_realism": "9/155 trades show effective slip 1.15-1.19c (book-walk avg above ask+1c); modeled +1c slip is slightly OPTIMISTIC on ~6% of fills but fees were charged on the true (higher) entry — immaterial and not flattering",
+    "join_censoring": "the '-2.9c ask below minute-mid' recipe number is partly a cap-censoring artifact: c20<=.54 subgroup (n=23) mean -2.0c / median -1.5c; c20>.54 subgroup (n=5, mechanically selected by the 55c cap) mean -6.9c. Honest fast-entry discount ~-1.5c; direction survives, magnitude overstated ~1c",
+    "net_edge_at_honest_fills": "uncensored pm-sample honest fills (c20+1c, >55c = skip): n=34, mean fill .5138, win .4412 vs q* .5313 -> EV -0.090/share, BELOW break-even; live pooled +1.9pp (52.26% vs q* .5036) but last-third .38-.39 << q*. The reversal EDGE at these fills does NOT clear fees on TEST — exactly as the finding itself discloses",
+    "conservatism_direction": "the proposed cost model does not flatter backtests: on the joined set, EV at real ledger fills -0.009/share vs -0.038/share at modeled c20+1c fills; live fillability 85% > modeled 69% availability. Model is pessimistic vs reality"
+  },
+  "conclusion": "Not refuted as a COST INPUT. Every headline number reproduces exactly from data/; the exact fee formula is honored on all fills; there are no partial fills, no exit/hedge double-fee legs, and no cap violations; the model is conservative relative to live fills. Two required amendments: (1) use ~-1.5c (not -2c) for the fast-entry-vs-minute-mid discount, or better, consume the ledger entry quantiles directly — the join delta is censoring-inflated; (2) any strategy claim built on these fills is refuted at current n: honest-fill EV is -0.09/share in the uncensored sample and last-third win rate .38-.39 is far below q*=.5036, so 'promising' attaches only to the fill-distribution deliverable, never to the reversal edge at these prices.",
+  "scripts": [
+    "work/verify-microstructure/repro_feesfills_v2.py",
+    "work/verify-microstructure/repro_feesfills_v2.json"
+  ]
+}

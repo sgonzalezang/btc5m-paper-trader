@@ -62,18 +62,24 @@ PROFILES = {
 #  strict  — all 10 guards (fires almost never; kept as a legacy control)
 # (retired 2026-07-08: capless — answered, >65c entries lose; calm — vol gate
 #  formally dead, z=-1.1 on 1,057 intervals. Both recoverable from git history.)
-ENGINES = ["loose", "floor", "band", "strict", "value", "fade", "reversal", "reversal2", "latentfire"]
+# FINAL-DESIGN v3 roster (2026-07-10, research/2026-07-10-edge-hunt/FINAL-DESIGN.md):
+# impulse_v2 is the only sized live arm; reversal_v2 (53c ungated) and reversal
+# (55c ungated) run as $50-flat shadow controls — their paired deltas vs the
+# flagship ARE the pre-registered day-60 gate and cap verdicts. The 7 retired
+# engines are terminal kills (momentum/value/fade fee-death is structural, not
+# parametric); their books and histories stay intact but they never trade again.
+ENGINES = ["impulse_v2", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "latentfire"]
 ENGINE_CFG = {
-    "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None),
-    "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None),
-    "band":   dict(label="Band",   tunable=True,  driftMin=0.02, driftMax=0.04, entryMax=0.65, volMax=None),
-    "strict": dict(label="Strict", tunable=False, driftMin=None, driftMax=None, entryMax=None,  volMax=None),
+    "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None, retired=True),
+    "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None, retired=True),
+    "band":   dict(label="Band",   tunable=True,  driftMin=0.02, driftMax=0.04, entryMax=0.65, volMax=None, retired=True),
+    "strict": dict(label="Strict", tunable=False, driftMin=None, driftMax=None, entryMax=None,  volMax=None, retired=True),
     # value — fades a lagging book. Estimates P(the current lead survives to close)
     # from drift, seconds left, and trailing vol, and enters only when the ask is
     # below that fair value by a margin. First engine that gates on price-vs-fair-
     # value instead of a fixed cap; it should refuse most of what band takes.
     "value":  dict(label="Value",  tunable=True,  driftMin=None, driftMax=None, entryMax=None, volMax=None,
-                   fvK=1.6, fvMargin=0.03),
+                   fvK=1.6, fvMargin=0.03, retired=True),
     # fade — pure contrarian side engine. Mirrors loose's ENTER onto the opposite
     # token at its REAL book price (not a 1-p mirror), so paper pays the true
     # opposite spread and fee. Wins exactly when loose loses, which only pays
@@ -81,7 +87,7 @@ ENGINE_CFG = {
     # at a 59c average entry); floor and band have positive edge and are NOT
     # fadeable. Paper side engine, never emitted to the live executor.
     "fade":   dict(label="Fade",   tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
-                   fadeOf="loose"),
+                   fadeOf="loose", retired=True),
     # reversal — the cross-interval overreaction engine, structurally UNLIKE the
     # others: it fires at the START of an interval, betting the OPPOSITE side of
     # the JUST-COMPLETED interval's move. Basis (10 days, 2,876 intervals): a
@@ -91,8 +97,8 @@ ENGINE_CFG = {
     # the worst-case fee, with margin up to ~55c. Holds to resolution (no stop:
     # the thesis IS reversion by close). Deploy-ready for the live bridge but
     # NOT in --signal-engines until forward paper data confirms the entry price.
-    "reversal": dict(label="Reversal", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
-                     revThr=0.12, revEntryMax=0.55, revWinMin=180, holdToClose=True),
+    "reversal": dict(label="Rev 55c", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                     revThr=0.12, revEntryMax=0.55, revWinMin=180, holdToClose=True, shadow=True),
     # reversal2 — same signal as reversal (fade a >=0.12% prior move), but LOOSENED
     # execution so it actually jumps in at the open instead of sitting out on a
     # thin book: when the CLOB book has no ask, it prices off the gamma/event mid
@@ -100,7 +106,7 @@ ENGINE_CFG = {
     # Runs concurrently with reversal — the pair measures how much fill-execution
     # friction at the open costs the strategy. Paper-only (not in --signal-engines).
     "reversal2": dict(label="Reversal2", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
-                      revThr=0.12, revEntryMax=0.55, revWinMin=150, holdToClose=True, revLoose=True),
+                      revThr=0.12, revEntryMax=0.55, revWinMin=150, holdToClose=True, revLoose=True, retired=True),
     # Latent Fire (reversal3) — reversal2 PLUS a regime gate. Reversal only wins when
     # big moves revert, which happens in CHOPPY regimes and fails in TRENDING ones.
     # The tell that survives out-of-sample is Kaufman trend efficiency over the last
@@ -111,8 +117,36 @@ ENGINE_CFG = {
     # chop. Paper-only.
     "latentfire": dict(label="Latent Fire", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                        revThr=0.12, revEntryMax=0.55, revWinMin=150, holdToClose=True, revLoose=True,
-                       effGate=True, effMax=0.48, effWin=12),
+                       effGate=True, effMax=0.48, effWin=12, retired=True),
+    # impulse_v2 — THE FLAGSHIP (FINAL-DESIGN v3). Fade an ISOLATED impulse only:
+    # 12bps buffered prior move, contrarian, hold to close — but gated so the spike
+    # must stand alone: eff6 >= 0.10 (the trailing 30 min, trigger included, was
+    # efficient — one clean move, not churn) AND cnt12 <= 6 (at most six 12bps+
+    # intervals in the hour BEFORE the trigger — not a cascade). Verified 3/3 by
+    # two independent tracks (regime family walk-forward + variant hunt at these
+    # exact fixed params): only overlay in the program with no TRAIN->TEST sign
+    # flip; all six 10d folds positive. 53c entry cap (q*(0.53)=.5474 is the last
+    # clearable price), first-45s entry only (contrarian mid disperses violently
+    # by ~60s; winners' entrySec p50=9s). Sized: quarter-Kelly on bucketed qhat
+    # from its own $1,000 bank (sized=True); f<=0 or bench or bank<$250 = SKIP.
+    "impulse_v2": dict(label="Impulse v2", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                       revThr=0.12, revEntryMax=0.53, revWinMin=255, holdToClose=True,
+                       impGate=True, eff6Min=0.10, cnt12Max=6, sized=True),
+    # reversal_v2 — ungated control shadow. Identical spec minus the impulse gate,
+    # $50 flat. Its paired per-share delta vs impulse_v2 on common signals is the
+    # pre-registered day-60 gate verdict (does the gate pay at live fills?).
+    "reversal_v2": dict(label="Rev v2 ctrl", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                        revThr=0.12, revEntryMax=0.53, revWinMin=255, holdToClose=True, shadow=True),
 }
+# impulse_v2 sizing/learning state defaults (persisted under st["impulse"]).
+# qlo/qhi are the bucketed win-prob estimates (effective cost < / >= 50c) with
+# neutral ledger seeds and prior mass 400 (FINAL-DESIGN v3 MF2/MF3); measure is
+# the measurement book: every cap-compliant gated signal, sized or skipped —
+# qhat learns from THIS, never from the bank-censored sized book.
+IMP_SEED_LO, IMP_SEED_HI, IMP_PRIOR = 0.5057, 0.5068, 400
+def default_impulse():
+    return dict(bank=1000.0, qlo=IMP_SEED_LO, qhi=IMP_SEED_HI, benched=False,
+                measure=[], skips={}, lastNightly=0)
 VOL_WIN_MS = 600000   # trailing window for the volatility measure (10 min)
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
 # backtest (2026-07-06, 21 honest trades) showed loose entries that skipped
@@ -356,6 +390,8 @@ class Bot:
         self.closes = {}                      # t0 -> interval's last spot price (for provisional settle)
         self.prev_ivl = None                  # {t0, open, close, ret} of the just-COMPLETED interval — the reversal engine's signal
         self.ivl_hist = self.st.setdefault("ivlHist", [])   # rolling last-N interval returns (for Latent Fire's trend-efficiency regime gate); persisted
+        self.ivl_hist2 = self.st.setdefault("ivlHist2", []) # [[t0, ret], ...] last 20 — impulse gate needs CONTIGUITY, so t0s travel with the returns
+        self.imp = self.st.setdefault("impulse", default_impulse())   # flagship sizing/learning state; persisted
         self.eng = {e: {"eval": None, "miss": None} for e in ENGINES}
         self.logs = []
         self.misses = self.st.setdefault("misses", [])   # "close but no entry" markets; persisted so the record survives restarts
@@ -487,6 +523,131 @@ class Bot:
             return {"bid": gb, "ask": ga, "top": round(max(4 * stake, 200), 2), "at": m["gAt"], "src": "gamma"}
         return q
 
+    def _impulse_gate(self, t0):
+        """Isolated-impulse gate (FINAL-DESIGN v3, verified conventions):
+        over the 13 CONTIGUOUS completed intervals ending at the trigger
+        (trigger = interval t0-IVL): eff6 = |compounded net of the last 6 moves|
+        / sum(|those 6 moves|), TRIGGER INCLUDED, must be >= eff6Min; cnt12 =
+        count of |move| >= 12bps among the 12 moves BEFORE the trigger, TRIGGER
+        EXCLUDED, must be <= cnt12Max. Missing/non-contiguous history means the
+        gate is not ready -> (False, None, None): stay latent, never guess."""
+        need = {t0 - IVL * k: None for k in range(1, 14)}
+        for it, r in self.ivl_hist2:
+            if it in need: need[it] = r
+        if any(v is None for v in need.values()): return False, None, None
+        last6 = [need[t0 - IVL * k] for k in range(6, 0, -1)]
+        den = sum(abs(r) for r in last6)
+        net = 1.0
+        for r in last6: net *= (1.0 + r)
+        eff6 = (abs(net - 1.0) / den) if den > 0 else 1.0
+        cnt12 = sum(1 for k in range(2, 14) if abs(need[t0 - IVL * k]) >= 0.0012)
+        cfg = ENGINE_CFG["impulse_v2"]
+        ok = (eff6 >= cfg["eff6Min"]) and (cnt12 <= cfg["cnt12Max"])
+        return ok, round(eff6, 4), cnt12
+
+    def _impulse_stake(self, p):
+        """Quarter-Kelly stake for a fill at price p (ask+slip), or (None, why).
+        cost = p + fee(p) per share; qhat bucketed by cost (<50c / >=50c);
+        f_full = qhat - (1-qhat)*cost/(1-cost). f<=0 is a SKIP (no stake floor
+        exists — MF1), as are the guard bench and the $250 ops breaker."""
+        imp = self.imp
+        cost = p + FEE_RATE * p * (1 - p)
+        qh = imp["qlo"] if cost < 0.50 else imp["qhi"]
+        if imp.get("benched"): return None, "benched"
+        if imp.get("bank", 1000.0) < 250: return None, "breaker"
+        if imp.get("haircut"): qh = 0.5 + (qh - 0.5) / 2      # tier-1/2 base-rate guard: halve the assumed edge
+        f = qh - (1 - qh) * cost / (1 - cost)
+        if f <= 0: return None, "f_nonpos"
+        stake = round(min(0.25 * f * imp["bank"], 0.05 * imp["bank"]), 2)
+        if stake < MIN_ORDER_USD: return None, "stake_lt_min"  # no stake floor exists (MF1): too small = SKIP
+        return stake, None
+
+    def _measure_record(self, t0, side, cost, sized, why):
+        """Measurement book: EVERY cap-compliant gated signal, sized or skipped.
+        qhat learns from this, never from the bank-censored sized book."""
+        ms = self.imp["measure"]
+        if ms and ms[-1].get("t0") == t0: return
+        ms.append(dict(t0=t0, side=side, cost=round(cost, 4), win=None,
+                       sized=bool(sized), skip=(why or None)))
+        del ms[:-12000]
+        if why: self.imp["skips"][why] = self.imp["skips"].get(why, 0) + 1
+
+    def _measure_settle(self, t0, w):
+        """Backfill measurement outcomes from any oracle-settled interval."""
+        for m in self.imp["measure"]:
+            if m["t0"] == t0 and w in ("up", "down"):
+                m["win"] = 1 if m["side"] == w else 0
+
+    def warm_ivl_hist(self):
+        """Cold-start rule (FINAL-DESIGN M6): rebuild the impulse gate's interval
+        history from Coinbase 5m REST candles so a restart never benches the
+        flagship for the ~65 min the window would otherwise take to refill.
+        Deterministic public data — identical values to what live ticks record.
+        Best-effort: any failure just leaves the gate warming up naturally."""
+        try:
+            ns = now_s(); end = (ns // IVL) * IVL
+            have = {p[0] for p in self.ivl_hist2}
+            if all((end - IVL * k) in have for k in range(1, 14)): return
+            A = self.asset()
+            rows = http_json(f"https://api.exchange.coinbase.com/products/{A['cb']}/candles"
+                             f"?granularity={IVL}&start={end - IVL * 17}&end={end}")
+            if not rows: return
+            by = {int(r[0]): (r[3], r[4]) for r in rows}          # t0 -> (open, close)
+            built = [[t, (c - o) / o] for t, (o, c) in sorted(by.items()) if t < end and o]
+            if built:
+                self.ivl_hist2[:] = built[-20:]
+                self.ivl_hist[:] = [r for _, r in built][-20:]
+                self.log(f"impulse gate warmed from {len(built)} Coinbase candles (cold-start rebuild)")
+        except Exception as e:
+            self.log(f"gate warm-up skipped: {e}")
+
+    def nightly_tick(self, ns):
+        """00:10 UTC daily: refresh bucketed qhat from the trailing-30d measurement
+        book, run the base-rate guard tiers, assert the fee formula, and log the
+        loop metrics. Trading parameters NEVER move here (10-day refits are a
+        separate, human-reviewed step per FINAL-DESIGN v3 — nothing automated)."""
+        due = (ns // 86400) * 86400 + 600
+        if ns < due or self.imp.get("lastNightly", 0) >= due: return
+        self.imp["lastNightly"] = due
+        try: self._impulse_nightly(ns)
+        except Exception as e: self.log(f"nightly job error: {e}")
+
+    def _impulse_nightly(self, ns):
+        imp = self.imp
+        cut = (ns - 31 * 86400)
+        imp["measure"] = [m for m in imp["measure"] if m["t0"] >= cut]
+        settled = [m for m in imp["measure"] if m["win"] is not None]
+        def qhat(bucket_lo, seed):
+            xs = [m for m in settled if (m["cost"] < 0.50) == bucket_lo]
+            return round(min(0.56, (sum(m["win"] for m in xs) + IMP_PRIOR * seed) / (len(xs) + IMP_PRIOR)), 4)
+        imp["qlo"], imp["qhi"] = qhat(True, IMP_SEED_LO), qhat(False, IMP_SEED_HI)
+        def netps(days, nmin):
+            xs = [m for m in settled if m["t0"] >= ns - days * 86400]
+            if len(xs) < nmin: return None
+            tot = sum((1 - m["cost"]) if m["win"] else -m["cost"] for m in xs)
+            return tot / len(xs)
+        n15, n7, n10 = netps(15, 250), netps(7, 120), netps(10, 100)
+        if (n15 is not None and n15 < -0.03) or (n7 is not None and n7 < -0.04):
+            if not imp["benched"]: self.log("impulse GUARD: hard bench (tier 3) — stake to $0")
+            imp["benched"] = True
+        elif imp["benched"] and n10 is not None and n10 >= 0:
+            imp["benched"] = False; self.log("impulse GUARD: unbenched (trailing 10d recovered)")
+        imp["haircut"] = bool((n15 is not None and n15 < -0.01) or (n7 is not None and n7 < -0.02))
+        fee_bad = 0
+        for t in self.trades("impulse_v2")[:200]:
+            if t.get("result") in ("win", "loss") and t.get("feeEntry") is not None:
+                if abs(t["feeEntry"] - t["shares"] * FEE_RATE * t["entry"] * (1 - t["entry"])) > 1e-4: fee_bad += 1
+        if fee_bad: self.log(f"nightly ASSERT FAILED: {fee_bad} fills off the fee formula — investigate before trusting P&L")
+        metrics = dict(t=ns, qlo=imp["qlo"], qhi=imp["qhi"], benched=imp["benched"], haircut=imp["haircut"],
+                       bank=round(imp["bank"], 2), measured=len(imp["measure"]), settled=len(settled),
+                       n15=(round(n15, 4) if n15 is not None else None), skips=dict(imp["skips"]), feeBad=fee_bad)
+        try:
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "loop_metrics.jsonl"), "a") as f:
+                f.write(json.dumps(metrics, separators=(",", ":")) + "\n")
+        except Exception: pass
+        self.log(f"nightly: qlo {imp['qlo']} qhi {imp['qhi']} bank ${imp['bank']:.0f} "
+                 f"measured {len(settled)}/{len(imp['measure'])}{' BENCHED' if imp['benched'] else ''}")
+
     def _reversal_eval(self, now, eid):
         """Cross-interval overreaction engine — fires at the START of an interval,
         betting the OPPOSITE side of the just-completed interval's move. Unlike
@@ -545,17 +706,44 @@ class Bot:
         ]
         if cfg.get("effGate"):
             checks.append(("Choppy≤%.2f" % cfg.get("effMax", 0.48), eff_ok))
+        # impulse_v2: isolated-impulse gate + quarter-Kelly sizing (FINAL-DESIGN v3)
+        imp_ok, eff6, cnt12, stake_usd = True, None, None, None
+        if cfg.get("impGate"):
+            imp_ok, eff6, cnt12 = self._impulse_gate(m["t0"]) if m else (False, None, None)
+            checks.append(("Isolated", imp_ok))
         passc = sum(1 for _, ok in checks if ok)
-        enter = bool(market_ok and signal and early and priced_ok and spread_ok and fresh and depth_ok and can_fill and eff_ok)
+        fillable = bool(market_ok and signal and early and priced_ok and spread_ok and fresh and depth_ok and imp_ok
+                        and q and q["ask"] is not None)
+        if cfg.get("sized") and fillable:
+            # measurement first (stake-independent), then the sizing decision
+            p_fill = min(0.99, q["ask"] + slip)
+            stake_usd, skip_why = self._impulse_stake(p_fill)
+            self._measure_record(m["t0"], rev_side, p_fill + FEE_RATE * p_fill * (1 - p_fill),
+                                 stake_usd is not None, skip_why)
+            if stake_usd is None and self.sig_last.get("_impskip") != m["t0"]:
+                self.sig_last["_impskip"] = m["t0"]
+                self.log(f"[IMPULSE_V2] signal but SKIP ({skip_why}) ask {q['ask']*100:.0f}c "
+                         f"qlo {self.imp['qlo']} qhi {self.imp['qhi']} bank ${self.imp['bank']:.0f}")
+        enter = bool(market_ok and signal and early and priced_ok and spread_ok and fresh and depth_ok and can_fill
+                     and eff_ok and imp_ok and (stake_usd is not None or not cfg.get("sized")))
         delta = (pv["ret"] * pv["open"]) if (pv and pv.get("open")) else 0.0                 # prior move in $ (for logs)
         ev = dict(t=now, side=rev_side, delta=delta, q=q, mid=mid, spread=spread, left=left,
                   checks=checks, passCount=passc, need=len(checks), must=["Prior≥thr"], mustOk=signal,
                   driftPct=prior_move, fv=None, extra=[], extraOk=True, priorMove=prior_move, eff=eff_val,
+                  eff6=eff6, cnt12=cnt12, stakeUsd=stake_usd,
                   all=(passc == len(checks)), enter=enter)
         self.eng[eid]["eval"] = ev
         return ev
 
     def evaluate(self, now, eid):
+        if ENGINE_CFG[eid].get("retired"):
+            # Terminal kill (FINAL-DESIGN v3): the book and history stay, the engine
+            # never trades again. Open trades still resolve via manage_open/settle.
+            ev = dict(t=now, side=None, delta=0.0, q=None, mid=None, spread=None, left=None,
+                      checks=[("Retired", False)], passCount=0, need=1, must=[], mustOk=False,
+                      driftPct=None, fv=None, extra=[], extraOk=True, all=False, enter=False)
+            self.eng[eid]["eval"] = ev
+            return ev
         if ENGINE_CFG[eid].get("fadeOf"):
             return self._fade_eval(now, eid)
         if ENGINE_CFG[eid].get("revThr"):
@@ -661,7 +849,9 @@ class Bot:
     def paper_enter(self, eid, ev):
         m, f, prof = self.mkt, self.feed, self.prof()
         side = ev["side"]
-        req = clampf(self.st["stake"], 1, 1000, 5)
+        # sized engines (impulse_v2) carry their quarter-Kelly stake on the eval;
+        # everything else stakes the flat configured amount.
+        req = ev.get("stakeUsd") if ev.get("stakeUsd") else clampf(self.st["stake"], 1, 1000, 5)
         slip = clampf(self.st["slip"], 0, 5, 1) / 100
         # a real limit order: willing to pay up to the ask cap (+latency slip).
         # Walk the actual book depth for that budget — a $50 order does NOT fill
@@ -823,6 +1013,10 @@ class Bot:
         pnl = self._pnl_for(tr, w)
         tr.update(pnl=pnl, result=("win" if tr["side"] == w else "loss"),
                   status="settled", settledBy=by, provisional=provisional)
+        if tr.get("eng") == "impulse_v2":            # the flagship's bank is real: settle into it
+            self.imp["bank"] = round(self.imp.get("bank", 1000.0) + pnl, 2)
+        if not provisional:                          # oracle-grade outcomes feed the measurement book
+            self._measure_settle(tr["t0"], w)
         self.log(f"[{(tr.get('eng') or 'strict').upper()}] {'WIN' if tr['result']=='win' else 'LOSS'} "
                  f"{tr['side'].upper()} ({by}) P&L {'+' if pnl>=0 else ''}{pnl:.2f}")
 
@@ -853,11 +1047,15 @@ class Bot:
             prov_w = tr["side"] if tr["result"] == "win" else opp(tr["side"])
             if w == prov_w:
                 tr.update(settledBy="polymarket", provisional=False)
+                self._measure_settle(tr["t0"], w)
                 self.log(f"[{(tr.get('eng') or 'strict').upper()}] confirmed {tr['side'].upper()} by oracle")
             else:
                 pnl = self._pnl_for(tr, w)
+                if tr.get("eng") == "impulse_v2":    # bank was settled on the provisional pnl — apply the correction delta
+                    self.imp["bank"] = round(self.imp.get("bank", 1000.0) + pnl - (tr.get("pnl") or 0), 2)
                 tr.update(pnl=pnl, result=("win" if tr["side"] == w else "loss"),
                           settledBy="polymarket (corrected)", provisional=False)
+                self._measure_settle(tr["t0"], w)
                 self.log(f"[{(tr.get('eng') or 'strict').upper()}] CORRECTED to "
                          f"{tr['result'].upper()} by oracle P&L {'+' if pnl>=0 else ''}{pnl:.2f}")
         # 2) settle pending trades — oracle first, else clear price action
@@ -934,6 +1132,7 @@ class Bot:
                         _r = (self.feed["last"] - self.feed["open"]) / self.feed["open"]
                         self.prev_ivl = dict(t0=self.feed["t0"], open=self.feed["open"], close=self.feed["last"], ret=_r)
                         self.ivl_hist.append(_r); del self.ivl_hist[:-20]   # Latent Fire's regime window
+                        self.ivl_hist2.append([self.feed["t0"], _r]); del self.ivl_hist2[:-20]   # impulse gate window (contiguity-aware)
                 self.rollover(t0, t1)
             m = self.mkt
             p = self.find_market(t0)
@@ -974,6 +1173,7 @@ class Bot:
             cq = self.quote(cs) if cs else None
             self.prev_quote = {"side": cs, "ask": cq["ask"], "t": now} if (cs and cq and cq["ask"] is not None) else None
             self.settle_pending(now)
+            self.nightly_tick(ns)
             self.err = None
         except Exception as e:
             self.err = str(e)
@@ -993,6 +1193,8 @@ def default_state(args):
             "equity": {e: [] for e in ENGINES},               # [t_ms, cumPnl] curve for trimmed trades
             "misses": [],                                      # rolling "close but no entry" record (persisted)
             "ivlHist": [],                                      # rolling interval returns for Latent Fire's regime gate
+            "ivlHist2": [],                                     # [[t0, ret], ...] — impulse gate window (contiguity-aware)
+            "impulse": default_impulse(),                       # flagship sizing/learning state (bank, qhat, guard, measurement book)
             "engines": {e: {"trades": []} for e in ENGINES}}
 def sanitize(o, args):
     d = default_state(args)
@@ -1020,6 +1222,22 @@ def sanitize(o, args):
         ih = o.get("ivlHist")
         if isinstance(ih, list):
             d["ivlHist"] = [x for x in ih if isinstance(x, (int, float))][-20:]
+        ih2 = o.get("ivlHist2")
+        if isinstance(ih2, list):
+            d["ivlHist2"] = [[p[0], p[1]] for p in ih2 if isinstance(p, list) and len(p) == 2
+                             and all(isinstance(x, (int, float)) for x in p)][-20:]
+        im = o.get("impulse")
+        if isinstance(im, dict):
+            di = d["impulse"]
+            for k in ("bank", "qlo", "qhi", "lastNightly"):
+                if isinstance(im.get(k), (int, float)): di[k] = im[k]
+            for k in ("benched", "haircut"):
+                if isinstance(im.get(k), bool): di[k] = im[k]
+            if isinstance(im.get("skips"), dict):
+                di["skips"] = {str(k): int(v) for k, v in im["skips"].items() if isinstance(v, (int, float))}
+            if isinstance(im.get("measure"), list):
+                di["measure"] = [m for m in im["measure"] if isinstance(m, dict)
+                                 and isinstance(m.get("t0"), (int, float))][-12000:]
         eng = o.get("engines")
         if isinstance(eng, dict):
             for e in ENGINES:
@@ -1059,7 +1277,10 @@ def snapshot(bot):
             "looseMust": st.get("looseMust", list(LOOSE_MANDATORY)),
             "hedgeOn": st.get("hedgeOn", False),
             "engineCfg": {e: {"entryMax": ENGINE_CFG[e]["entryMax"], "driftMin": ENGINE_CFG[e].get("driftMin"),
-                              "driftMax": ENGINE_CFG[e]["driftMax"], "volMax": ENGINE_CFG[e].get("volMax")} for e in ENGINES},
+                              "driftMax": ENGINE_CFG[e]["driftMax"], "volMax": ENGINE_CFG[e].get("volMax"),
+                              "retired": bool(ENGINE_CFG[e].get("retired")), "shadow": bool(ENGINE_CFG[e].get("shadow")),
+                              "revEntryMax": ENGINE_CFG[e].get("revEntryMax")} for e in ENGINES},
+            "impulse": {k: bot.st.get("impulse", {}).get(k) for k in ("bank", "qlo", "qhi", "benched", "haircut")},
             "vol": bot.vol,
             "feed": {"src": bot.feed.get("src"), "price": bot.feed.get("last"),
                      "open": bot.feed.get("open"), "t0": bot.feed.get("t0"), "at": bot.feed.get("at")},
@@ -1070,7 +1291,8 @@ def snapshot(bot):
             "log": bot.logs[:30],
             "misses": bot.misses[:30],
             "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip",
-                                       "loosePass", "looseMust", "startedAt", "lifetime", "equity", "misses", "ivlHist", "engines")}}
+                                       "loosePass", "looseMust", "startedAt", "lifetime", "equity", "misses",
+                                       "ivlHist", "ivlHist2", "impulse", "engines")}}
 def save_state(path, bot):
     tmp = path + ".tmp"
     with open(tmp, "w") as f: json.dump(snapshot(bot), f, separators=(",", ":"))
@@ -1109,6 +1331,10 @@ def publish(state_path, branch, repo_dir, remote="origin"):
 # ================= SELF TEST (offline, no network) =================
 def selftest():
     fails = 0
+    # The retired engines' logic stays in the codebase and stays regression-tested:
+    # un-retire for the logic tests, restore before the retirement test below.
+    _retired = [e for e in ENGINES if ENGINE_CFG[e].get("retired")]
+    for e in _retired: ENGINE_CFG[e]["retired"] = False
     def ok(cond, name, extra=""):
         nonlocal fails
         print(("PASS" if cond else "FAIL") + "  " + name + (f"  [{extra}]" if extra else ""))
@@ -1270,6 +1496,75 @@ def selftest():
        "Latent Fire stays latent in a trending regime while reversal2 still fires", f"eff={lf_t['eff']} lf={lf_t['enter']} r2={r2_t['enter']}")
     blf.ivl_hist = [0.001, -0.001]
     ok(not blf.evaluate(now,"latentfire")["enter"], "Latent Fire stays latent until its regime window is warmed up")
+    # --- impulse_v2: the FINAL-DESIGN v3 flagship (isolated-impulse gate + quarter-Kelly sizing) ---
+    def mkimp(ask=0.47, bid=0.46, left=270):
+        b = Bot({}, default_state(A))
+        t0i = ns - (300 - left)
+        b.mkt = dict(t0=t0i, t1=t0i+300, ev=True, evClosed=False, slug="btc-updown-5m-imp", tokUp="U", tokDown="D",
+                     upBid=round(1-ask,2), upAsk=round(1-bid,2), pUp=0.5, gAt=now,
+                     bookDown={"bid":bid,"ask":ask,"asks":[[ask,300]],"bids":[[bid,300]],
+                               "topAskUsd":ask*300,"mirrorTopUsd":(1-bid)*300,"at":now})
+        b.mkt["bookUp"] = mirror(b.mkt["bookDown"])
+        b.feed = {"src":"Coinbase","open":100000,"last":100010,"at":now,"t0":ns-60}
+        b.prev_ivl = dict(t0=t0i-IVL, open=100000, close=100200, ret=0.0020)              # +20bps trigger
+        b.ivl_hist2 = [[t0i-IVL*k, 0.0001] for k in range(13, 1, -1)] + [[t0i-IVL, 0.0020]]  # 12 quiet + the trigger
+        return b
+    bi = mkimp(); bi.imp["qlo"] = 0.53                       # a learned qhat so the sizing arm opens
+    iv = bi.evaluate(now, "impulse_v2")
+    ok(iv["enter"] and iv["side"]=="down" and iv["eff6"] is not None and iv["eff6"]>=0.10 and iv["cnt12"]==0
+       and iv["stakeUsd"] and 1 <= iv["stakeUsd"] <= 50,
+       "impulse_v2 fires on an isolated impulse with a quarter-Kelly stake",
+       f"eff6={iv['eff6']} cnt12={iv['cnt12']} stake={iv['stakeUsd']}")
+    ok(bi.paper_enter("impulse_v2", iv) and abs(bi.open_trade("impulse_v2")["stake"]-iv["stakeUsd"])<0.5,
+       "impulse_v2 fills at its sized stake, not the flat $50", f"stake={bi.open_trade('impulse_v2')['stake']}")
+    tri = bi.open_trade("impulse_v2"); tri["status"]="pending"; bank0 = bi.imp["bank"]
+    bi.apply_settle(tri, "down", "polymarket")
+    ok(bi.imp["bank"] > bank0 and bi.imp["measure"] and bi.imp["measure"][-1]["win"] == 1,
+       "settle pays the flagship bank and backfills the measurement book",
+       f"bank {bank0}->{bi.imp['bank']} win={bi.imp['measure'][-1]['win']}")
+    bc = mkimp(); bc.imp["qlo"] = 0.53                       # cascade: 7 of the 12 pre-trigger moves are >=12bps
+    bc.ivl_hist2 = [[bc.mkt["t0"]-IVL*k, (0.0015 if k <= 8 else 0.0001)] for k in range(13, 1, -1)] + [[bc.mkt["t0"]-IVL, 0.0020]]
+    cv = bc.evaluate(now, "impulse_v2")
+    ok(not cv["enter"] and cv["cnt12"] is not None and cv["cnt12"] > 6,
+       "impulse_v2 stays latent inside a cascade (cnt12 gate)", f"cnt12={cv['cnt12']}")
+    bz = mkimp(); bz.imp["qlo"] = 0.53                       # churn: last 6 moves alternate — eff6 ~ 0
+    bz.ivl_hist2 = ([[bz.mkt["t0"]-IVL*k, 0.0001] for k in range(13, 7, -1)]
+                    + [[bz.mkt["t0"]-IVL*k, (0.0020 if k%2 else -0.0020)] for k in range(7, 1, -1)]
+                    + [[bz.mkt["t0"]-IVL, 0.0020]])
+    zv = bz.evaluate(now, "impulse_v2")
+    ok(not zv["enter"] and zv["eff6"] is not None and zv["eff6"] < 0.10,
+       "impulse_v2 stays latent in churn (eff6 gate)", f"eff6={zv['eff6']}")
+    bw = mkimp(); bw.imp["qlo"] = 0.53; bw.ivl_hist2 = bw.ivl_hist2[-5:]   # history not warmed up / non-contiguous
+    ok(not bw.evaluate(now,"impulse_v2")["enter"], "impulse_v2 stays latent until 13 contiguous intervals exist")
+    bs = mkimp(ask=0.50, bid=0.49)                           # seeds only: 51c fill costs .5275 > qhi -> f<=0 SKIP
+    sv = bs.evaluate(now, "impulse_v2")
+    ok(not sv["enter"] and sv["stakeUsd"] is None and bs.imp["measure"] and bs.imp["measure"][-1]["skip"]=="f_nonpos"
+       and bs.imp["skips"].get("f_nonpos",0) >= 1,
+       "sizing SKIP (f<=0) is a decision: no trade, measurement + skip reason recorded",
+       f"skip={bs.imp['measure'] and bs.imp['measure'][-1]['skip']}")
+    bb = mkimp(); bb.imp["qlo"] = 0.53; bb.imp["benched"] = True
+    bv2 = bb.evaluate(now, "impulse_v2")
+    ok(not bv2["enter"] and bb.imp["measure"][-1]["skip"]=="benched", "guard bench zeroes the stake (tier 3)")
+    bk = mkimp(); bk.imp["qlo"] = 0.53; bk.imp["bank"] = 200.0
+    ok(not bk.evaluate(now,"impulse_v2")["enter"] and bk.imp["measure"][-1]["skip"]=="breaker",
+       "the $250 ops breaker halts new entries")
+    br53 = mkimp(ask=0.53, bid=0.52); br53.imp["qlo"] = br53.imp["qhi"] = 0.56
+    ok(not br53.evaluate(now,"impulse_v2")["enter"], "impulse_v2 blocks above the 53c cap (ask+slip=54c)")
+    bctl = mkimp(); ctl = bctl.evaluate(now, "reversal_v2")  # ungated control fires on the same setup, flat $50
+    ok(ctl["enter"] and ctl["side"]=="down" and not ctl.get("stakeUsd"),
+       "reversal_v2 control fires ungated at the flat stake", f"enter={ctl['enter']}")
+    bctl.mkt = mkrev(0.50, 0.49, left=240)                   # 240s left < 255 — v2 window is first-45s only
+    bctl.prev_ivl = dict(t0=bctl.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)
+    ok(not bctl.evaluate(now,"reversal_v2")["enter"], "reversal_v2 blocks after the first 45 seconds")
+    # nightly job: qhat learns from the measurement book and the tier-3 guard trips on a dead regime
+    bn = Bot({}, default_state(A))
+    bn.imp["measure"] = [dict(t0=ns-3*86400+i*300, side="up", cost=0.4975, win=(1 if i%10 < 3 else 0), sized=True, skip=None)
+                         for i in range(300)]                # 30% win rate at ~50c cost — a dead regime
+    bn.imp["lastNightly"] = 0
+    bn._impulse_nightly(ns)
+    ok(bn.imp["qlo"] < 0.47 and bn.imp["benched"],
+       "nightly: qhat absorbs a dead regime and the tier-3 guard benches the stake",
+       f"qlo={bn.imp['qlo']} benched={bn.imp['benched']}")
     # miss tracking: an enter that can't fill (thin book) records a level-4 miss
     bmz = Bot({}, default_state(A)); bmz.eng["loose"]={"eval":None,"miss":None}
     bmz._track_miss("loose", {"enter":True,"side":"up","passCount":8,"need":7,"mustOk":True,"extraOk":True,"extra":[],"checks":[]}, False)
@@ -1373,6 +1668,12 @@ def selftest():
     eq6 = b6.st["equity"]["loose"]   # oldest-folded first: cum 10 (win), then 10-50=-40 (loss); ends at lifetime pnl
     ok(len(eq6)==2 and abs(eq6[0][1]-10)<1e-6 and abs(eq6[1][1]-(-40))<1e-6,
        "equity curve records cumulative P&L on trim", f"eq={eq6}")
+    # retirement is terminal: restore the real roster LAST, then prove no retired engine trades
+    for e in _retired: ENGINE_CFG[e]["retired"] = True
+    brt = Bot({}, default_state(A)); brt.feed = {"src":"Coinbase","open":100000,"last":100060,"at":now,"t0":ns-60}
+    brt.mkt = mkmkt(0.55, 0.54); brt.prev_quote = {"side":"up","ask":0.55,"t":now-4000}
+    ok(all(not brt.evaluate(now, e)["enter"] for e in ("loose","floor","band","value","fade","reversal2","latentfire")),
+       "retired engines are terminal: no entries on a perfect momentum setup")
     print("\n" + ("ALL PASS" if fails == 0 else f"{fails} FAILURES"))
     return 1 if fails else 0
 
@@ -1416,12 +1717,15 @@ def main():
     sig_engines = [e for e in (x.strip() for x in args.signal_engines.split(",")) if e in ENGINES]
     bot = Bot({"publishEvery": args.publish_every, "sigEngines": sig_engines, "sigFile": args.signal_file}, st)
     must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
-    bot.log(f"bot started — {st['asset']} · {st['profile']} · loose {args.loose}/10{must_lbl} + fill≤65c · "
-            f"floor (+drift≥0.02%) · band (drift 0.02-0.04%) · strict 10/10 · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
-            f"${st['stake']:g} stake · +{st['slip']:g}c slip · state={args.state}")
+    live_e = [e for e in ENGINES if not ENGINE_CFG[e].get("retired")]
+    bot.log(f"bot started — {st['asset']} · {st['profile']} · FINAL-DESIGN v3 roster: "
+            f"{' · '.join(ENGINE_CFG[e]['label'] + ('' if ENGINE_CFG[e].get('shadow') else ' (flagship, ¼-Kelly)') for e in live_e)} · "
+            f"{sum(1 for e in ENGINES if ENGINE_CFG[e].get('retired'))} retired · hedge {'ON' if st['hedgeOn'] else 'OFF'} · "
+            f"+{st['slip']:g}c slip · state={args.state}")
     if sig_engines:
         bot.log(f"SIGNAL BRIDGE ON — engines={','.join(sig_engines)} file={args.signal_file or '—'} "
                 f"webhook={'set' if bot.sig_webhook else 'UNSET'} hmac={'set' if bot.sig_secret else 'UNSET'}")
+    bot.warm_ivl_hist()   # cold-start rule: a restart must not bench the flagship for an hour
     last_pub = 0
     def positions_sig():   # changes when any trade opens, settles, or goes pending → publish promptly
         return {e: (sum(1 for t in bot.trades(e) if t["status"] == "settled"),

@@ -1,0 +1,44 @@
+{
+ "hist_none": {
+  "final": 2699898.4,
+  "maxdd_pct": 28.7,
+  "dd_day": 49.0,
+  "guard_first": null,
+  "breaker_day": null
+ },
+ "hist_spec": {
+  "final": 2714838.5,
+  "maxdd_pct": 28.7,
+  "dd_day": 49.0,
+  "guard_first": 17.1,
+  "breaker_day": null
+ },
+ "hist_fast": {
+  "final": 2666285.1,
+  "maxdd_pct": 28.7,
+  "dd_day": 49.0,
+  "guard_first": 13.7,
+  "breaker_day": null
+ },
+ "disaster_none": {
+  "final": 26508.8,
+  "maxdd_pct": 57.6,
+  "dd_day": 43.5,
+  "guard_first": null,
+  "breaker_day": null
+ },
+ "disaster_spec": {
+  "final": 27967.0,
+  "maxdd_pct": 63.3,
+  "dd_day": 43.5,
+  "guard_first": 17.1,
+  "breaker_day": null
+ },
+ "disaster_fast": {
+  "final": 27342.2,
+  "maxdd_pct": 63.5,
+  "dd_day": 43.5,
+  "guard_first": 13.7,
+  "breaker_day": null
+ }
+}

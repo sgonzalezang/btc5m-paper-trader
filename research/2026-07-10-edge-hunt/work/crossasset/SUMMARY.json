@@ -1,0 +1,23 @@
+{
+  "family": "cross-asset and derivatives lead-lag",
+  "split": "chronological 2/3 train (first ~40d, idx 1-11519) / 1/3 test (last ~20d, idx 11520-17279) on the shared 17280-interval 5m grid; cb1m work uses the same 2/3-1/3 rule inside its 14d span",
+  "fee_model": "EV = q - p - 0.07*p*(1-p); fills = ask + 1c slip; q*(0.51)=0.5275",
+  "scripts": {
+    "a": "a_eth_lead.py -> a_eth_lead_results.json",
+    "b": "b_lastminute.py -> b_lastminute_results.json",
+    "b2": "b2_pm_pricing.py -> b2_pm_pricing_results.json",
+    "c": "c_bn_lead.py -> c_bn_lead_results.json",
+    "d": "d_funding_regime.py -> d_funding_regime_results.json",
+    "robustness": "e_robustness.py (stdout only)"
+  },
+  "headline_numbers": {
+    "a_eth_cond_12_6": {"train": 0.5196, "n_train": 358, "p_train": 0.5075, "test": 0.4663, "n_test": 193},
+    "b_lastmin_ge2bps_follow": {"train": 0.4709, "n_train": 1580, "p_train": 0.0195, "test": 0.5312, "n_test": 802, "per_day_range": "0.389-0.567, 8/15 days > 0.5"},
+    "b2_book_pricing": {"mean_momentum_side_cost_at_20s": 0.5036, "ge2bps_medcost": 0.495, "ge2bps_hold_3d_sample": 0.546, "n": 119},
+    "c_convergence_ge1bps": {"train": 0.5120, "n_train": 3461, "p_train": 0.16, "test": 0.4886, "n_test": 1496},
+    "c_interaction_div_confirms": {"train": 0.5447, "p_train": 0.0005, "test": 0.5462, "opposes_train": 0.5022, "opposes_test": 0.5616, "note": "train ordering reverses on test -> overfit"},
+    "d_funding_T2_reversal": {"train": 0.5383, "n_train": 758, "p_vs_all": 0.395, "test": 0.5691, "n_test": 933, "all_train": 0.5228, "all_test": 0.5539},
+    "d_premium_T2_reversal": {"train": 0.5303, "n_train": 990, "p_vs_all": 0.657, "test": 0.5901, "n_test": 544},
+    "context_base_reversal_60d": {"train_40d": 0.5228, "test_20d": 0.5539, "note": "base >=12bps reversal is fee-NEGATIVE at 51c over the first 40d (EV -0.5c/share) and fee-positive over the last 20d (+2.6c); the confirmed edge is time-varying"}
+  }
+}

@@ -1,0 +1,11 @@
+TRAIN: L==1 rev=0.5142/1338  L>=2 rev=0.5317/1311  diff=+0.0175 p=0.3720
+TEST: L==1 rev=0.5583/686  L>=2 rev=0.5494/688  diff=-0.0089 p=0.7463
+TRAIN q=0.5228 n=2649  fill=0.51  EV/share=-0.0047  ret/$=-0.0091
+TRAIN q=0.5228 n=2649  fill=0.53  EV/share=-0.0246  ret/$=-0.0464
+TRAIN q=0.5228 n=2649  fill=0.55  EV/share=-0.0445  ret/$=-0.0809
+TEST q=0.5539 n=1374  fill=0.51  EV/share=+0.0264  ret/$=+0.0517
+TEST q=0.5539 n=1374  fill=0.53  EV/share=+0.0064  ret/$=+0.0121
+TEST q=0.5539 n=1374  fill=0.55  EV/share=-0.0135  ret/$=-0.0245
+ALL60d q=0.5334 n=4023  fill=0.51  EV/share=+0.0059  ret/$=+0.0116
+ALL60d q=0.5334 n=4023  fill=0.53  EV/share=-0.0140  ret/$=-0.0264
+ALL60d q=0.5334 n=4023  fill=0.55  EV/share=-0.0339  ret/$=-0.0616

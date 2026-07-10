@@ -1,0 +1,26 @@
+total 5m boundaries missed (gaps): 3
+events |move|>=8bps: n=1581  train=1054  test=527  split_T=1783315800
+baseline rev rate  TRAIN 0.5569 (n=1054)  TEST 0.5237 (n=527)
+>=12bps baseline   TRAIN 0.5910 (n=643)  TEST 0.5434 (n=311)
+
+[late] tercile cuts (TRAIN): 0.1539 / 0.3712
+  TRAIN  T1 0.5824/352  T2 0.5356/351  T3 0.5527/351   (revrate/n)
+  TEST   T1 0.5568/176  T2 0.4894/188  T3 0.5276/163   (revrate/n)
+  top-bottom diff TRAIN -0.0297 (block-boot p=0.4020)  TEST -0.0292 (n=(176, 163))
+
+[wick] tercile cuts (TRAIN): 1.257 / 1.628
+  TRAIN  T1 0.5540/352  T2 0.5442/351  T3 0.5726/351   (revrate/n)
+  TEST   T1 0.5114/176  T2 0.4916/179  T3 0.5698/172   (revrate/n)
+  top-bottom diff TRAIN +0.0187 (block-boot p=0.6040)  TEST +0.0584 (n=(176, 172))
+
+[volsp] tercile cuts (TRAIN): 0.7021 / 1.249
+  TRAIN  T1 0.5685/343  T2 0.5277/343  T3 0.5819/342   (revrate/n)
+  TEST   T1 0.5455/165  T2 0.4706/170  T3 0.5521/192   (revrate/n)
+  top-bottom diff TRAIN +0.0134 (block-boot p=0.7270)  TEST +0.0066 (n=(165, 192))
+
+[nflips] monotone(0) / one-flip(1) / zigzag(>=2)
+  TRAIN  0: 0.6000/140  1: 0.5683/271  >=2: 0.5428/643
+  TEST   0: 0.4848/66  1: 0.5816/141  >=2: 0.5062/320
+  zigzag-monotone diff TRAIN -0.0572 (p=0.2043)  TEST +0.0214
+
+saved -> work/pathshape/pathshape_1m_results.json

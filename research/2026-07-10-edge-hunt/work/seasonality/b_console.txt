@@ -1,0 +1,23 @@
+5m intervals with full 1m coverage: 4029; conditioned (|drift| 2-4bps): 1045
+
+== P(hold | 2-4bps first-60s drift) ==
+TRAIN: n=705 P(hold)=0.6567
+TEST: n=340 P(hold)=0.6206
+ALL: n=1045 P(hold)=0.6450
+
+== by session (TRAIN | TEST) ==
+Asia    TRAIN n=212 q=0.6274 (diff -0.0420 p=0.307) | TEST n=108 q=0.6574
+Europe  TRAIN n=175 q=0.6800 (diff +0.0309 p=0.495) | TEST n= 97 q=0.5773
+US      TRAIN n=235 q=0.6553 (diff -0.0021 p=0.900) | TEST n= 91 q=0.6703
+Late    TRAIN n= 83 q=0.6867 (diff +0.0340 p=0.497) | TEST n= 44 q=0.5227
+
+== realistic momentum fills (pm_prices_sample join, n=55) ==
+fill p10=0.580 p50=0.655 p90=0.725 mean=0.653
+PM win rate at those fills=0.7455  net EV/share=+0.0767
+break-even at median fill q*(0.655)=0.6708
+  Asia    n= 16 win=0.750 EV=+0.0991
+  Europe  n= 14 win=0.714 EV=+0.0290
+  Late    n=  4 win=1.000 EV=+0.2854
+  US      n= 21 win=0.714 EV=+0.0516
+
+saved -> /private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/work/seasonality/b_results.json

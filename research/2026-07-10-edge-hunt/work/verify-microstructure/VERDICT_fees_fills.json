@@ -1,0 +1,28 @@
+{
+  "verifier_lens": "fees, fills, and market reality",
+  "finding": "FILL MODEL: contrarian entry after >=12bps prior move (microstructure family)",
+  "refuted": false,
+  "reproduction": {
+    "c20_quantiles": {"claimed": [0.47, 0.505, 0.525, 0.555, 0.595], "got": [0.469, 0.505, 0.525, 0.555, 0.595], "n": "49/216 exact"},
+    "avail_le_55c": {"claimed": 0.694, "got": 0.6939},
+    "ledger_entry_q": {"claimed": {"p25": 0.47, "p50": 0.51, "p90": 0.55}, "got": {"p25": 0.47, "p50": 0.51, "p90": 0.55}, "n": 155},
+    "share_wtd_entry": {"claimed": 0.4861, "got": 0.4861, "qstar": 0.5036},
+    "winrate_pnl": {"claimed": "52.3%, +$345 = +$621 - $276 fee", "got": "52.26%, +$345 = +$621 - $276"},
+    "join_d_ask_c20": {"claimed": {"median": -0.02, "mean": -0.0289}, "got": {"median": -0.02, "mean": -0.0289}, "n": 28},
+    "fillability": {"claimed": "70/82 = 85%", "got": "70/82 = 85.4%"},
+    "last_third_winrate": {"claimed": 0.38, "got": 0.3922, "note": "n=51 vs n=50 split convention"},
+    "spread": {"claimed": "n=1482 median 1c p95 2c", "got": "n=1487 median 1c p95 2c p99 3c max 6c; reversal-family signal spreads n=71 median 1c p95 1c"},
+    "c20_by_move": {"claimed": ".505 (12-16bps) vs .535 (>=16bps)", "got": ".505 vs .535 exact"}
+  },
+  "adversarial_checks": {
+    "fee_formula": "feeEntry matches shares*0.07*p*(1-p) exactly on all 155 trades (max abs err $0.0000); total feeExit $0 — hold-to-resolution, no hedges/stops in family, no hidden double-fee legs",
+    "partial_fills": "fillFrac = 1.0 on all 155 trades; no partial-fill flattery at $50 stakes (depth beyond $50/trade NOT established by this finding)",
+    "cap_discipline": "0 entries above 0.56, 0 asks above 0.55 — censoring exactly as described",
+    "censoring_attack_on_join": "the -2.9c mean 'ask below minute-mid' IS partly a cap-censoring artifact: c20<=.54 subgroup (n=23) median -1.5c / mean -2.0c; c20>.54 subgroup (n=5, mechanically selected by the 55c cap) mean -6.9c. Honest uncensored fast-entry discount ~-1.5c median, not -2c. Direction survives; magnitude overstated ~0.5-1c on this secondary parameter",
+    "conservatism_direction": "backtests using c20+1c fills with >55c skips are CONSERVATIVE vs live: join-set per-share EV at ledger fills -0.009 vs -0.049 at c20+1c fills; live fillability 85% > modeled 69% availability. The proposed cost model does not flatter strategies",
+    "edge_disclosure": "finding correctly does NOT claim the reversal edge clears fees on TEST (last-third winrate .38-.39 < q* .5036); it is framed and only usable as a cost input"
+  },
+  "conclusion": "Fill-distribution deliverable reproduces exactly and survives the fees/fills attack. One correction: replace the '-2c below minute-mid' fast-entry recipe with ~-1.5c (or use the ledger entry quantiles directly), because the join delta is censoring-inflated.",
+  "scripts": ["repro.py (this verifier)", "attack.py (this verifier)"],
+  "note": "reproduce.py / verify_fill.py / lookahead_check.py / VERDICT.json in this dir are from a concurrent sibling verifier"
+}

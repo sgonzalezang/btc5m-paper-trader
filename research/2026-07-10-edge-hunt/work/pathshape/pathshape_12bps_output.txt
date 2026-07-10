@@ -1,0 +1,28 @@
+>=12bps events: train=643 test=311
+baseline TRAIN 0.5910  TEST 0.5434
+
+[late] cuts 0.1492/0.3297
+  TRAIN  T1 0.6047/215  T2 0.5607/214  T3 0.6075/214
+  TEST   T1 0.5780/109  T2 0.5300/100  T3 0.5196/102
+  top-bottom TRAIN +0.0028 (p=0.9460)  TEST -0.0584
+
+[slate] cuts 0.03226/0.2846
+  TRAIN  T1 0.5814/215  T2 0.5794/214  T3 0.6121/214
+  TEST   T1 0.6531/98  T2 0.5085/118  T3 0.4737/95
+  top-bottom TRAIN +0.0308 (p=0.4993)  TEST -0.1794
+
+[wick] cuts 1.224/1.509
+  TRAIN  T1 0.6047/215  T2 0.5935/214  T3 0.5748/214
+  TEST   T1 0.5596/109  T2 0.5000/106  T3 0.5729/96
+  top-bottom TRAIN -0.0299 (p=0.5277)  TEST +0.0133
+
+[volsp] cuts 0.8071/1.386
+  TRAIN  T1 0.6154/208  T2 0.6058/208  T3 0.5700/207
+  TEST   T1 0.5495/111  T2 0.4941/85  T3 0.5739/115
+  top-bottom TRAIN -0.0453 (p=0.3313)  TEST +0.0244
+
+[nflips] within >=12bps
+  TRAIN  0: 0.6034/116  1: 0.6105/172  >=2: 0.5775/355
+  TEST   0: 0.4681/47  1: 0.6329/79  >=2: 0.5243/185
+
+saved -> work/pathshape/pathshape_12bps_results.json

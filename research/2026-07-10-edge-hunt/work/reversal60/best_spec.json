@@ -1,0 +1,29 @@
+{
+  "name": "rev12-hold-cap53",
+  "signal": "buffered prior open-to-open move on Coinbase 5m: |(o[t]-o[t-1])/o[t-1]| >= 12bps",
+  "side": "contrarian (fade the prior move); ties resolve Up per market rule",
+  "entry": "buy contrarian side early in window (live engine median 10s), effective cost (ask+1c) <= 0.53; tighter than live revEntryMax=0.55 because EV(q_TEST=0.5539) < 0 above 53c",
+  "exit": "hold to resolution; timed exits at +2/+3/+4 min are fee-dead",
+  "adaptation": "none; trailing-10d walk-forward threshold re-selection underperforms fixed 12bps",
+  "numbers": {
+    "full_60d": {"n": 4023, "q": 0.5334},
+    "train_first_40d": {"n": 2649, "q": 0.5228, "net_per_share_at_51c": -0.0047, "block_boot_p_vs_0.5": 0.0107, "p_vs_breakeven": 0.677},
+    "test_last_20d": {"n": 1374, "q": 0.5539, "net_per_share_at_51c": 0.0264, "block_boot_p_vs_0.5": 0.0, "p_vs_breakeven": 0.0253},
+    "walkforward_days_10_60_at_51c": {"n": 3619, "net_per_share": 0.0017},
+    "at_realistic_p20_fill_53.5c_test_q": 0.0014,
+    "live_reversal_engine": {"n": 70, "pnl_usd": 201.85, "median_entry": 0.51}
+  },
+  "breakeven": "q*(p) = p + 0.07*p*(1-p); q*(0.51)=0.5275, q*(0.53)=0.5474 -- NOTE q at 12bps only exceeds q*(0.51) in the recent regime",
+  "caveats": [
+    "Edge is non-stationary: 10d windows q = 0.572/0.477/0.507/0.552/0.529/0.579; days 10-30 were flat-to-inverted",
+    "TRAIN (first 40d) fails the 51c fee hurdle; 'promising' verdict rests on TEST + live-book corroboration",
+    "Contrarian side is NOT reliably 51c at t0+20s: pm median 52.5c, 61% of signals above 51c; fill discipline is the binding constraint",
+    "20+bps signals show q_TEST=0.5648 (+0.0373/share at 51c) but TRAIN inverts (0.518 < 12-20bps 0.526); size gradient is TEST-only, do not upweight"
+  ],
+  "artifacts": [
+    "a_stability.py / a_stability.json",
+    "b_walkforward.py / b_walkforward.json",
+    "c_entryprice.py / c_entryprice.json",
+    "d_exits.py / d_exits.json"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "finding": "FILL MODEL: contrarian entry after >=12bps prior move (microstructure family)",
+  "refuted": false,
+  "reproduction": {
+    "signals_n": {"claim": 49, "mine": 49, "of": 216},
+    "c20_quantiles": {"claim": [0.47, 0.505, 0.525, 0.555, 0.595], "mine": [0.469, 0.505, 0.525, 0.555, 0.595], "match": "exact"},
+    "avail_le_55c": {"claim": 0.694, "mine": 0.7143, "note": "34 vs 35 of 49; one-interval slip-definition difference, within tolerance"},
+    "ledger": {"n": 155, "entry_q_match": "exact (p25 .47/p50 .51/p90 .55)", "wtd_entry": 0.4861, "q_star": 0.5036, "winrate": 0.5226, "pnl": 344.74, "entrySec_p50": 9},
+    "bucket_split": {"claim": [0.505, 0.535], "mine": [0.505, 0.535], "match": "exact"},
+    "join_ask_vs_c20": {"claim": {"n": 28, "median": -0.02, "mean": -0.0289}, "mine": {"n": 30, "median": -0.015, "mean": -0.0267}, "note": "direction and magnitude confirmed"},
+    "last_third_winrate": {"claim": 0.38, "mine": 0.3922},
+    "spread_signals_log": {"claim": {"n": 1482, "median": 0.01, "p95": 0.02}, "mine": {"n": 1487, "median": 0.01, "p95": 0.02}}
+  },
+  "attacks": {
+    "lookahead": "FAILED TO BREAK: re-fetched 12 sampled markets from CLOB prices-history; the point used as p20 is stamped t0+3..19s in all 12 (BEFORE the ~t0+20s decision), stored values equal refetch 12/12. The '20s' snapshot is really a ~5-19s price, consistent with live entrySec p50=9s. No future info.",
+    "boundary_overlap": "PASSED: my independent buffered open-to-open construction (consecutive-candle required) reproduces n=49 and all quantiles exactly; construction follows the brief.",
+    "threshold_sensitivity": "ROBUST on the deliverable: thr 9.6bps -> n=81, c20 med .515, avail .80; thr 14.4bps -> n=40, med .525, avail .725. Cap -20% (44c) mechanically collapses availability to ~2% since the distribution sits near 50c, but 55c is the bot's pre-registered revEntryMax, not a fitted parameter.",
+    "multiple_comparisons": "LOW EXPOSURE: this is a descriptive cost-input (quantile estimation at pre-registered bot parameters: 55c cap, live entry timing), not a selected hypothesis test; the finding itself disclaims the reversal EDGE (last-third win rate .38-.39, CI .12-.62)."
+  },
+  "residual_caveats": [
+    "Join n~30 is small; the 'fast entry ~2c cheaper than minute-mid' point estimate has wide spread (p5 -11.5c, p95 +3.5c); treat as ~1.5-3c, sign robust.",
+    "avail 69-71% is computed on minute-bucket mid-ish prices, not asks; live fillability 85% brackets it from above, so 69% skip-modeling is conservative.",
+    "Any backtest consuming these quantiles must also model the ~31% of signals priced .555-.60 as SKIPS, exactly as the finding says."
+  ],
+  "scripts": [
+    "work/verify-microstructure/reproduce.py",
+    "work/verify-microstructure/lookahead_check.py",
+    "work/verify-microstructure/repro_results.json",
+    "work/verify-microstructure/lookahead_check.json"
+  ]
+}

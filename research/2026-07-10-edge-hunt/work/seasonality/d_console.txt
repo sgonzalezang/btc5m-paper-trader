@@ -1,0 +1,10 @@
+eff-gated reversal universe: TRAIN n=2065 q=0.5182 netEV=-0.0093 | TEST n=1018 q=0.5629 netEV=+0.0354
+
+by session inside gate (TRAIN | TEST):
+Asia    TRAIN n= 535 q=0.5308 (diff +0.0171 p=0.447) | TEST n= 288 q=0.5139 netEV=-0.0136
+Europe  TRAIN n= 422 q=0.5095 (diff -0.0109 p=0.705) | TEST n= 174 q=0.6092 netEV=+0.0817
+US      TRAIN n= 872 q=0.5069 (diff -0.0195 p=0.385) | TEST n= 446 q=0.5740 netEV=+0.0465
+Late    TRAIN n= 236 q=0.5466 (diff +0.0321 p=0.365) | TEST n= 110 q=0.5727 netEV=+0.0452
+
+hour-vol profile correlation TRAIN vs TEST: r=0.834
+saved -> /private/tmp/claude-501/-Users-sgonzalez/4f584d6e-5c8f-4a76-8bd9-6dcf248c8bf8/scratchpad/work/seasonality/d_results.json

@@ -1,0 +1,25 @@
+{
+  "verifier": "adversarial: data snooping & construction artifacts (independent re-derivation)",
+  "refuted": false,
+  "reproduction": {
+    "uncensored_c20_quantiles": {"claim": [0.47,0.505,0.525,0.555,0.595], "mine": [0.469,0.505,0.525,0.555,0.595], "n": 49, "match": "exact"},
+    "signal_intervals": {"claim": "49 of 216", "mine": "49 of 216"},
+    "availability_le_55c": {"claim": 0.694, "mine": 0.714, "note": "1-interval difference at the 0.55 boundary / slip convention; within tolerance"},
+    "ledger_fills": {"claim": {"n":155,"p25":0.47,"p50":0.51,"p90":0.55,"share_wtd_mean":0.4861}, "mine": {"n":155,"p25":0.47,"p50":0.51,"p90":0.55,"share_wtd_mean":0.4861}, "match": "exact"},
+    "entrySec_p50": {"claim": 9, "mine": 9.3},
+    "t0_join_ask_minus_mid": {"claim": {"n":28,"median":-0.020,"mean":-0.029}, "mine": {"n":30,"median":-0.015,"mean":-0.0267}, "note": "same sign/magnitude; median differs 0.5c on tiny n"},
+    "pooled_win": {"claim": 0.523, "mine": 0.523}, "last_third_win": {"claim": 0.380, "mine": 0.392},
+    "c20_by_move_size": {"claim": {"12-16bps": 0.505, ">=16bps": 0.535}, "mine": {"12-16bps": 0.505, ">=16bps": 0.535}}
+  },
+  "attacks": {
+    "lookahead": "p20 in pm_prices_sample = nearest prices-history minute point within 90s of t0+20 (harvest.py), so the 'uncensored ~20s' snapshot can be a trade/mid up to t0+110s — mislabeled timing, and it is a mid not an ask. HOWEVER the family disclosed exactly this caveat and anchored the fill recipe on 155 real ledger fills at entrySec p50=9s, which are genuine decision-time asks. No look-ahead in the deliverable itself; the signal (prior open-to-open move) is fully known at t0.",
+    "boundary_overlap": "Independent buffered open-to-open construction with strict 300s-consecutive candle check joins all 216 pm markets; reproduces exactly. No boundary artifact.",
+    "threshold_sensitivity": "TH 12bps -> 14.4bps: median .525/.525, avail .714/.725 (stable). TH -> 9.6bps: median .515, avail .802 (effect direction intact). Cap sensitivity is steep by construction (avail .245 @50c, .714 @55c, .959 @60c) — backtests must treat the 55c cap as a first-order assumption, which the finding itself quantifies.",
+    "multiple_comparisons": "Descriptive cost-input measurement, not a hypothesis-test edge claim; Bonferroni discount not applicable to quantile estimation. The finding explicitly disclaims edge and flags last-third win .38 as unresolved — reproduced.",
+    "effective_n": "155 fills come from only 70 unique intervals (reversal/reversal2/latentfire co-fire); independent observations ~70, not 155. Quantiles barely move but CIs implied by n=155 are ~1.5x too tight.",
+    "small_sample": "pm sample spans only 2.99 days; availability 95% CI [0.59,0.83] (binomial) / [0.58,0.83] (1h block bootstrap). The '69%/31% skip' number should be used with that width.",
+    "censoring": "20.6% of ledger entries sit at the 55c cap (max .552) — confirms p90/p95=.55 are censored, as the finding states.",
+    "chrono_split": "Signal c20: train median .530 avail .688 vs test median .505 avail .765; ledger halves median .510/.500 — matches family's claimed stability."
+  },
+  "scripts": ["indep_repro.py", "indep_attack.py"]
+}

@@ -1,0 +1,118 @@
+{
+ "p20": {
+  "train": {
+   "n": 144,
+   "mean_fill": 0.545,
+   "win_rate": 0.507,
+   "breakeven_q": 0.563,
+   "ev_per_share": -0.0556
+  },
+  "test": {
+   "n": 72,
+   "mean_fill": 0.539,
+   "win_rate": 0.514,
+   "breakeven_q": 0.556,
+   "ev_per_share": -0.0421
+  },
+  "all": {
+   "n": 216,
+   "mean_fill": 0.543,
+   "win_rate": 0.509,
+   "breakeven_q": 0.56,
+   "ev_per_share": -0.0511
+  },
+  "all_boot_p": 0.07625
+ },
+ "p60": {
+  "train": {
+   "n": 144,
+   "mean_fill": 0.672,
+   "win_rate": 0.722,
+   "breakeven_q": 0.687,
+   "ev_per_share": 0.0357
+  },
+  "test": {
+   "n": 72,
+   "mean_fill": 0.651,
+   "win_rate": 0.708,
+   "breakeven_q": 0.667,
+   "ev_per_share": 0.0426
+  },
+  "all": {
+   "n": 216,
+   "mean_fill": 0.665,
+   "win_rate": 0.718,
+   "breakeven_q": 0.68,
+   "ev_per_share": 0.038
+  },
+  "all_boot_p": 0.11125
+ },
+ "p150": {
+  "train": {
+   "n": 140,
+   "mean_fill": 0.749,
+   "win_rate": 0.75,
+   "breakeven_q": 0.763,
+   "ev_per_share": -0.0113
+  },
+  "test": {
+   "n": 71,
+   "mean_fill": 0.723,
+   "win_rate": 0.718,
+   "breakeven_q": 0.737,
+   "ev_per_share": -0.0172
+  },
+  "all": {
+   "n": 211,
+   "mean_fill": 0.74,
+   "win_rate": 0.739,
+   "breakeven_q": 0.754,
+   "ev_per_share": -0.0133
+  },
+  "all_boot_p": 0.338
+ },
+ "paired_p60_minus_p20": {
+  "n": 216,
+  "mean": 0.0891,
+  "boot_p": 0.0235
+ },
+ "paired_p150_minus_p20": {
+  "n": 211,
+  "mean": 0.0398,
+  "boot_p": 0.195
+ },
+ "ledger_entrySec": [
+  {
+   "bucket": "0-20s",
+   "n": 590,
+   "mean_pnl": -5.67,
+   "win_rate": 0.517,
+   "mean_entry": 0.567,
+   "breakeven_q": 0.584
+  },
+  {
+   "bucket": "21-45s",
+   "n": 812,
+   "mean_pnl": -0.7,
+   "win_rate": 0.605,
+   "mean_entry": 0.595,
+   "breakeven_q": 0.612
+  },
+  {
+   "bucket": "46-90s",
+   "n": 386,
+   "mean_pnl": -7.07,
+   "win_rate": 0.547,
+   "mean_entry": 0.607,
+   "breakeven_q": 0.624
+  },
+  {
+   "bucket": "91-300s",
+   "n": 258,
+   "mean_pnl": 2.13,
+   "win_rate": 0.647,
+   "mean_entry": 0.602,
+   "breakeven_q": 0.618
+  }
+ ]
+}

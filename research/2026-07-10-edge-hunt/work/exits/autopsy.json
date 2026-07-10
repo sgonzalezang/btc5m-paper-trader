@@ -1,0 +1,116 @@
+{
+ "n": 3088,
+ "winners": 1720,
+ "losers": 1368,
+ "losers_recoverable_0.45": 0.7617,
+ "losers_recoverable_0.5": 0.6462,
+ "losers_recoverable_0.55": 0.5497,
+ "losers_recoverable_0.6": 0.4167,
+ "losers_recoverable_0.7": 0.2266,
+ "loser_salvage_median": 0.949,
+ "loser_salvage_mean": 0.977,
+ "winners_dipped_0.2": 0.0459,
+ "winners_dipped_0.25": 0.0785,
+ "winners_dipped_0.3": 0.1198,
+ "winners_dipped_0.35": 0.1651,
+ "winners_dipped_0.4": 0.2203,
+ "winners_dipped_0.45": 0.3087,
+ "trigger_table": [
+  {
+   "X": 0.2,
+   "s": 60,
+   "n": 45,
+   "sell": 0.118,
+   "hold": 0.267,
+   "delta": -0.149
+  },
+  {
+   "X": 0.2,
+   "s": 120,
+   "n": 192,
+   "sell": 0.105,
+   "hold": 0.073,
+   "delta": 0.032
+  },
+  {
+   "X": 0.2,
+   "s": 180,
+   "n": 398,
+   "sell": 0.081,
+   "hold": 0.093,
+   "delta": -0.012
+  },
+  {
+   "X": 0.2,
+   "s": 240,
+   "n": 680,
+   "sell": 0.059,
+   "hold": 0.071,
+   "delta": -0.011
+  },
+  {
+   "X": 0.3,
+   "s": 60,
+   "n": 148,
+   "sell": 0.197,
+   "hold": 0.277,
+   "delta": -0.08
+  },
+  {
+   "X": 0.3,
+   "s": 120,
+   "n": 404,
+   "sell": 0.166,
+   "hold": 0.218,
+   "delta": -0.052
+  },
+  {
+   "X": 0.3,
+   "s": 180,
+   "n": 616,
+   "sell": 0.129,
+   "hold": 0.102,
+   "delta": 0.027
+  },
+  {
+   "X": 0.3,
+   "s": 240,
+   "n": 919,
+   "sell": 0.099,
+   "hold": 0.103,
+   "delta": -0.004
+  },
+  {
+   "X": 0.4,
+   "s": 60,
+   "n": 378,
+   "sell": 0.272,
+   "hold": 0.349,
+   "delta": -0.077
+  },
+  {
+   "X": 0.4,
+   "s": 120,
+   "n": 669,
+   "sell": 0.226,
+   "hold": 0.256,
+   "delta": -0.029
+  },
+  {
+   "X": 0.4,
+   "s": 180,
+   "n": 904,
+   "sell": 0.187,
+   "hold": 0.178,
+   "delta": 0.009
+  },
+  {
+   "X": 0.4,
+   "s": 240,
+   "n": 1108,
+   "sell": 0.136,
+   "hold": 0.141,
+   "delta": -0.005
+  }
+ ]
+}

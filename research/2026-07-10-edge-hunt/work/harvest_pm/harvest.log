@@ -1,0 +1,10 @@
+span 1783425300..1783684200 n=864
+closed markets: 863 / 864  up_rate=0.508
+gamma stats: {'429': 0, 'err': 0, 'retries': 0}
+sampling 216 markets for price history
+  clob 50/216
+  clob 100/216
+  clob 150/216
+  clob 200/216
+price samples: 216  fully-populated=216
+final stats: {'429': 0, 'err': 0, 'retries': 0}

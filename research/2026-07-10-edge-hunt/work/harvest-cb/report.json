@@ -1,0 +1,38 @@
+[
+ {
+  "file": "cb5m.json",
+  "granularity": 300,
+  "requests": 58,
+  "failed_windows": 0,
+  "rows": 17280,
+  "expected_in_span": 17280,
+  "gap_runs": 0,
+  "missing_intervals": 0,
+  "first_t": 1778500500,
+  "last_t": 1783684200
+ },
+ {
+  "file": "cb1m.json",
+  "granularity": 60,
+  "requests": 68,
+  "failed_windows": 0,
+  "rows": 20155,
+  "expected_in_span": 20160,
+  "gap_runs": 2,
+  "missing_intervals": 5,
+  "first_t": 1782474960,
+  "last_t": 1783684500
+ },
+ {
+  "file": "cbdaily.json",
+  "granularity": 86400,
+  "requests": 2,
+  "failed_windows": 0,
+  "rows": 365,
+  "expected_in_span": 365,
+  "gap_runs": 0,
+  "missing_intervals": 0,
+  "first_t": 1752105600,
+  "last_t": 1783555200
+ }
+]
