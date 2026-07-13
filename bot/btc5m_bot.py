@@ -1822,7 +1822,7 @@ class Bot:
         its Chainlink-derived price-history (the same number their app displays and
         settles on). DISPLAY ONLY: the trading logic still uses the Coinbase feed
         open. Best-effort; empty until the interval has a first tick."""
-        iso = lambda s: datetime.utcfromtimestamp(s).strftime("%Y-%m-%dT%H:%M:%SZ")
+        iso = lambda s: datetime.fromtimestamp(s, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         sym = self.st.get("asset", "BTC")
         url = ("https://polymarket.com/api/crypto/price-history?symbol=" + urllib.parse.quote(sym)
                + "&eventStartTime=" + urllib.parse.quote(iso(t0))
