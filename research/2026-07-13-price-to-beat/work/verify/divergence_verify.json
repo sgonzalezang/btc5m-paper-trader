@@ -1,0 +1,52 @@
+{
+ "n": 863,
+ "missing": 0,
+ "naive_d0_disagree": 19,
+ "naive_ge_disagree": 19,
+ "naive_d0_agree_pct": 97.798,
+ "buckets": {
+  "[0,1)": {
+   "n": 63,
+   "disagree": 17,
+   "rate_pct": 26.98
+  },
+  "[1,2)": {
+   "n": 73,
+   "disagree": 1,
+   "rate_pct": 1.37
+  },
+  "[2,3)": {
+   "n": 65,
+   "disagree": 1,
+   "rate_pct": 1.54
+  },
+  "[3,5)": {
+   "n": 128,
+   "disagree": 0,
+   "rate_pct": 0.0
+  },
+  "[5,8)": {
+   "n": 163,
+   "disagree": 0,
+   "rate_pct": 0.0
+  },
+  "[8,12)": {
+   "n": 157,
+   "disagree": 0,
+   "rate_pct": 0.0
+  },
+  "[12,20)": {
+   "n": 130,
+   "disagree": 0,
+   "rate_pct": 0.0
+  },
+  "[20,1000000000.0)": {
+   "n": 84,
+   "disagree": 0,
+   "rate_pct": 0.0
+  }
+ },
+ "dis_under2": 18,
+ "dis_under3": 19,
+ "max_dis_bps": 2.222
+}

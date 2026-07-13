@@ -1,0 +1,70 @@
+{
+  "dimension": "RESOLUTION-SOURCE AUDIT",
+  "generated": "2026-07-13",
+  "1_source_audit": {
+    "markets_fetched_ok": 67,
+    "requirement": ">=30 across days/hours",
+    "coverage": {"distinct_days": 5, "days": ["07-07","07-08","07-09","07-10","07-13"], "distinct_utc_hours": 21},
+    "resolutionSource_distinct": {"https://data.chain.link/streams/btc-usd": 67},
+    "src_is_chainlink_pct": 100.0,
+    "markets_not_chainlink": [],
+    "markets_mentioning_coinbase": [],
+    "conclusion": "The resolution source is the Chainlink BTC/USD data stream for ALL 67 markets, no exceptions. Description explicitly says price is per the Chainlink stream 'not according to other sources or spot markets'."
+  },
+  "2_exact_rule": {
+    "distinct_description_texts": 1,
+    "verbatim": "This market will resolve to \"Up\" if the Bitcoin price at the end of the time range specified in the title is greater than or equal to the price at the beginning of that range. Otherwise, it will resolve to \"Down\".\nThe resolution source for this market is information from Chainlink, specifically the BTC/USD data stream available at https://data.chain.link/streams/btc-usd.\nPlease note that this market is about the price according to Chainlink data stream BTC/USD, not according to other sources or spot markets.",
+    "tie_convention": ">= -> Up (a flat/equal close resolves UP)",
+    "boundary_definition": "price at the BEGINNING of the time range (= t0, window start from title) vs price at the END of the time range (= t0+300). Both are Chainlink BTC/USD instantaneous prices at those exact instants.",
+    "outcomes_distinct": {"[\"Up\", \"Down\"]": 67}
+  },
+  "3_our_tie_handling": {
+    "polymarket_rule": "end >= start -> Up (tie -> Up)",
+    "bot_provisional_settle_pending_line1645": "apply_settle('up' if gap>0 else 'down'): gap==0 -> DOWN. DIFFERS from Polymarket >=. BUT provisional only fires when clear (|gap|>=max($15,0.03%)~$19) OR (age>180 and |gap|>=2); exact-flat (gap==0) and tiny moves NEVER provisionally settle, they wait for the oracle. So the wrong tie is never applied.",
+    "bot_leader_feedproxy_line928": "up = pv['ret'] >= 0  -> CORRECT >= tie (matches Polymarket); interim shadow display only, overwritten by oracle.",
+    "livehtml_verdictOf_line810": "up = d>0 (tie/d==0 -> down) BUT guarded by tooClose: |d| < clearMargin ~$19 -> 'too close to call -> oracle decides'. Exact d==0 always hits tooClose -> deferred, never a wrong hard call.",
+    "livehtml_live_leader_drawBtcBar_line840": "sign(spot - CoinbaseOpen): d>0 'Up leads' / d<0 'Down leads' / d==0 'right at the line'. NO margin guard AND wrong SOURCE (Coinbase, not Chainlink). This is the one surface that shows a confident leader that can contradict Chainlink.",
+    "verdict": "Our tie RULE (d>0) differs from Polymarket's (d>=0) in live.html/bot-provisional, but every SETTLE path shields it behind a defer-to-oracle margin band, so it never yields a wrong booked/verdict call. The exposed surface is the live-leader indicator: wrong SOURCE + no margin guard."
+  },
+  "4_boundary_timing": {
+    "secondsDelay_distinct": {"None": 67},
+    "endDate_minus_t0_distinct_secs": {"300": 67},
+    "umaEndDate_minus_t0_secs": "316..385 (median ~319-320) — this is the UMA resolution-posting buffer AFTER the window, NOT a price-observation shift.",
+    "startDate_minus_t0_secs": "~ -85922 (about -24h) — startDate is the market LISTING/trading-open time, NOT the price-window start. The price window start comes from the title/slug t0.",
+    "conclusion": "Settle price is observed at EXACTLY t0+300 (endDate). No secondsDelay, no rounding. Reference at exactly t0. The boundary is unambiguous and matches our t0 / t0+300 assumption."
+  },
+  "empirical_divergence_coinbase_vs_chainlink_oracle": {
+    "n_intervals": 863,
+    "source_ground_truth": "pm_res_3d.json oracle resolutions (= Chainlink truth)",
+    "our_reference": "Coinbase 1m open at t0 vs Coinbase 1m open at t0+300 (mirrors strikeOf/settleOf)",
+    "naive_sign_leader_agreement_pct": 97.80,
+    "naive_sign_leader_disagree_pct": 2.20,
+    "naive_disagree_n": 19,
+    "hard_call_verdict_n": 662,
+    "hard_call_agreement_pct": 100.0,
+    "hard_call_disagree_n": 0,
+    "deferred_tooClose_n": 201,
+    "deferred_pct": 23.3,
+    "deferred_where_naive_wouldve_been_wrong": 19,
+    "disagreement_by_bps": {
+      "[0,1)": {"n": 63, "disagree": 17, "rate_pct": 27.0},
+      "[1,2)": {"n": 73, "disagree": 1, "rate_pct": 1.4},
+      "[2,3)": {"n": 65, "disagree": 1, "rate_pct": 1.5},
+      "[3,5)": {"n": 128, "disagree": 0, "rate_pct": 0.0},
+      "[5,8)": {"n": 163, "disagree": 0, "rate_pct": 0.0},
+      "[8,12)": {"n": 157, "disagree": 0, "rate_pct": 0.0},
+      "[12,20)": {"n": 130, "disagree": 0, "rate_pct": 0.0},
+      "[20,inf)": {"n": 84, "disagree": 0, "rate_pct": 0.0}
+    },
+    "share_of_disagreements_under_2bps_pct": 95,
+    "share_of_disagreements_under_3bps_pct": 100,
+    "interpretation": "Coinbase and Chainlink disagree on the Up/Down call ONLY at the flat boundary (100% of disagreements < 3bps, 95% < 2bps). The clearMargin (~$19 = ~3bps) band on live.html's CLOSED-window verdict defers exactly this zone -> 0/662 wrong hard calls. The unguarded live-leader line (drawBtcBar) shows the wrong leader on 2.2% of intervals overall, up to 27% when BTC is within 1bp of the line."
+  },
+  "fix": {
+    "root_cause": "Displayed reference (price-to-beat) and the live-leader call are derived from Coinbase spot/candles, but Polymarket settles on Chainlink BTC/USD. The two disagree only within ~3bps of the open.",
+    "primary": "Source the displayed reference (strikeOf) and settle-side from a Chainlink-equivalent oracle. Pyth Hermes BTC/USD is fetchable and far closer to Chainlink than Coinbase; or read the Chainlink stream directly. Removes the basis entirely.",
+    "cheap_mitigation_already_half_present": "Extend the existing clearMargin defer band to the live-leader line (drawBtcBar, live.html ~840): within +/-clearMargin show 'too close to call -> oracle decides' instead of a confident Up/Down leads. This alone eliminates ALL 19/19 observed wrong leader calls (all are <3bps).",
+    "tie_convention": "Align tie handling to >= -> Up everywhere (verdictOf line 810: d>=0; bot provisional line 1645: gap>=0->up) for consistency with Polymarket, though it is cosmetic given the margin guards.",
+    "note_pnl_unaffected": "Booked trade P&L already reconciles to the oracle (settledBy=polymarket); this is purely a DISPLAY-truth fix. Discord pings transmit side+drift+ask and their signals gate on >=4bps (leader) / >=12bps (trading) moves, past the disagreement zone, so ping SIDE is empirically safe (0% disagreement at 4-8bps)."
+  }
+}

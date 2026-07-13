@@ -1,0 +1,28 @@
+{
+  "n_ok": 67,
+  "secondsDelay_distinct": [
+    "None"
+  ],
+  "endDate_minus_t0": {
+    "distinct": [
+      300
+    ],
+    "all_300": true,
+    "n_ne_300": 0,
+    "examples_ne": []
+  },
+  "umaEndDate_minus_t0": {
+    "n": 67,
+    "min": 316,
+    "max": 385,
+    "median": 320
+  },
+  "startDate_minus_t0": {
+    "n": 67,
+    "min": -85959,
+    "max": -82436,
+    "median": -85922
+  },
+  "slug_t0_mismatch": [],
+  "t0_not_on_5min_utc_boundary": []
+}
