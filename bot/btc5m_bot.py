@@ -865,6 +865,7 @@ class Bot:
             f = self.feed
             if not (f.get("t0") == rec["t0"] and f.get("open") and f.get("last") is not None):
                 rec["l50"] = "late"          # interval rolled before the re-poll landed
+                self.emit_leader_result(rec, None)
                 return
             slip = clampf(self.st["slip"], 0, 5, 1) / 100
             limit = min(0.99, rec["ask1"] + slip)
@@ -874,6 +875,7 @@ class Bot:
                 rec["l50"] = "ran"           # quote gone by arrival — the R3 verdict, one datum at a time
                 self.log(f"[LEADER50] SKIP {rec['side'].upper()} — re-poll ask "
                          f"{'%.0fc' % (rec['ask2']*100) if rec.get('ask2') is not None else 'gone'} past limit {limit*100:.0f}c")
+                self.emit_leader_result(rec, None)
                 return
             entry = min(0.99, round(avg + slip, 4))
             shares = round(spent / entry, 4)
@@ -897,6 +899,7 @@ class Bot:
             self.log(f"[LEADER50] ENTER {self.st['asset']} {rec['side'].upper()} @ {entry*100:.1f}c avg "
                      f"${spent:.0f} fee ${fee:.2f} (re-poll fill, first ask {rec['ask1']*100:.0f}c) "
                      f"+{tr['entrySec']}s into interval")
+            self.emit_leader_result(rec, tr)
         except Exception as e:
             self.log(f"leader50 enter error: {e}")
 
@@ -1435,6 +1438,37 @@ class Bot:
                 self.log(f"leader alert webhook error: {e}")
         self.log(f"[SHADOW ALERT] leader_v1 {rec['side']} {m['slug']} ask {rec['ask1']*100:.0f}c "
                  f"drift {rec['drift']:.1f}bps → bridge")
+
+    def emit_leader_result(self, rec, tr):
+        """Follow-up to emit_leader_alert: the re-poll's resolution, a few seconds
+        after the alert — filled (tr set), quote ran, or landed late. Same
+        alert-only bridge semantics (kind=shadow_result, orderable=False,
+        engine=leader_v1 so the executor's hard NEVER_ORDERABLE lock applies);
+        one-shot per t0, signals.log only (no signal.json clobber)."""
+        if "leader_v1" not in self.sig_engines: return
+        key = f"_l50res-{rec['t0']}"
+        if self.sig_last.get(key): return
+        self.sig_last[key] = True
+        now = now_ms()
+        sig = dict(v=1, kind="shadow_result", orderable=False,
+                   signalId=f"leader_v1-fill-{rec['t0']}", engine="leader_v1", emittedAt=now,
+                   asset=self.st["asset"], slug=rec.get("slug") or f"btc-updown-5m-{rec['t0']}",
+                   t0=rec["t0"], t1=rec.get("t1") or rec["t0"] + IVL,
+                   secLeft=max(0, int((rec.get("t1") or rec["t0"] + IVL) - now/1000)),
+                   side=rec["side"], outcome=rec.get("l50") or "?",
+                   ask1=rec["ask1"], ask2=rec.get("ask2"), dtMs=rec.get("dtMs"),
+                   entry=(tr or {}).get("entry"), stake=(tr or {}).get("stake"),
+                   note="leader50 re-poll resolution — measurement only, never an order")
+        if self.sig_secret:
+            canon = json.dumps(sig, sort_keys=True, separators=(",", ":"))
+            sig["hmac"] = hmac.new(self.sig_secret.encode(), canon.encode(), hashlib.sha256).hexdigest()[:32]
+        try:
+            if self.sig_file:
+                log_path = os.path.join(os.path.dirname(self.sig_file), "signals.log")
+                with open(log_path, "a") as lf:
+                    lf.write(json.dumps(sig, separators=(",", ":")) + "\n")
+        except Exception as e:
+            self.log(f"leader result file error: {e}")
 
     def manage_open(self, eid, now):
         tr = self.open_trade(eid)
@@ -2302,6 +2336,31 @@ def selftest():
     ok(not bl2.trades("leader50") and r2.get("l50") == "ran",
        "leader50: quote ran past the limit by arrival — NO fill, miss logged as conformance data",
        f"l50={r2.get('l50')}")
+    # follow-up result ping: every alert gets its re-poll resolution on the bridge
+    sfl = os.path.join(tempfile.gettempdir(), "btc5m_l50sig.json")
+    slog = os.path.join(tempfile.gettempdir(), "signals.log")
+    if os.path.exists(slog): os.remove(slog)
+    blf = mkldr()                                            # quote holds → alert THEN fill result
+    blf.sig_engines = ["leader_v1"]; blf.sig_file = sfl; blf.sig_secret = "testkey"
+    blf._leader_tick(now)
+    lls = [json.loads(l) for l in open(slog).read().splitlines()]
+    ok(len(lls) == 2 and lls[0]["kind"] == "shadow_alert"
+       and lls[1]["kind"] == "shadow_result" and lls[1]["outcome"] == "fill"
+       and lls[1]["entry"] == 0.63 and lls[1]["ask1"] == 0.62 and lls[1]["orderable"] is False
+       and lls[1]["signalId"] == f"leader_v1-fill-{lls[0]['t0']}",
+       "leader50: alert is followed by a shadow_result fill ping on the bridge",
+       f"kinds={[x.get('kind') for x in lls]} outcome={lls[-1].get('outcome') if lls else None}")
+    os.remove(slog)
+    blr2 = mkldr(ask2=0.71)                                  # quote runs → 'ran' result ping
+    blr2.sig_engines = ["leader_v1"]; blr2.sig_file = sfl; blr2.sig_secret = "testkey"
+    blr2._leader_tick(now)
+    lls2 = [json.loads(l) for l in open(slog).read().splitlines()]
+    ok(lls2[-1]["kind"] == "shadow_result" and lls2[-1]["outcome"] == "ran"
+       and lls2[-1]["ask2"] == 0.71 and lls2[-1].get("entry") is None,
+       "leader50: a run-away quote gets a 'ran' result ping (no fill)",
+       f"outcome={lls2[-1].get('outcome')}")
+    os.remove(slog)
+    if os.path.exists(sfl): os.remove(sfl)
     for bad_ask, bad_drift in ((0.62, 2.0), (0.62, 9.0), (0.70, 5.0), (0.54, 5.0)):
         bx = mkldr(ask=bad_ask, drift_bps=bad_drift)
         bx._leader_tick(now)
