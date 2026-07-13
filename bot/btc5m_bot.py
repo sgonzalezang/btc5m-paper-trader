@@ -131,9 +131,19 @@ ENGINE_CFG = {
     # clearable price), first-45s entry only (contrarian mid disperses violently
     # by ~60s; winners' entrySec p50=9s). Sized: quarter-Kelly on bucketed qhat
     # from its own $1,000 bank (sized=True); f<=0 or bench or bank<$250 = SKIP.
+    # firstFillMax (P4/R1, 2026-07-12): hard ask cap at the sizing step —
+    # never take ANY fill whose ask exceeds 47c, independent of learned qhat.
+    # Freezes the behavior the f>0 check produced by accident (skip rich first
+    # quotes, take the cheap re-poll) and closes the verified loophole where
+    # nightly qhat drift could silently re-open 48-53c first fills (R1/R2:
+    # the 48-53c zone is fee-dead in every era; cap jitter-robust 47/48/49c).
+    # Cheaper re-polls inside the 45s window still size normally — the refill
+    # path this cap protects. Applies to impulse_v2 ONLY: impulse50,
+    # reversal_v2, reversal and reversal2 are pre-registered controls and
+    # keep their exact registered behavior.
     "impulse_v2": dict(label="Impulse v2", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                        revThr=0.12, revEntryMax=0.53, revWinMin=255, holdToClose=True,
-                       impGate=True, eff6Min=0.10, cnt12Max=6, sized=True),
+                       impGate=True, eff6Min=0.10, cnt12Max=6, sized=True, firstFillMax=0.47),
     # reversal_v2 — ungated control shadow. Identical spec minus the impulse gate,
     # $50 flat. Its paired per-share delta vs impulse_v2 on common signals is the
     # pre-registered day-60 gate verdict (does the gate pay at live fills?).
@@ -148,14 +158,113 @@ ENGINE_CFG = {
                       impGate=True, eff6Min=0.10, cnt12Max=6, shadow=True),
 }
 # impulse_v2 sizing/learning state defaults (persisted under st["impulse"]).
-# qlo/qhi are the bucketed win-prob estimates (effective cost < / >= 50c) with
-# neutral ledger seeds and prior mass 400 (FINAL-DESIGN v3 MF2/MF3); measure is
-# the measurement book: every cap-compliant gated signal, sized or skipped —
-# qhat learns from THIS, never from the bank-censored sized book.
-IMP_SEED_LO, IMP_SEED_HI, IMP_PRIOR = 0.5057, 0.5068, 400
+# qlo/qhi are the bucketed win-prob estimates, bucketed by p_eff = ask + slip
+# (< 0.50 / >= 0.50, FINAL-DESIGN §4.2), refit nightly from the trailing-30d
+# measurement book with the REGISTERED shrinkage (wins+100)/(n+200) — prior
+# mass 200/bucket at mean 0.5, hard cap 0.56. IMP_SEED_LO/HI are the LAUNCH
+# STATE values only (§4.2 MF3 neutral ledger seeds); they no longer anchor
+# the nightly estimator. measure is the measurement book: every cap-compliant
+# gated signal, sized or skipped — qhat learns from THIS, never from the
+# bank-censored sized book.
+# ---------------------------------------------------------------------------
+# CHANGELOG 2026-07-12 — wave-2 patch set (research/2026-07-12-edge-hunt/FINDINGS.md)
+# P1 [R4 AMENDMENT, before day 14] The measurement book is now poll-cumulative
+#    and window-final: each record additionally carries bestCost (best
+#    in-window fillable cost, updated in place across polls), fillCost
+#    (realized all-in fill cost when actually filled), and final (sized/skip
+#    stamped at the t0+45s window close per FINAL-DESIGN MF6 — NOT at first
+#    poll). Legacy rows are migrated once by joining the flagship ledger on
+#    t0 (_measure_migrate). Schema-additive: no existing field changes.
+#    PRE-COMMITMENT (R4): the day-14 Phase-1 kill, the §5.2 guard windows and
+#    the nightly qhat all read the OPERATED basis
+#        opCost = fillCost if filled else bestCost      (_m_opcost;
+#                 legacy rows fall back to their first-poll cost)
+#    and exclude seed=True rows. The first-poll `cost` series is retained
+#    unchanged as a DIAGNOSTIC ONLY — it feeds no verdict, no guard, no
+#    estimator. Committed 2026-07-12, before day 14 of the v3 trial.
+# P2 [R8 CONFORMANCE — dated refit, human-reviewed] Three verified bot-vs-spec
+#    deviations aligned to FINAL-DESIGN; none corrupts the pre-registered
+#    day-14/day-60 verdicts (they never read qhat — R8 verified 3-0):
+#    (a) bucket boundary: KEPT at cost<0.50 — REGISTERED DEVIATION from
+#        §4.2's p_eff<0.50 (dated 2026-07-13, wave-2 qhat adjudication,
+#        research/2026-07-12-edge-hunt/IMPULSE-DEEP.md §1/§3: the deployed
+#        cost boundary beat the registered spec under the R2-consistent
+#        stress; config = hybrid_cost_M200). _p_eff_from_cost retained as
+#        a diagnostic helper only.
+#    (b) prior: was mass 400/bucket anchored at the ledger seeds; now the
+#        registered (wins+100)/(n+200) — IMP_PRIOR=200 at IMP_PRIOR_MEAN=0.5
+#        (§4.2 "per-bucket shrinkage n0=200 at mean 0.5"). Direction:
+#        conservative — removes the verified ~1.1c anti-conservative
+#        sizing-threshold inflation and halves the learning lag.
+#    (c) M2 guard seeding (§5.3), never implemented at launch: guard windows
+#        seed from the pre-launch cap-censored family ledger (n=123, flagged
+#        seed=True, impulse_guard_seed.json, loaded via cfg seedPath). Seeds
+#        count toward the guard n-minimums and age out of the trailing
+#        windows naturally; they NEVER feed qhat (MF3: the launch seeds
+#        already encode that ledger).
+#    (d) §5.2/SC3 conformance: the resurrected 15d/−1c haircut tier is
+#        REMOVED; haircut = single 7d<−2c trigger (≥120) with release
+#        hysteresis at 7d≥−1c (holds state in between and when the window
+#        lacks min-n). Bench (15d<−3c on ≥250 OR 7d<−4c on ≥120; release
+#        10d≥0 on ≥100) and the $250 breaker are unchanged.
+# P3 [R8 RESTART-FLAP FIX] Diagnosed mechanism (wave-1 R8, both readings
+#    covered): the 7-10 anomalous Jul-10 loop_metrics lines are byte-exact
+#    --selftest fixture output (qlo .4175 = (90+400·.5057)/700) — the
+#    selftest's throwaway Bot objects appended to the PRODUCTION
+#    loop_metrics.jsonl because the path was derived from __file__. And a
+#    restart whose state load fails (or a resurrected stale state file) ran
+#    an immediate catch-up nightly over an empty/foreign measurement book,
+#    recomputing qhat/guard state from the wrong basis. Three minimal fixes:
+#    (a) nightly metrics are written ONLY when cfg['metricsPath'] is set —
+#        main() sets it for the production loop; selftest fixtures never
+#        write the live log;
+#    (b) a state whose nightly clock was never set (lastNightly==0) sets the
+#        baseline WITHOUT running a catch-up nightly — the first real nightly
+#        runs at the next 00:10 UTC boundary crossed while live;
+#    (c) the impulse state carries its creation `epoch`; nightly prunes
+#        non-seed measurement rows with t0 < epoch (pre-epoch rows from a
+#        resurrected/foreign state never feed qhat or the guards; M2 seed
+#        rows are exempt by design). Legacy states load with epoch=0 — no
+#        behavior change on the current live book.
+# P4 [R1 FIRST-FILL CAP] impulse_v2 gains firstFillMax=0.47: a hard ask cap
+#    evaluated at the sizing step, independent of learned qhat (named SKIP
+#    'first_fill_cap'; the measurement book still records the signal, and a
+#    cheaper in-window re-poll still sizes — the refill path). Rationale:
+#    R1/R2 — the flagship's live outperformance IS the skip/refill of rich
+#    ≥48c first quotes; the 48-53c fill zone clears fees in NO era or cut;
+#    nothing else prevents nightly qhat drift from re-opening it. Applies to
+#    impulse_v2 ONLY — impulse50/reversal_v2/reversal/reversal2 are
+#    pre-registered controls and are untouched.
+# P5 [R3 LEADER_V1 SHADOW] $0-stake fill-conformance measurement book (NOT a
+#    trading engine: no orders, no stake, no pnl, no equity). When the
+#    drift-leader state qualifies — current-interval spot drift aligned with
+#    the leader side, |drift| in [4,8) bps of open, leader-side REAL-book ask
+#    in [0.55,0.66) — record the polled ask, then re-poll the same token's
+#    book ~2.5s later and log quote persistence. This is the datum that
+#    decides R3: wave-1 found the bot's polled asks were ~8c/share below
+#    independent PM snapshots ONLY in this state (stale-quote capture — a
+#    cancel-race a taker likely loses); promotion to anything sized requires
+#    demonstrated live fill conformance at sub-market asks. The band is the
+#    R3-verifier WIDE band (the 60c lower edge was shown overfit: 59-60c
+#    aligned ran q=.368); stratify offline. One record per interval, bounded
+#    list, published in state. The blocking re-poll is DEFERRED to the next
+#    tick whenever any live arm's entry window is still open, so the shadow
+#    can never delay a trading decision.
+# ---------------------------------------------------------------------------
+IMP_SEED_LO, IMP_SEED_HI = 0.5057, 0.5068  # launch-day qhat STATE values only (§4.2 MF3)
+IMP_PRIOR = 200          # P2/R8: registered per-bucket shrinkage mass (§4.2); was 400
+IMP_PRIOR_MEAN = 0.5     # P2/R8: registered prior center (§4.2 "mean 0.5"); was the ledger seeds
+IMP_QCAP = 0.56          # hard qhat cap (§4.2)
+IMP_BUCKET_LO = 0.50     # bucket boundary on all-in COST (kept; dated deviation from §4.2 p_eff — see CHANGELOG P2a)
+# P5/R3 leader_v1 shadow constants (see CHANGELOG P5)
+LEADER_DRIFT_LO, LEADER_DRIFT_HI = 4.0, 8.0   # aligned current-interval drift band, bps of open
+LEADER_ASK_LO, LEADER_ASK_HI = 0.55, 0.66     # leader-side ask band (wide per R3 verification)
+LEADER_REPOLL_S = 2.5    # target re-poll delay for the quote-persistence probe
+LEADER_KEEP = 2000       # bounded shadow book
 def default_impulse():
     return dict(bank=1000.0, bank0=1000.0, qlo=IMP_SEED_LO, qhi=IMP_SEED_HI, benched=False,
-                measure=[], skips={}, lastNightly=0)
+                measure=[], skips={}, lastNightly=0,
+                epoch=now_s() - IVL)   # P3: rows older than this state never feed the nightly
 VOL_WIN_MS = 600000   # trailing window for the volatility measure (10 min)
 # Guards the loose engine must have GREEN regardless of its N/10 count. The
 # backtest (2026-07-06, 21 honest trades) showed loose entries that skipped
@@ -416,6 +525,12 @@ class Bot:
         self.sig_webhook = os.environ.get("BTC5M_SIGNAL_WEBHOOK", "")
         self.sig_secret = os.environ.get("BTC5M_SIGNAL_SECRET", "")
         self.sig_last = {}                    # eid -> t0 already emitted (one-shot per engine per interval)
+        self._measure_migrate()               # R4 one-shot legacy-row migration (see CHANGELOG P1); idempotent
+        self._guard_seed_load()               # M2 §5.3 one-shot guard-window seeding (see CHANGELOG P2)
+        # P5/R3 leader_v1 $0-stake shadow book; injectable I/O for offline tests
+        self.ldr = self.st.setdefault("leader", {"book": [], "n": 0})
+        self._book_fn = book
+        self._sleep_fn = time.sleep
 
     # --- config accessors ---
     def prof(self): return PROFILES[self.st["profile"]]
@@ -556,12 +671,14 @@ class Bot:
 
     def _impulse_stake(self, p):
         """Quarter-Kelly stake for a fill at price p (ask+slip), or (None, why).
-        cost = p + fee(p) per share; qhat bucketed by cost (<50c / >=50c);
+        cost = p + fee(p) per share; qhat bucketed by all-in cost
+        (< 0.50 / >= 0.50 — KEPT per the wave-2 qhat adjudication as a dated
+        deviation from FINAL-DESIGN §4.2's p_eff boundary; CHANGELOG P2a);
         f_full = qhat - (1-qhat)*cost/(1-cost). f<=0 is a SKIP (no stake floor
         exists — MF1), as are the guard bench and the $250 ops breaker."""
         imp = self.imp
         cost = p + FEE_RATE * p * (1 - p)
-        qh = imp["qlo"] if cost < 0.50 else imp["qhi"]
+        qh = imp["qlo"] if cost < IMP_BUCKET_LO else imp["qhi"]
         if imp.get("benched"): return None, "benched"
         if imp.get("bank", 1000.0) < 0.25 * imp.get("bank0", 1000.0): return None, "breaker"   # ops stop at 25% of launch bank
         if imp.get("haircut"): qh = 0.5 + (qh - 0.5) / 2      # tier-1/2 base-rate guard: halve the assumed edge
@@ -576,19 +693,204 @@ class Bot:
         qhat learns from this, never from the bank-censored sized book.
         feats = decision-time context (ML-PLAN.md Phase 0): the training row for
         the future meta-labeling model. Recorded at decision time so no feature
-        can leak information from after the entry moment."""
+        can leak information from after the entry moment.
+        R4 AMENDMENT (2026-07-12): poll-cumulative. The first fillable poll
+        appends the record (cost = first-poll fillable cost, kept forever as
+        the diagnostic series); every later in-window fillable poll updates
+        bestCost in place and refreshes the PROVISIONAL sized/skip stamp to
+        the latest poll's decision. Nothing is final until _measure_finalize
+        stamps the record at the t0+45s window close (MF6 skip finality)."""
         ms = self.imp["measure"]
-        if ms and ms[-1].get("t0") == t0: return
-        ms.append(dict(t0=t0, side=side, cost=round(cost, 4), win=None,
-                       sized=bool(sized), skip=(why or None), f=(feats or None)))
-        del ms[:-12000]
-        if why: self.imp["skips"][why] = self.imp["skips"].get(why, 0) + 1
+        cur = ms[-1] if ms and ms[-1].get("t0") == t0 else None
+        if cur is None:
+            if ms and not ms[-1].get("final", True):
+                # previous interval's record never saw its window close
+                # (restart/downtime mid-window) — finalize it now, late.
+                self._measure_finalize(ms[-1]["t0"])
+            ms.append(dict(t0=t0, side=side, cost=round(cost, 4), win=None,
+                           sized=bool(sized), skip=(why or None), f=(feats or None),
+                           bestCost=round(cost, 4), fillCost=None, final=False))
+            del ms[:-12000]
+            return
+        if cur.get("final"): return
+        if cur.get("bestCost") is None or cost < cur["bestCost"]:
+            cur["bestCost"] = round(cost, 4)
+        if cur.get("fillCost") is None:              # not filled yet: last in-window poll's decision
+            cur["sized"], cur["skip"] = bool(sized), (None if sized else (why or None))
+
+    def _measure_fill(self, t0, entry):
+        """R4: stamp the realized all-in fill cost onto the measurement row —
+        the operated basis the day-14 kill reads for filled signals. `entry`
+        already includes the 1c slip; fee per the frozen model."""
+        for m in reversed(self.imp["measure"]):
+            if m.get("t0") == t0:
+                m["fillCost"] = round(entry + FEE_RATE * entry * (1 - entry), 4)
+                m["sized"], m["skip"] = True, None
+                return
+
+    def _measure_finalize(self, t0):
+        """MF6/R4: sized/skip become FINAL at the entry-window close (t0+45s),
+        not at the first poll. Idempotent; called on the first eval after the
+        window closes. A record that granted a stake but never actually filled
+        (thin book) finalizes as skip='no_fill'. Skip-reason counters are
+        incremented here — once per signal, on the final reason."""
+        ms = self.imp["measure"]
+        m = ms[-1] if ms and ms[-1].get("t0") == t0 else None
+        if not m or m.get("final"): return
+        m["final"] = True
+        m["sized"] = m.get("fillCost") is not None
+        if m["sized"]:
+            m["skip"] = None
+        else:
+            m["skip"] = m.get("skip") or "no_fill"
+            self.imp["skips"][m["skip"]] = self.imp["skips"].get(m["skip"], 0) + 1
+
+    @staticmethod
+    def _p_eff_from_cost(c):
+        """Exact inverse of cost = p + FEE_RATE·p·(1−p) — recovers p_eff from a
+        stored all-in cost so measurement rows can be bucketed by p_eff (§4.2)
+        without a schema change. Quadratic root in [0,1]; rounded to 6dp so a
+        fill at exactly p_eff=0.50 (cost .5175) lands in the hi bucket."""
+        if c is None: return None
+        if FEE_RATE <= 0: return c
+        disc = (1.0 + FEE_RATE) ** 2 - 4.0 * FEE_RATE * c
+        return round(((1.0 + FEE_RATE) - math.sqrt(disc)) / (2.0 * FEE_RATE), 6)
+
+    @staticmethod
+    def _m_opcost(m):
+        """Operated cost basis (R4 pre-commitment — see CHANGELOG P1): realized
+        fill cost when filled, else best in-window fillable cost; legacy rows
+        (pre-amendment) fall back to their first-poll cost. The day-14 kill,
+        the guard windows and qhat read THIS; first-poll `cost` is diagnostic."""
+        if m.get("fillCost") is not None: return m["fillCost"]
+        if m.get("bestCost") is not None: return m["bestCost"]
+        return m["cost"]
+
+    def _measure_migrate(self):
+        """One-shot R4 schema migration (2026-07-12), idempotent and additive:
+        legacy measurement rows (written before the amendment, no `final`
+        field) are stamped final and joined to the flagship ledger by t0 — a
+        row whose interval WAS traded gets its realized fillCost/sized=True
+        (the interval dup-guard guarantees same-signal identity; R4 verified
+        the side matches 12/12 on the affected skips). The first-poll `cost`
+        field is never modified."""
+        if self.imp.get("mAmend"): return
+        trades = {}
+        for t in (self.st.get("engines", {}).get("impulse_v2", {}) or {}).get("trades", []):
+            if isinstance(t.get("t0"), (int, float)) and isinstance(t.get("entry"), (int, float)):
+                trades.setdefault(t["t0"], t)
+        n_fill = 0
+        for m in self.imp["measure"]:
+            if "final" in m or m.get("seed"): continue
+            m["final"] = True
+            t = trades.get(m.get("t0"))
+            if t is not None and t.get("side") == m.get("side"):
+                m["fillCost"] = round(t["entry"] + FEE_RATE * t["entry"] * (1 - t["entry"]), 4)
+                m["sized"], m["skip"] = True, None
+                n_fill += 1
+        self.imp["mAmend"] = 1
+        if n_fill:
+            self.log(f"measurement book amended (R4): {n_fill} legacy rows joined to realized fills")
+
+    def _guard_seed_load(self):
+        """M2 (FINAL-DESIGN §5.3), one-shot: seed the guard windows from the
+        pre-launch cap-censored family ledger (n=123, +2.75c/share — located
+        and verified in wave 1, R8-repro D_seed_ledger). Seed rows carry
+        seed=True: they count toward the guard n-minimums (netps windows) and
+        age out of the trailing windows naturally, but NEVER feed qhat (MF3:
+        the launch seed values already encode this ledger). Loaded from cfg
+        'seedPath' (main() points it at impulse_guard_seed.json next to this
+        script); absent file = stay unseeded and retry next start."""
+        if self.imp.get("seeded"): return
+        path = self.cfg.get("seedPath")
+        if not path: return
+        try:
+            with open(path) as f: rows = json.load(f)
+        except Exception:
+            return
+        ok_rows = [dict(t0=int(r["t0"]), side=r.get("side"), cost=round(float(r["cost"]), 4),
+                        win=int(r["win"]), sized=False, skip="seed", seed=True, final=True)
+                   for r in rows if isinstance(r, dict) and r.get("win") is not None
+                   and isinstance(r.get("t0"), (int, float)) and isinstance(r.get("cost"), (int, float))]
+        if not ok_rows: return
+        ok_rows.sort(key=lambda r: r["t0"])
+        self.imp["measure"][:0] = ok_rows
+        self.imp["seeded"] = len(ok_rows)
+        self.log(f"guard windows seeded (M2 §5.3): {len(ok_rows)} pre-launch rows flagged seed=True")
 
     def _measure_settle(self, t0, w):
         """Backfill measurement outcomes from any oracle-settled interval."""
         for m in self.imp["measure"]:
             if m["t0"] == t0 and w in ("up", "down"):
                 m["win"] = 1 if m["side"] == w else 0
+        for r in self.st.get("leader", {}).get("book", [])[-40:]:
+            # P5: oracle-grade outcome upgrade for the leader shadow when the
+            # same interval settles through a trading book (diagnostic only)
+            if r.get("t0") == t0 and w in ("up", "down"):
+                r["win"], r["winBy"] = (1 if r.get("side") == w else 0), "oracle"
+
+    def _leader_fill2(self, t0, b2, dt_ms):
+        """P5: complete a leader record's second poll (quote persistence)."""
+        for r in reversed(self.ldr["book"]):
+            if r.get("t0") == t0:
+                if r.get("dtMs") is None:
+                    r["dtMs"] = int(dt_ms)
+                    r["ask2"] = b2.get("ask") if b2 else None
+                    r["bid2"] = b2.get("bid") if b2 else None
+                return
+
+    def _leader_tick(self, now):
+        """P5/R3 leader_v1 $0-stake fill-conformance shadow (see CHANGELOG P5).
+        MEASUREMENT ONLY — no orders, no pnl, nothing enters any trading book.
+        Poll 1 reuses the tick's already-fetched leader-side book; poll 2
+        re-fetches the same token ~2.5s later (or on the next tick, ~4-5s,
+        whenever any live arm's entry window is still open — this shadow must
+        never delay a trading decision). dtMs records the honest gap."""
+        try:
+            m, f = self.mkt, self.feed
+            now_s_ = now // 1000
+            pend = self.ldr.pop("pend", None)
+            if pend:                                     # complete a deferred re-poll first
+                b2 = self._book_fn(pend["tok"])
+                self._leader_fill2(pend["t0"], b2, now_ms() - pend["at1"])
+            pv = self.prev_ivl                           # feed-proxy outcome backfill (winBy='feed', ~97% oracle-agreement)
+            if pv and pv.get("ret") is not None:
+                for r in self.ldr["book"][-8:]:
+                    if r.get("t0") == pv["t0"] and r.get("win") is None:
+                        up = pv["ret"] >= 0                               # ties resolve Up (venue rule)
+                        r["win"], r["winBy"] = (1 if (up == (r["side"] == "up")) else 0), "feed"
+            if not (m and m.get("ev") and f.get("open") and f.get("last") is not None): return
+            if any(r.get("t0") == m["t0"] for r in self.ldr["book"][-4:]): return   # one record per interval
+            delta = f["last"] - f["open"]
+            if not delta: return
+            drift_bps = abs(delta) / f["open"] * 10000.0
+            if not (LEADER_DRIFT_LO <= drift_bps < LEADER_DRIFT_HI): return
+            side = "up" if delta > 0 else "down"         # the drift-LEADER side: alignment by construction
+            q = self.quote(side)
+            if not (q and q.get("src") == "book" and q.get("ask") is not None): return   # REAL book only (R3)
+            if not (LEADER_ASK_LO <= q["ask"] < LEADER_ASK_HI): return
+            if not q.get("at") or (now - q["at"]) > self.prof()["freshMs"]: return
+            tok = m.get("tokUp") if side == "up" else m.get("tokDown")
+            if not tok: return
+            rec = dict(t0=m["t0"], side=side, drift=round(drift_bps, 2),
+                       sec=max(0, now_s_ - m["t0"]), ask1=q["ask"], bid1=q.get("bid"),
+                       top1=(round(q["top"], 2) if q.get("top") is not None else None),
+                       at1=q["at"], ask2=None, bid2=None, dtMs=None, win=None)
+            self.ldr["book"].append(rec)
+            self.ldr["n"] = self.ldr.get("n", 0) + 1
+            del self.ldr["book"][:-LEADER_KEEP]
+            if "leader_v1" in self.sig_engines: self.emit_leader_alert(rec, tok)
+            left = (m["t1"] - now_s_) if m.get("t1") else 0
+            live_win = min([c["revWinMin"] for c in ENGINE_CFG.values()
+                            if c.get("revThr") and not c.get("retired")] or [IVL])
+            if left >= live_win - 5:
+                self.ldr["pend"] = dict(t0=m["t0"], tok=tok, at1=rec["at1"])   # defer: an entry window is open
+            else:
+                self._sleep_fn(LEADER_REPOLL_S)
+                b2 = self._book_fn(tok)
+                self._leader_fill2(m["t0"], b2, now_ms() - rec["at1"])
+        except Exception as e:
+            self.log(f"leader_v1 shadow error: {e}")
 
     def warm_ivl_hist(self):
         """Cold-start rule (FINAL-DESIGN M6): rebuild the impulse gate's interval
@@ -620,6 +922,16 @@ class Bot:
         separate, human-reviewed step per FINAL-DESIGN v3 — nothing automated)."""
         due = (ns // 86400) * 86400 + 600
         if ns < due or self.imp.get("lastNightly", 0) >= due: return
+        if not self.imp.get("lastNightly"):
+            # P3/R8 restart-flap fix: a state whose nightly clock was never set
+            # (fresh default OR a failed/replaced state load) must NOT run a
+            # catch-up nightly over whatever basis it happens to hold — that is
+            # how qhat/guard state got recomputed from stale or empty books on
+            # restarts. Set the baseline; the first real nightly runs at the
+            # next 00:10 UTC boundary crossed while live.
+            self.imp["lastNightly"] = due
+            self.log("nightly clock initialized — first nightly at the next 00:10 UTC boundary")
+            return
         self.imp["lastNightly"] = due
         try: self._impulse_nightly(ns)
         except Exception as e: self.log(f"nightly job error: {e}")
@@ -627,16 +939,29 @@ class Bot:
     def _impulse_nightly(self, ns):
         imp = self.imp
         cut = (ns - 31 * 86400)
-        imp["measure"] = [m for m in imp["measure"] if m["t0"] >= cut]
+        # P3/R8: pre-epoch rows (a resurrected or foreign state's book) never
+        # feed the nightly; M2 seed rows are exempt (deliberately pre-launch).
+        epoch = imp.get("epoch", 0)
+        imp["measure"] = [m for m in imp["measure"]
+                          if m["t0"] >= cut and (m.get("seed") or m["t0"] >= epoch)]
         settled = [m for m in imp["measure"] if m["win"] is not None]
-        def qhat(bucket_lo, seed):
-            xs = [m for m in settled if (m["cost"] < 0.50) == bucket_lo]
-            return round(min(0.56, (sum(m["win"] for m in xs) + IMP_PRIOR * seed) / (len(xs) + IMP_PRIOR)), 4)
-        imp["qlo"], imp["qhi"] = qhat(True, IMP_SEED_LO), qhat(False, IMP_SEED_HI)
+        # R4 (2026-07-12): qhat and the guard windows read the OPERATED basis
+        # (_m_opcost: fillCost if filled else bestCost; legacy first-poll cost
+        # as fallback) — the first-poll series no longer feeds any estimator.
+        # P2/R8 (2026-07-12): registered estimator — buckets by p_eff<0.50
+        # (§4.2, exact inverse of the stored cost), shrinkage
+        # (wins+100)/(n+200) at mean 0.5, cap 0.56; seed=True rows (M2 guard
+        # seeds) never feed qhat.
+        live = [m for m in settled if not m.get("seed")]
+        def qhat(bucket_lo):
+            xs = [m for m in live if (self._m_opcost(m) < IMP_BUCKET_LO) == bucket_lo]
+            return round(min(IMP_QCAP, (sum(m["win"] for m in xs) + IMP_PRIOR * IMP_PRIOR_MEAN)
+                             / (len(xs) + IMP_PRIOR)), 4)
+        imp["qlo"], imp["qhi"] = qhat(True), qhat(False)
         def netps(days, nmin):
             xs = [m for m in settled if m["t0"] >= ns - days * 86400]
             if len(xs) < nmin: return None
-            tot = sum((1 - m["cost"]) if m["win"] else -m["cost"] for m in xs)
+            tot = sum((1 - self._m_opcost(m)) if m["win"] else -self._m_opcost(m) for m in xs)
             return tot / len(xs)
         n15, n7, n10 = netps(15, 250), netps(7, 120), netps(10, 100)
         if (n15 is not None and n15 < -0.03) or (n7 is not None and n7 < -0.04):
@@ -644,7 +969,13 @@ class Bot:
             imp["benched"] = True
         elif imp["benched"] and n10 is not None and n10 >= 0:
             imp["benched"] = False; self.log("impulse GUARD: unbenched (trailing 10d recovered)")
-        imp["haircut"] = bool((n15 is not None and n15 < -0.01) or (n7 is not None and n7 < -0.02))
+        # P2/R8 (§5.2, SC3): single haircut trigger 7d<−2c with release
+        # hysteresis at 7d≥−1c; hold state in the band or without min-n.
+        # The 15d/−1c tier SC3 deleted is gone.
+        if n7 is not None:
+            if n7 < -0.02: imp["haircut"] = True
+            elif n7 >= -0.01: imp["haircut"] = False
+        imp.setdefault("haircut", False)
         fee_bad = 0
         for t in self.trades("impulse_v2")[:200]:
             if t.get("result") in ("win", "loss") and t.get("feeEntry") is not None:
@@ -653,10 +984,15 @@ class Bot:
         metrics = dict(t=ns, qlo=imp["qlo"], qhi=imp["qhi"], benched=imp["benched"], haircut=imp["haircut"],
                        bank=round(imp["bank"], 2), measured=len(imp["measure"]), settled=len(settled),
                        n15=(round(n15, 4) if n15 is not None else None), skips=dict(imp["skips"]), feeBad=fee_bad)
-        try:
-            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "loop_metrics.jsonl"), "a") as f:
-                f.write(json.dumps(metrics, separators=(",", ":")) + "\n")
-        except Exception: pass
+        # P3/R8: write ONLY to the path the production loop configured —
+        # --selftest fixture Bots have no metricsPath and must never append
+        # fixture output to the live loop_metrics.jsonl (the Jul-10 "flap").
+        mp = self.cfg.get("metricsPath")
+        if mp:
+            try:
+                with open(mp, "a") as f:
+                    f.write(json.dumps(metrics, separators=(",", ":")) + "\n")
+            except Exception: pass
         self.log(f"nightly: qlo {imp['qlo']} qhi {imp['qhi']} bank ${imp['bank']:.0f} "
                  f"measured {len(settled)}/{len(imp['measure'])}{' BENCHED' if imp['benched'] else ''}")
 
@@ -729,7 +1065,15 @@ class Bot:
         if cfg.get("sized") and fillable:
             # measurement first (stake-independent), then the sizing decision
             p_fill = min(0.99, q["ask"] + slip)
-            stake_usd, skip_why = self._impulse_stake(p_fill)
+            ffmax = cfg.get("firstFillMax")
+            if ffmax is not None and q["ask"] > ffmax + 1e-9:
+                # P4/R1: hard first-fill ask cap — a named SKIP at the sizing
+                # step, independent of qhat. The signal still enters the
+                # measurement book below; a cheaper in-window re-poll can
+                # still size (the refill path).
+                stake_usd, skip_why = None, "first_fill_cap"
+            else:
+                stake_usd, skip_why = self._impulse_stake(p_fill)
             feats = dict(ask=q["ask"], pm=(round(prior_move, 4) if prior_move is not None else None),
                          eff6=eff6, cnt12=cnt12,
                          spread=(round(spread, 4) if spread is not None else None),
@@ -741,6 +1085,10 @@ class Bot:
                 self.sig_last["_impskip"] = m["t0"]
                 self.log(f"[IMPULSE_V2] signal but SKIP ({skip_why}) ask {q['ask']*100:.0f}c "
                          f"qlo {self.imp['qlo']} qhi {self.imp['qhi']} bank ${self.imp['bank']:.0f}")
+        if cfg.get("sized") and m and left is not None and not early:
+            # R4/MF6: the entry window is closed — stamp this interval's
+            # measurement record final (skip finality at t0+45s, not first poll)
+            self._measure_finalize(m["t0"])
         enter = bool(market_ok and signal and early and priced_ok and spread_ok and fresh and depth_ok and can_fill
                      and eff_ok and imp_ok and (stake_usd is not None or not cfg.get("sized")))
         delta = (pv["ret"] * pv["open"]) if (pv and pv.get("open")) else 0.0                 # prior move in $ (for logs)
@@ -898,6 +1246,9 @@ class Bot:
                   guards=[[k, 1 if ok else 0] for k, ok in ev["checks"]])
         self.trades(eid).insert(0, tr)
         self._trim(eid)
+        if ENGINE_CFG[eid].get("sized"):
+            # R4: the measurement row must carry the fill the arm actually paid
+            self._measure_fill(m["t0"], entry)
         part = "" if fully else f" partial {tr['fillFrac']*100:.0f}%"
         self.log(f"[{eid.upper()}] ENTER {self.st['asset']} {side.upper()} @ {entry*100:.1f}c avg "
                  f"${spent:.0f}{part} fee ${fee:.2f} ({ev['passCount']}/10) +{tr['entrySec']}s into interval "
@@ -975,6 +1326,51 @@ class Bot:
             except Exception as e:
                 self.log(f"signal webhook error: {e}")
         self.log(f"[SIGNAL] {eid} {ev['side']} {m['slug']} ask {q['ask']*100:.0f}c → bridge")
+
+    def emit_leader_alert(self, rec, tok):
+        """leader_v1 shadow-entry ALERT (never an order). Fired when the $0-stake
+        fill-conformance shadow records a qualifying state (see _leader_tick).
+        kind='shadow_alert' + orderable=False are the executor's hard stop: it
+        verifies (HMAC/dedup/freshness) then only notifies — no order path, no
+        stake, regardless of allowlist or LIVE state. Transport: its OWN atomic
+        file (signal_alerts.json) so an alert can never clobber a same-tick
+        order signal in signal.json, plus the shared append-only signals.log."""
+        m = self.mkt
+        if not m or self.sig_last.get("leader_v1") == rec["t0"]: return
+        self.sig_last["leader_v1"] = rec["t0"]
+        now = now_ms()
+        sig = dict(v=1, kind="shadow_alert", orderable=False,
+                   signalId=f"leader_v1-{rec['t0']}", engine="leader_v1", emittedAt=now,
+                   asset=self.st["asset"], slug=m["slug"], t0=m["t0"], t1=m["t1"],
+                   secLeft=max(0, int(m["t1"] - now/1000)), side=rec["side"], tokenId=tok,
+                   ask=rec["ask1"], bid=rec.get("bid1"), driftBps=rec["drift"], entrySec=rec["sec"],
+                   note="$0-stake fill-conformance shadow (R3) — measurement only, never an order")
+        if self.sig_secret:
+            canon = json.dumps(sig, sort_keys=True, separators=(",", ":"))
+            sig["hmac"] = hmac.new(self.sig_secret.encode(), canon.encode(), hashlib.sha256).hexdigest()[:32]
+        try:
+            if self.sig_file:
+                alert_path = os.path.join(os.path.dirname(self.sig_file), "signal_alerts.json")
+                tmp = alert_path + ".tmp"
+                with open(tmp, "w") as f: json.dump(sig, f, separators=(",", ":"))
+                os.replace(tmp, alert_path)
+                log_path = os.path.join(os.path.dirname(self.sig_file), "signals.log")
+                with open(log_path, "a") as lf:
+                    lf.write(json.dumps(sig, separators=(",", ":")) + "\n")
+        except Exception as e:
+            self.log(f"leader alert file error: {e}")
+        if self.sig_webhook:
+            try:
+                body = (f"👻 **LEADER_V1 SHADOW** {rec['side'].upper()} `{m['slug']}` "
+                        f"ask {rec['ask1']*100:.0f}c · drift {rec['drift']:.1f}bps · +{rec['sec']}s — "
+                        f"$0-stake conformance probe, NOT an order\n```json\n{json.dumps(sig)}\n```")
+                req = urllib.request.Request(self.sig_webhook, data=json.dumps({"content": body}).encode(),
+                                             headers={"Content-Type": "application/json", "User-Agent": "btc5m-bot"})
+                urllib.request.urlopen(req, timeout=3).read()
+            except Exception as e:
+                self.log(f"leader alert webhook error: {e}")
+        self.log(f"[SHADOW ALERT] leader_v1 {rec['side']} {m['slug']} ask {rec['ask1']*100:.0f}c "
+                 f"drift {rec['drift']:.1f}bps → bridge")
 
     def manage_open(self, eid, now):
         tr = self.open_trade(eid)
@@ -1191,6 +1587,7 @@ class Bot:
             self.prev_quote = {"side": cs, "ask": cq["ask"], "t": now} if (cs and cq and cq["ask"] is not None) else None
             self.settle_pending(now)
             self.nightly_tick(ns)
+            self._leader_tick(now)    # P5/R3 $0-stake shadow — last, so its re-poll can never delay a decision
             self.err = None
         except Exception as e:
             self.err = str(e)
@@ -1212,6 +1609,7 @@ def default_state(args):
             "ivlHist": [],                                      # rolling interval returns for Latent Fire's regime gate
             "ivlHist2": [],                                     # [[t0, ret], ...] — impulse gate window (contiguity-aware)
             "impulse": default_impulse(),                       # flagship sizing/learning state (bank, qhat, guard, measurement book)
+            "leader": {"book": [], "n": 0},                     # P5/R3 leader_v1 $0-stake fill-conformance shadow
             "engines": {e: {"trades": []} for e in ENGINES}}
 def sanitize(o, args):
     d = default_state(args)
@@ -1246,8 +1644,11 @@ def sanitize(o, args):
         im = o.get("impulse")
         if isinstance(im, dict):
             di = d["impulse"]
-            for k in ("bank", "bank0", "qlo", "qhi", "lastNightly"):
+            for k in ("bank", "bank0", "qlo", "qhi", "lastNightly", "mAmend", "seeded"):
                 if isinstance(im.get(k), (int, float)): di[k] = im[k]
+            # P3: legacy states (no epoch) load with epoch=0 — accept all rows,
+            # identical to pre-patch behavior on the current live book.
+            di["epoch"] = im["epoch"] if isinstance(im.get("epoch"), (int, float)) else 0
             for k in ("benched", "haircut"):
                 if isinstance(im.get(k), bool): di[k] = im[k]
             if isinstance(im.get("skips"), dict):
@@ -1255,6 +1656,13 @@ def sanitize(o, args):
             if isinstance(im.get("measure"), list):
                 di["measure"] = [m for m in im["measure"] if isinstance(m, dict)
                                  and isinstance(m.get("t0"), (int, float))][-12000:]
+        ld = o.get("leader")
+        if isinstance(ld, dict):
+            # P5: leader shadow book persists across restarts; transient 'pend' does not
+            if isinstance(ld.get("book"), list):
+                d["leader"]["book"] = [r for r in ld["book"] if isinstance(r, dict)
+                                       and isinstance(r.get("t0"), (int, float))][-LEADER_KEEP:]
+            if isinstance(ld.get("n"), (int, float)): d["leader"]["n"] = int(ld["n"])
         eng = o.get("engines")
         if isinstance(eng, dict):
             for e in ENGINES:
@@ -1298,6 +1706,8 @@ def snapshot(bot):
                               "retired": bool(ENGINE_CFG[e].get("retired")), "shadow": bool(ENGINE_CFG[e].get("shadow")),
                               "revEntryMax": ENGINE_CFG[e].get("revEntryMax")} for e in ENGINES},
             "impulse": {k: bot.st.get("impulse", {}).get(k) for k in ("bank", "qlo", "qhi", "benched", "haircut")},
+            "leaderShadow": {"n": st.get("leader", {}).get("n", 0),                 # P5/R3 $0-stake shadow
+                             "recent": [r for r in st.get("leader", {}).get("book", [])[-30:]]},
             "vol": bot.vol,
             "feed": {"src": bot.feed.get("src"), "price": bot.feed.get("last"),
                      "open": bot.feed.get("open"), "t0": bot.feed.get("t0"), "at": bot.feed.get("at")},
@@ -1309,7 +1719,7 @@ def snapshot(bot):
             "misses": bot.misses[:30],
             "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip",
                                        "loosePass", "looseMust", "startedAt", "lifetime", "equity", "misses",
-                                       "ivlHist", "ivlHist2", "impulse", "engines")}}
+                                       "ivlHist", "ivlHist2", "impulse", "leader", "engines")}}
 def save_state(path, bot):
     tmp = path + ".tmp"
     with open(tmp, "w") as f: json.dump(snapshot(bot), f, separators=(",", ":"))
@@ -1553,16 +1963,283 @@ def selftest():
        "impulse_v2 stays latent in churn (eff6 gate)", f"eff6={zv['eff6']}")
     bw = mkimp(); bw.imp["qlo"] = 0.53; bw.ivl_hist2 = bw.ivl_hist2[-5:]   # history not warmed up / non-contiguous
     ok(not bw.evaluate(now,"impulse_v2")["enter"], "impulse_v2 stays latent until 13 contiguous intervals exist")
-    bs = mkimp(ask=0.50, bid=0.49)                           # seeds only: 51c fill costs .5275 > qhi -> f<=0 SKIP
+    bs = mkimp(ask=0.46, bid=0.45)                           # P4: under the 47c cap; qlo 0.46 < cost .4874 -> f<=0 SKIP
+    bs.imp["qlo"] = 0.46
     sv = bs.evaluate(now, "impulse_v2")
+    bs.evaluate(now + 60000, "impulse_v2")                   # window closes -> skip becomes FINAL (R4/MF6)
     ok(not sv["enter"] and sv["stakeUsd"] is None and bs.imp["measure"] and bs.imp["measure"][-1]["skip"]=="f_nonpos"
        and bs.imp["skips"].get("f_nonpos",0) >= 1,
        "sizing SKIP (f<=0) is a decision: no trade, measurement + skip reason recorded",
        f"skip={bs.imp['measure'] and bs.imp['measure'][-1]['skip']}")
     mf = bs.imp["measure"][-1].get("f") or {}
-    ok(mf.get("eff6") is not None and mf.get("cnt12")==0 and mf.get("ask")==0.50 and mf.get("hour") is not None,
+    ok(mf.get("eff6") is not None and mf.get("cnt12")==0 and mf.get("ask")==0.46 and mf.get("hour") is not None,
        "measurement rows carry decision-time ML features (ML-PLAN Phase 0)",
        f"f={mf}")
+    ok(bs.imp["measure"][-1].get("final") is True and bs.imp["skips"].get("f_nonpos", 0) == 1,
+       "P1: skip stamped FINAL at window close, counted once despite multiple polls (MF6)",
+       f"final={bs.imp['measure'][-1].get('final')} n={bs.imp['skips'].get('f_nonpos')}")
+    # --- P1 (R4 amendment): poll-cumulative, window-final measurement book ---
+    ba = mkimp(ask=0.52, bid=0.51)                           # first poll RICH: 52c ask -> first_fill_cap SKIP (P4)
+    av1 = ba.evaluate(now, "impulse_v2")
+    ra = ba.imp["measure"][-1]
+    ok(av1["stakeUsd"] is None and ra["skip"] == "first_fill_cap" and ra.get("final") is False
+       and ra["bestCost"] == ra["cost"] and ra.get("fillCost") is None,
+       "P1: first rich poll writes a PROVISIONAL record (final=False, bestCost=firstCost)",
+       f"cost={ra['cost']} best={ra['bestCost']} final={ra.get('final')}")
+    first_cost = ra["cost"]
+    ba.imp["qlo"] = 0.53                                     # learned qhat so the cheap re-poll sizes
+    bkc = {"bid": 0.43, "ask": 0.44, "asks": [[0.44, 300]], "bids": [[0.43, 300]],
+           "topAskUsd": 132.0, "mirrorTopUsd": 171.0, "at": now + 8000}   # re-poll 8s later: 44c refill
+    ba.mkt["bookDown"] = bkc; ba.mkt["bookUp"] = mirror(bkc)
+    ba.feed = dict(ba.feed); ba.feed["at"] = now + 8000
+    av2 = ba.evaluate(now + 8000, "impulse_v2")
+    entered2 = ba.paper_enter("impulse_v2", av2) if av2["enter"] else False
+    ra = ba.imp["measure"][-1]
+    ok(av2["enter"] and entered2 and len([m for m in ba.imp["measure"] if m["t0"] == ba.mkt["t0"]]) == 1
+       and ra["cost"] == first_cost and ra["bestCost"] < first_cost and ra.get("fillCost") is not None,
+       "P1: cheaper re-poll updates bestCost IN PLACE and the realized fill lands in fillCost",
+       f"cost={ra['cost']} best={ra['bestCost']} fill={ra.get('fillCost')}")
+    ba.evaluate(now + 60000, "impulse_v2")                   # window closes -> finalize
+    ok(ra.get("final") is True and ra["sized"] is True and ra["skip"] is None
+       and abs(Bot._m_opcost(ra) - ra["fillCost"]) < 1e-9,
+       "P1: sized stamped at WINDOW CLOSE; operated basis (opCost) = realized fill",
+       f"final={ra.get('final')} opCost={Bot._m_opcost(ra)}")
+    # legacy-row migration: a pre-amendment skip row whose interval WAS traded
+    stm = default_state(A)
+    t0m = (now // 1000 // IVL) * IVL - 900
+    stm["impulse"]["measure"] = [dict(t0=t0m, side="down", cost=0.5474, win=1, sized=False, skip="f_nonpos")]
+    stm["engines"]["impulse_v2"]["trades"] = [dict(t0=t0m, side="down", entry=0.45, at=now,
+                                                   status="settled", result="win")]
+    bmig = Bot({}, stm)
+    rm = bmig.imp["measure"][0]
+    exp_fc = round(0.45 + FEE_RATE * 0.45 * 0.55, 4)
+    ok(rm.get("final") is True and rm.get("fillCost") == exp_fc and rm["sized"] is True
+       and rm["skip"] is None and rm["cost"] == 0.5474 and bmig.imp.get("mAmend") == 1,
+       "P1: migration joins legacy skip rows to realized fills (first-poll cost untouched)",
+       f"fillCost={rm.get('fillCost')} vs {exp_fc}")
+    rm["fillCost"] = 0.1234                                  # prove idempotency: second migrate must not re-join
+    bmig._measure_migrate()
+    ok(rm["fillCost"] == 0.1234, "P1: migration is idempotent (mAmend flag)")
+    # guard windows read the OPERATED basis: rich first polls + cheap real fills must NOT bench
+    def opbook(fill_cost, first_cost_=0.5474, n=300):
+        b = Bot({}, default_state(A))
+        b.imp["epoch"] = 0                                   # P3: fixture backdates its rows
+        b.imp["measure"] = [dict(t0=ns - 86400 + i * 300, side="up", cost=first_cost_,
+                                 win=(1 if i % 2 == 0 else 0), sized=True, skip=None,
+                                 bestCost=first_cost_, fillCost=fill_cost, final=True) for i in range(n)]
+        b._impulse_nightly(ns)
+        return b
+    ok(not opbook(0.30).imp["benched"] and opbook(0.5474).imp["benched"],
+       "P1: nightly guards bench on the operated cost basis, not the first-poll series",
+       f"cheapFill bench={opbook(0.30).imp['benched']}")
+    # --- P2 (R8 conformance): registered qhat formula, p_eff buckets, M2 seeding, §5.2 haircut ---
+    b20 = Bot({}, default_state(A))
+    b20._impulse_nightly(ns)                                 # empty book -> registered prior: 0.5, not the seeds
+    ok(b20.imp["qlo"] == 0.5 and b20.imp["qhi"] == 0.5,
+       "P2: nightly shrinks to prior MEAN 0.5 with mass 200 (registered §4.2), not the ledger seeds",
+       f"qlo={b20.imp['qlo']} qhi={b20.imp['qhi']}")
+    b21 = Bot({}, default_state(A))                          # cost .5075 rows (p_eff .49): HI bucket per the
+    b21.imp["epoch"] = 0                                     # KEPT cost<0.50 boundary (CHANGELOG P2a deviation)
+    b21.imp["measure"] = [dict(t0=ns - 3600 - i * 300, side="up", cost=0.5075, win=1, sized=True, skip=None)
+                          for i in range(10)]
+    b21._impulse_nightly(ns)
+    ok(abs(b21.imp["qhi"] - round(110 / 210, 4)) < 1e-9 and b21.imp["qlo"] == 0.5,
+       "P2a: bucket boundary is cost<0.50 (kept, dated deviation) — cost .5075 rows feed the HI bucket",
+       f"qhi={b21.imp['qhi']} (want {round(110/210,4)}) qlo={b21.imp['qlo']}")
+    b21b = Bot({}, default_state(A))                         # cost .4774 rows (p_eff .46): LO bucket
+    b21b.imp["epoch"] = 0
+    b21b.imp["measure"] = [dict(t0=ns - 3600 - i * 300, side="up", cost=0.4774, win=1, sized=True, skip=None)
+                          for i in range(10)]
+    b21b._impulse_nightly(ns)
+    ok(abs(b21b.imp["qlo"] - round(110 / 210, 4)) < 1e-9 and b21b.imp["qhi"] == 0.5,
+       "P2a: cost .4774 (p_eff .46) rows feed the LO bucket",
+       f"qlo={b21b.imp['qlo']} qhi={b21b.imp['qhi']}")
+    ok(Bot._p_eff_from_cost(0.5175) == 0.5 and abs(Bot._p_eff_from_cost(0.5075) - 0.49) < 1e-4
+       and Bot._p_eff_from_cost(0.5075) < 0.50 and abs(Bot._p_eff_from_cost(0.4673) - 0.45) < 2e-4,
+       "P2: _p_eff_from_cost inverts the fee formula (4dp-rounded costs land in the right bucket)",
+       f".5175->{Bot._p_eff_from_cost(0.5175)} .5075->{Bot._p_eff_from_cost(0.5075)}")
+    # (P4 rework: these two probe the SIZER's bucket selection directly —
+    # the 47c first-fill cap now stops 48-50c asks before qhat is consulted)
+    b22 = Bot({}, default_state(A))                          # p_eff=0.46 (cost .4774): LO bucket sizes at qlo
+    b22.imp["qlo"], b22.imp["qhi"] = 0.53, 0.50
+    s22, w22 = b22._impulse_stake(0.46)
+    ok(s22 is not None and s22 >= 1 and w22 is None,
+       "P2a: sizer buckets by cost — a 46c fill (cost .4774) uses qlo and sizes",
+       f"stake={s22}")
+    s22b, w22b = b22._impulse_stake(0.49)                    # p_eff .49 -> cost .5075: HI bucket at qhi=0.50 skips
+    ok(s22b is None and w22b == "f_nonpos",
+       "P2a: a 49c fill (cost .5075) lands in the HI bucket per the kept cost boundary",
+       f"why={w22b}")
+    b23 = Bot({}, default_state(A))                          # p_eff=0.50 (cost .5175): HI bucket either way
+    b23.imp["qlo"], b23.imp["qhi"] = 0.56, 0.50
+    s23, w23 = b23._impulse_stake(0.50)
+    ok(s23 is None and w23 == "f_nonpos",
+       "P2a: p_eff=0.50 (cost .5175) lands in the HI bucket (boundary is strict <)",
+       f"why={w23}")
+    # M2 seeding: seeds satisfy guard minimums and drive netps, but never qhat
+    import tempfile
+    seedf = os.path.join(tempfile.gettempdir(), "btc5m_seed_test.json")
+    with open(seedf, "w") as f:
+        json.dump([dict(t0=ns - 3600 - i * 300, side="up", cost=0.55, win=(1 if i % 5 < 2 else 0))
+                   for i in range(130)], f)                  # 40% wins at 55c: netps -15c -> bench-worthy
+    bsd = Bot({"seedPath": seedf}, default_state(A))
+    ok(bsd.imp.get("seeded") == 130 and all(m.get("seed") for m in bsd.imp["measure"][:130]),
+       "P2: guard seed cohort loads once, flagged seed=True", f"seeded={bsd.imp.get('seeded')}")
+    bsd._impulse_nightly(ns)
+    ok(bsd.imp["benched"] and bsd.imp["qlo"] == 0.5 and bsd.imp["qhi"] == 0.5,
+       "P2: seeds count toward guard windows (bench fires at n=130>=120) but NEVER feed qhat",
+       f"benched={bsd.imp['benched']} qlo={bsd.imp['qlo']}")
+    bsd2 = Bot({"seedPath": seedf}, bsd.st)                  # reload same state: seeded flag stops re-seeding
+    ok(sum(1 for m in bsd2.imp["measure"] if m.get("seed")) == 130, "P2: seeding is one-shot (seeded flag)")
+    os.remove(seedf)
+    # §5.2 haircut: single 7d<-2c trigger with hysteresis; the deleted 15d/-1c tier must NOT fire
+    def hbook(recent_wins, old_rows=None):
+        b = Bot({}, default_state(A))
+        b.imp["epoch"] = 0                                   # P3: fixture backdates its rows
+        b.imp["measure"] = [dict(t0=ns - 3600 - i * 300, side="up", cost=0.53,
+                                 win=(1 if i < recent_wins else 0), sized=True, skip=None)
+                            for i in range(130)] + (old_rows or [])
+        return b
+    bh1 = hbook(65)                                          # 7d netps = .5 - .53 = -3c < -2c -> haircut
+    bh1._impulse_nightly(ns)
+    ok(bh1.imp["haircut"] and not bh1.imp["benched"],
+       "P2: haircut fires on 7d<-2c (single §5.2 trigger)", f"haircut={bh1.imp['haircut']}")
+    bh2 = hbook(67); bh2.imp["haircut"] = True               # 7d = 67/130-.53 = -1.46c: inside the hysteresis band
+    bh2._impulse_nightly(ns)
+    ok(bh2.imp["haircut"], "P2: haircut HOLDS in the hysteresis band (-2c, -1c)")
+    bh3 = hbook(68); bh3.imp["haircut"] = True               # 7d = 68/130-.53 = -0.69c >= -1c: releases
+    bh3._impulse_nightly(ns)
+    ok(not bh3.imp["haircut"], "P2: haircut releases at 7d>=-1c (hysteresis)")
+    old = [dict(t0=ns - 8 * 86400 - i * 60, side="up", cost=0.53, win=(1 if i < 84 else 0),
+                sized=True, skip=None) for i in range(170)]  # drags 15d to -2.0c while 7d is healthy
+    bh4 = hbook(69, old_rows=old)                            # 7d = 69/130-.53 = +0.08c
+    bh4._impulse_nightly(ns)
+    ok(not bh4.imp["haircut"] and not bh4.imp["benched"],
+       "P2: the deleted 15d/-1c haircut tier is gone — a -2c 15d window with a healthy 7d does nothing",
+       f"haircut={bh4.imp['haircut']}")
+    # --- P3 (restart-flap fix): no catch-up nightly, no selftest pollution, pre-epoch guard ---
+    ns_t = (ns // 86400 + 2) * 86400 + 4000                  # synthetic time past a 00:10 boundary
+    bf = Bot({}, default_state(A))
+    bf.imp["epoch"] = 0
+    bf.imp["measure"] = [dict(t0=ns_t - 86400 + i * 300, side="up", cost=0.53, win=0, sized=True, skip=None)
+                         for i in range(300)]                # a book that WOULD bench if the nightly ran
+    q0 = (bf.imp["qlo"], bf.imp["qhi"])
+    bf.nightly_tick(ns_t)                                    # lastNightly==0: restart/fresh state
+    ok((bf.imp["qlo"], bf.imp["qhi"]) == q0 and not bf.imp["benched"]
+       and bf.imp["lastNightly"] == (ns_t // 86400) * 86400 + 600,
+       "P3: lastNightly==0 sets the baseline WITHOUT a catch-up nightly (no restart flap)",
+       f"qlo={bf.imp['qlo']} benched={bf.imp['benched']}")
+    bf.nightly_tick(ns_t + 86400)                            # next boundary crossed live: nightly runs
+    ok(bf.imp["benched"] and bf.imp["qlo"] != q0[0],
+       "P3: the first real nightly runs at the next 00:10 boundary", f"benched={bf.imp['benched']}")
+    bp = Bot({}, default_state(A))                           # pre-epoch rows: a resurrected stale book
+    bp.imp["epoch"] = ns - 86400
+    bp.imp["measure"] = [dict(t0=ns - 2 * 86400 + i * 100, side="up", cost=0.4975, win=0, sized=True, skip=None)
+                         for i in range(300)]                # all rows PRE-epoch -> must be pruned, not fed
+    bp._impulse_nightly(ns)
+    ok(not bp.imp["benched"] and bp.imp["qlo"] == 0.5 and len(bp.imp["measure"]) == 0,
+       "P3: pre-epoch rows are pruned — a resurrected stale book cannot bench or move qhat",
+       f"n={len(bp.imp['measure'])} benched={bp.imp['benched']}")
+    bp2 = Bot({}, default_state(A))                          # seed rows are exempt from the epoch fence
+    bp2.imp["epoch"] = ns
+    bp2.imp["measure"] = [dict(t0=ns - 3600 - i * 300, side="up", cost=0.55, win=0, sized=False,
+                               skip="seed", seed=True, final=True) for i in range(130)]
+    bp2._impulse_nightly(ns)
+    ok(len(bp2.imp["measure"]) == 130 and bp2.imp["benched"],
+       "P3: M2 seed rows survive the epoch fence and still drive the guard windows")
+    mtmp = os.path.join(tempfile.gettempdir(), "btc5m_metrics_test.jsonl")
+    if os.path.exists(mtmp): os.remove(mtmp)
+    bm1 = Bot({}, default_state(A)); bm1._impulse_nightly(ns)      # no metricsPath: fixture bot
+    bm2 = Bot({"metricsPath": mtmp}, default_state(A)); bm2._impulse_nightly(ns)
+    lines = open(mtmp).read().strip().splitlines() if os.path.exists(mtmp) else []
+    ok(len(lines) == 1 and json.loads(lines[0])["qlo"] == 0.5,
+       "P3: nightly metrics land ONLY on the configured metricsPath — selftest bots write nothing",
+       f"lines={len(lines)}")
+    os.remove(mtmp)
+    # --- P4 (R1): <=47c first-fill ask cap on impulse_v2, independent of qhat ---
+    bc1 = mkimp(ask=0.48, bid=0.47)                          # 48c ask, qhat maximally bullish: cap must still skip
+    bc1.imp["qlo"] = bc1.imp["qhi"] = 0.56
+    vc1 = bc1.evaluate(now, "impulse_v2")
+    ok(not vc1["enter"] and vc1["stakeUsd"] is None and bc1.imp["measure"][-1]["skip"] == "first_fill_cap",
+       "P4: 48c first fill is skipped by the hard cap even at qhat=0.56 (qhat-drift loophole closed)",
+       f"skip={bc1.imp['measure'][-1]['skip']}")
+    bc2 = mkimp(ask=0.46, bid=0.45)                          # 46c ask passes the cap and sizes normally
+    bc2.imp["qlo"] = 0.53
+    vc2 = bc2.evaluate(now, "impulse_v2")
+    ok(vc2["enter"] and vc2["stakeUsd"] and vc2["stakeUsd"] >= 1,
+       "P4: fills at <=47c ask size normally under the cap", f"stake={vc2['stakeUsd']}")
+    bc3 = mkimp(ask=0.50, bid=0.49)                          # refill path: rich first poll, cheap re-poll sizes
+    bc3.imp["qlo"] = 0.53
+    bc3.evaluate(now, "impulse_v2")
+    rc3 = bc3.imp["measure"][-1]
+    bk3 = {"bid": 0.42, "ask": 0.43, "asks": [[0.43, 300]], "bids": [[0.42, 300]],
+           "topAskUsd": 129.0, "mirrorTopUsd": 174.0, "at": now + 8000}
+    bc3.mkt["bookDown"] = bk3; bc3.mkt["bookUp"] = mirror(bk3)
+    bc3.feed = dict(bc3.feed); bc3.feed["at"] = now + 8000
+    vc3 = bc3.evaluate(now + 8000, "impulse_v2")
+    ok(rc3["skip"] is None and rc3["sized"] and vc3["enter"] and rc3["bestCost"] < rc3["cost"],
+       "P4: the cap keeps the refill path — cheaper in-window re-poll still sizes",
+       f"best={rc3['bestCost']} first={rc3['cost']}")
+    bc4 = mkimp(ask=0.50, bid=0.49)                          # controls stay EXACTLY as registered: no cap
+    c50 = bc4.evaluate(now, "impulse50"); cv2 = bc4.evaluate(now, "reversal_v2")
+    ok(c50["enter"] and cv2["enter"],
+       "P4: impulse50 and reversal_v2 controls take 50c fills unchanged (no cap leakage)",
+       f"i50={c50['enter']} rv2={cv2['enter']}")
+    ok(all("firstFillMax" not in ENGINE_CFG[e] for e in ("impulse50", "reversal_v2", "reversal", "reversal2"))
+       and ENGINE_CFG["impulse_v2"].get("firstFillMax") == 0.47,
+       "P4: firstFillMax=0.47 exists on impulse_v2 ONLY")
+    # --- P5 (R3): leader_v1 $0-stake fill-conformance shadow ---
+    sleeps = []
+    def mkldr(ask=0.62, drift_bps=5.0, left=100, ask2=None):
+        b = Bot({}, default_state(A))
+        t0l = ns - (300 - left)
+        bku = {"bid": round(ask - 0.01, 2), "ask": ask, "asks": [[ask, 300]],
+               "bids": [[round(ask - 0.01, 2), 300]], "topAskUsd": ask * 300,
+               "mirrorTopUsd": (1 - ask + 0.01) * 300, "at": now}
+        b.mkt = dict(t0=t0l, t1=t0l + 300, ev=True, evClosed=False, slug="btc-updown-5m-ldr",
+                     tokUp="LU", tokDown="LD", upBid=round(ask - 0.01, 2), upAsk=ask, pUp=ask, gAt=now,
+                     bookUp=bku, bookDown=mirror(bku))
+        b.feed = {"src": "Coinbase", "open": 100000, "last": 100000 + drift_bps * 10, "at": now, "t0": t0l}
+        b._sleep_fn = lambda s: sleeps.append(s)
+        b._book_fn = lambda tok: {"bid": round((ask2 or ask) - 0.01, 2), "ask": (ask2 or ask), "at": now_ms()}
+        return b
+    del sleeps[:]
+    bl = mkldr()                                             # 5bps aligned drift, 62c ask, window closed
+    bl._leader_tick(now)
+    lr = bl.ldr["book"][-1] if bl.ldr["book"] else None
+    ok(lr is not None and lr["side"] == "up" and lr["ask1"] == 0.62 and lr["ask2"] == 0.62
+       and lr["dtMs"] is not None and sleeps == [LEADER_REPOLL_S] and bl.ldr["n"] == 1,
+       "P5: qualifying drift-leader state records poll 1 + ~2.5s re-poll (quote persistence)",
+       f"rec={lr}")
+    ok(all(not bl.trades(e) for e in ENGINES) and lr.get("win") is None,
+       "P5: leader shadow is $0-stake — no trade in any book, no pnl")
+    bl._leader_tick(now + 4000)                              # same interval again: one record per t0
+    ok(len(bl.ldr["book"]) == 1, "P5: one leader record per interval (dedupe)")
+    del sleeps[:]
+    bl2 = mkldr(left=270, ask2=0.71)                         # entry windows open: re-poll must DEFER
+    bl2._leader_tick(now)
+    ok(bl2.ldr.get("pend") is not None and not sleeps and bl2.ldr["book"][-1]["ask2"] is None,
+       "P5: re-poll defers while a live arm's entry window is open (never delays a decision)",
+       f"pend={bool(bl2.ldr.get('pend'))}")
+    bl2._leader_tick(now + 4000)                             # next tick completes it at the honest dt
+    r2 = bl2.ldr["book"][-1]
+    ok(r2["ask2"] == 0.71 and r2["dtMs"] is not None and bl2.ldr.get("pend") is None,
+       "P5: deferred re-poll completes next tick and logs the moved quote", f"ask2={r2['ask2']}")
+    for bad_ask, bad_drift in ((0.62, 2.0), (0.62, 9.0), (0.70, 5.0), (0.54, 5.0)):
+        bx = mkldr(ask=bad_ask, drift_bps=bad_drift)
+        bx._leader_tick(now)
+        ok(not bx.ldr["book"], f"P5: non-qualifying state records nothing (ask={bad_ask}, drift={bad_drift}bps)")
+    bl.prev_ivl = dict(t0=bl.ldr["book"][0]["t0"], open=100000, close=100050, ret=0.0005)
+    bl.mkt = None                                            # rolled over; backfill still runs
+    bl._leader_tick(now + 300000)
+    ok(bl.ldr["book"][0]["win"] == 1 and bl.ldr["book"][0].get("winBy") == "feed",
+       "P5: outcome backfills from the feed proxy at rollover", f"win={bl.ldr['book'][0]['win']}")
+    bl._measure_settle(bl.ldr["book"][0]["t0"], "down")      # oracle-grade upgrade wins over the proxy
+    ok(bl.ldr["book"][0]["win"] == 0 and bl.ldr["book"][0].get("winBy") == "oracle",
+       "P5: oracle settle upgrades the leader outcome")
+    snp = snapshot(bl)
+    ok(snp["leaderShadow"]["n"] == 1 and snp["leaderShadow"]["recent"]
+       and snp["btc"]["leader"]["book"], "P5: leader shadow is published in state (bounded)")
     bb = mkimp(); bb.imp["qlo"] = 0.53; bb.imp["benched"] = True
     bv2 = bb.evaluate(now, "impulse_v2")
     ok(not bv2["enter"] and bb.imp["measure"][-1]["skip"]=="benched", "guard bench zeroes the stake (tier 3)")
@@ -1587,6 +2264,7 @@ def selftest():
     bn.imp["measure"] = [dict(t0=ns-3*86400+i*300, side="up", cost=0.4975, win=(1 if i%10 < 3 else 0), sized=True, skip=None)
                          for i in range(300)]                # 30% win rate at ~50c cost — a dead regime
     bn.imp["lastNightly"] = 0
+    bn.imp["epoch"] = 0                                      # P3: fixture backdates its rows — declare the epoch
     bn._impulse_nightly(ns)
     ok(bn.imp["qlo"] < 0.47 and bn.imp["benched"],
        "nightly: qhat absorbs a dead regime and the tier-3 guard benches the stake",
@@ -1611,7 +2289,28 @@ def selftest():
        and sj["limitCap"]==0.65 and sj["hmac"]==good and bsg.sig_last["band"]==ns-60,
        "signal bridge: schema + tokenId + HMAC + one-shot + webhook failure swallowed",
        f"id={sj['signalId']} tok={sj['tokenId']} hmacOK={sj['hmac']==good}")
-    os.remove(sf)
+    # leader_v1 shadow alert: own file (never clobbers signal.json), kind/orderable
+    # markers, HMAC, one-shot per t0. sigEngines gates emission.
+    blr = Bot({"sigEngines":["leader_v1"], "sigFile":sf}, default_state(A))
+    blr.sig_secret = "testkey"
+    blr.mkt = dict(t0=ns-30, t1=ns+270, ev=True, evClosed=False, slug="btc-updown-5m-test",
+                   tokUp="TOKUP", tokDown="TOKDN", upBid=0.60, upAsk=0.61, pUp=0.605, gAt=now)
+    lrec = dict(t0=ns-30, side="up", drift=5.2, sec=12, ask1=0.61, bid1=0.60)
+    with open(sf, "w") as f: f.write('{"sentinel":1}')                        # order channel must stay untouched
+    blr.emit_leader_alert(lrec, "TOKUP"); blr.emit_leader_alert(lrec, "TOKUP")  # dup ignored
+    af = os.path.join(os.path.dirname(sf), "signal_alerts.json")
+    with open(af) as f: aj = json.load(f)
+    with open(sf) as f: untouched = json.load(f)
+    canon2 = json.dumps({k:v for k,v in aj.items() if k!="hmac"}, sort_keys=True, separators=(",", ":"))
+    good2 = hmac.new(b"testkey", canon2.encode(), hashlib.sha256).hexdigest()[:32]
+    ok(aj["kind"]=="shadow_alert" and aj["orderable"] is False and aj["engine"]=="leader_v1"
+       and aj["signalId"]==f"leader_v1-{ns-30}" and aj["tokenId"]=="TOKUP" and aj["hmac"]==good2
+       and untouched.get("sentinel")==1 and blr.sig_last["leader_v1"]==ns-30,
+       "leader_v1 alert: shadow_alert markers + HMAC + one-shot + order channel untouched",
+       f"id={aj['signalId']} orderable={aj['orderable']} sentinelOK={untouched.get('sentinel')==1}")
+    ok(any('"leader_v1-' in l for l in open(os.path.join(os.path.dirname(sf), 'signals.log')).read().splitlines()),
+       "leader_v1 alert lands in the append-only signals.log")
+    os.remove(af); os.remove(sf)
     # hedge toggle: a pinned position in the hedge zone hedges only when hedgeOn
     def pinned_bot(hedge_on):
         b = Bot({}, default_state(A)); b.st["hedgeOn"] = hedge_on
@@ -1740,8 +2439,15 @@ def main():
     st["stake"], st["bank"], st["slip"], st["loosePass"] = args.stake, args.bank, args.slip, args.loose
     st["looseMust"] = args.loose_must
     st["hedgeOn"] = bool(args.hedge)
-    sig_engines = [e for e in (x.strip() for x in args.signal_engines.split(",")) if e in ENGINES]
-    bot = Bot({"publishEvery": args.publish_every, "sigEngines": sig_engines, "sigFile": args.signal_file}, st)
+    # leader_v1 is not an ENGINE (it's the P5 $0-stake measurement shadow) but it
+    # is a valid signal source: its shadow_alert pings ride the same bridge.
+    sig_engines = [e for e in (x.strip() for x in args.signal_engines.split(",")) if e in ENGINES or e == "leader_v1"]
+    bot = Bot({"publishEvery": args.publish_every, "sigEngines": sig_engines, "sigFile": args.signal_file,
+               # P2/M2: pre-launch guard seed cohort (n=123) ships next to the script
+               "seedPath": os.path.join(os.path.dirname(os.path.abspath(__file__)), "impulse_guard_seed.json"),
+               # P3/R8: nightly metrics go here ONLY from the production loop —
+               # selftest fixtures have no metricsPath and can never pollute it
+               "metricsPath": os.path.join(os.path.dirname(os.path.abspath(__file__)), "loop_metrics.jsonl")}, st)
     must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
     live_e = [e for e in ENGINES if not ENGINE_CFG[e].get("retired")]
     bot.log(f"bot started — {st['asset']} · {st['profile']} · FINAL-DESIGN v3 roster: "
