@@ -861,11 +861,15 @@ class Bot:
         eid = "leader50"
         try:
             if ENGINE_CFG[eid].get("retired"): return
-            if self.trade_for(eid, rec["t0"]) or self.open_trade(eid): return
+            if self.trade_for(eid, rec["t0"]): return        # already decided this interval
+            if self.open_trade(eid):                          # still holding a prior interval's position
+                rec["l50"] = "busy"
+                self.emit_leader_decision(rec, None)
+                return
             f = self.feed
             if not (f.get("t0") == rec["t0"] and f.get("open") and f.get("last") is not None):
                 rec["l50"] = "late"          # interval rolled before the re-poll landed
-                self.emit_leader_result(rec, None)
+                self.emit_leader_decision(rec, None)
                 return
             slip = clampf(self.st["slip"], 0, 5, 1) / 100
             limit = min(0.99, rec["ask1"] + slip)
@@ -875,7 +879,7 @@ class Bot:
                 rec["l50"] = "ran"           # quote gone by arrival — the R3 verdict, one datum at a time
                 self.log(f"[LEADER50] SKIP {rec['side'].upper()} — re-poll ask "
                          f"{'%.0fc' % (rec['ask2']*100) if rec.get('ask2') is not None else 'gone'} past limit {limit*100:.0f}c")
-                self.emit_leader_result(rec, None)
+                self.emit_leader_decision(rec, None)
                 return
             entry = min(0.99, round(avg + slip, 4))
             shares = round(spent / entry, 4)
@@ -899,7 +903,7 @@ class Bot:
             self.log(f"[LEADER50] ENTER {self.st['asset']} {rec['side'].upper()} @ {entry*100:.1f}c avg "
                      f"${spent:.0f} fee ${fee:.2f} (re-poll fill, first ask {rec['ask1']*100:.0f}c) "
                      f"+{tr['entrySec']}s into interval")
-            self.emit_leader_result(rec, tr)
+            self.emit_leader_decision(rec, tr)
         except Exception as e:
             self.log(f"leader50 enter error: {e}")
 
@@ -943,7 +947,8 @@ class Bot:
             self.ldr["book"].append(rec)
             self.ldr["n"] = self.ldr.get("n", 0) + 1
             del self.ldr["book"][:-LEADER_KEEP]
-            if "leader_v1" in self.sig_engines: self.emit_leader_alert(rec, tok)
+            # NOTE: no ping here — one combined ping fires from _leader50_enter
+            # once the re-poll makes the entry decision definite (in or out).
             left = (m["t1"] - now_s_) if m.get("t1") else 0
             live_win = min([c["revWinMin"] for c in ENGINE_CFG.values()
                             if c.get("revThr") and not c.get("retired")] or [IVL])
@@ -1394,81 +1399,96 @@ class Bot:
                 self.log(f"signal webhook error: {e}")
         self.log(f"[SIGNAL] {eid} {ev['side']} {m['slug']} ask {q['ask']*100:.0f}c → bridge")
 
-    def emit_leader_alert(self, rec, tok):
-        """leader_v1 shadow-entry ALERT (never an order). Fired when the $0-stake
-        fill-conformance shadow records a qualifying state (see _leader_tick).
-        kind='shadow_alert' + orderable=False are the executor's hard stop: it
-        verifies (HMAC/dedup/freshness) then only notifies — no order path, no
-        stake, regardless of allowlist or LIVE state. Transport: its OWN atomic
-        file (signal_alerts.json) so an alert can never clobber a same-tick
-        order signal in signal.json, plus the shared append-only signals.log."""
-        m = self.mkt
-        if not m or self.sig_last.get("leader_v1") == rec["t0"]: return
-        self.sig_last["leader_v1"] = rec["t0"]
-        now = now_ms()
-        sig = dict(v=1, kind="shadow_alert", orderable=False,
-                   signalId=f"leader_v1-{rec['t0']}", engine="leader_v1", emittedAt=now,
-                   asset=self.st["asset"], slug=m["slug"], t0=m["t0"], t1=m["t1"],
-                   secLeft=max(0, int(m["t1"] - now/1000)), side=rec["side"], tokenId=tok,
-                   ask=rec["ask1"], bid=rec.get("bid1"), driftBps=rec["drift"], entrySec=rec["sec"],
-                   note="$0-stake fill-conformance shadow (R3) — measurement only, never an order")
+    def _emit_bridge(self, sig, log_tag):
+        """Shared transport for the leader alert-only pings: HMAC-sign, append to
+        signals.log (never signal.json — that's the order channel), and POST the
+        webhook. All best-effort; never raises into the tick."""
         if self.sig_secret:
             canon = json.dumps(sig, sort_keys=True, separators=(",", ":"))
             sig["hmac"] = hmac.new(self.sig_secret.encode(), canon.encode(), hashlib.sha256).hexdigest()[:32]
         try:
             if self.sig_file:
-                alert_path = os.path.join(os.path.dirname(self.sig_file), "signal_alerts.json")
-                tmp = alert_path + ".tmp"
-                with open(tmp, "w") as f: json.dump(sig, f, separators=(",", ":"))
-                os.replace(tmp, alert_path)
                 log_path = os.path.join(os.path.dirname(self.sig_file), "signals.log")
                 with open(log_path, "a") as lf:
                     lf.write(json.dumps(sig, separators=(",", ":")) + "\n")
         except Exception as e:
-            self.log(f"leader alert file error: {e}")
+            self.log(f"leader bridge file error: {e}")
         if self.sig_webhook:
             try:
-                body = (f"👻 **LEADER_V1 SHADOW** {rec['side'].upper()} `{m['slug']}` "
-                        f"ask {rec['ask1']*100:.0f}c · drift {rec['drift']:.1f}bps · +{rec['sec']}s — "
-                        f"$0-stake conformance probe, NOT an order\n```json\n{json.dumps(sig)}\n```")
-                req = urllib.request.Request(self.sig_webhook, data=json.dumps({"content": body}).encode(),
+                req = urllib.request.Request(self.sig_webhook, data=json.dumps({"content": sig["_body"]}).encode(),
                                              headers={"Content-Type": "application/json", "User-Agent": "btc5m-bot"})
                 urllib.request.urlopen(req, timeout=3).read()
             except Exception as e:
-                self.log(f"leader alert webhook error: {e}")
-        self.log(f"[SHADOW ALERT] leader_v1 {rec['side']} {m['slug']} ask {rec['ask1']*100:.0f}c "
-                 f"drift {rec['drift']:.1f}bps → bridge")
+                self.log(f"leader bridge webhook error: {e}")
+        self.log(log_tag)
 
-    def emit_leader_result(self, rec, tr):
-        """Follow-up to emit_leader_alert: the re-poll's resolution, a few seconds
-        after the alert — filled (tr set), quote ran, or landed late. Same
-        alert-only bridge semantics (kind=shadow_result, orderable=False,
-        engine=leader_v1 so the executor's hard NEVER_ORDERABLE lock applies);
-        one-shot per t0, signals.log only (no signal.json clobber)."""
+    def emit_leader_decision(self, rec, tr):
+        """ONE combined entry ping for a leader_v1 signal, fired once the re-poll
+        makes the outcome definite (see _leader50_enter): either leader50 ENTERED
+        (tr set) or it took no position (outcome ran/late/busy). Replaces the old
+        separate alert+result pair. Alert-only (kind=shadow_decision,
+        orderable=False, engine=leader_v1 → executor NEVER_ORDERABLE); one-shot
+        per t0; signals.log transport only."""
         if "leader_v1" not in self.sig_engines: return
-        key = f"_l50res-{rec['t0']}"
+        key = f"_ldec-{rec['t0']}"
         if self.sig_last.get(key): return
         self.sig_last[key] = True
         now = now_ms()
-        sig = dict(v=1, kind="shadow_result", orderable=False,
-                   signalId=f"leader_v1-fill-{rec['t0']}", engine="leader_v1", emittedAt=now,
+        outcome = rec.get("l50") or ("fill" if tr else "?")
+        t1 = rec.get("t1") or rec["t0"] + IVL
+        sig = dict(v=1, kind="shadow_decision", orderable=False,
+                   signalId=f"leader_v1-{rec['t0']}", engine="leader_v1", emittedAt=now,
                    asset=self.st["asset"], slug=rec.get("slug") or f"btc-updown-5m-{rec['t0']}",
-                   t0=rec["t0"], t1=rec.get("t1") or rec["t0"] + IVL,
-                   secLeft=max(0, int((rec.get("t1") or rec["t0"] + IVL) - now/1000)),
-                   side=rec["side"], outcome=rec.get("l50") or "?",
+                   t0=rec["t0"], t1=t1, secLeft=max(0, int(t1 - now/1000)),
+                   side=rec["side"], outcome=outcome, driftBps=rec["drift"], entrySec=rec["sec"],
                    ask1=rec["ask1"], ask2=rec.get("ask2"), dtMs=rec.get("dtMs"),
                    entry=(tr or {}).get("entry"), stake=(tr or {}).get("stake"),
-                   note="leader50 re-poll resolution — measurement only, never an order")
-        if self.sig_secret:
-            canon = json.dumps(sig, sort_keys=True, separators=(",", ":"))
-            sig["hmac"] = hmac.new(self.sig_secret.encode(), canon.encode(), hashlib.sha256).hexdigest()[:32]
-        try:
-            if self.sig_file:
-                log_path = os.path.join(os.path.dirname(self.sig_file), "signals.log")
-                with open(log_path, "a") as lf:
-                    lf.write(json.dumps(sig, separators=(",", ":")) + "\n")
-        except Exception as e:
-            self.log(f"leader result file error: {e}")
+                   note="leader50 entry decision — measurement only, never an order")
+        if outcome == "fill":
+            tag = (f"[LEADER50] {rec['side'].upper()} ENTERED @ {(tr or {}).get('entry',0)*100:.0f}c "
+                   f"(ask {rec['ask1']*100:.0f}→{(rec.get('ask2') or 0)*100:.0f}c) → bridge")
+        else:
+            tag = f"[LEADER50] {rec['side'].upper()} no position ({outcome}) → bridge"
+        sig["_body"] = self._leader_decision_body(sig)
+        self._emit_bridge(sig, tag)
+
+    def _leader_decision_body(self, s):
+        a1 = s.get("ask1"); a2 = s.get("ask2")
+        a1s = f"{a1*100:.0f}c" if isinstance(a1, (int, float)) else "?"
+        a2s = f"{a2*100:.0f}c" if isinstance(a2, (int, float)) else "gone"
+        dt = s.get("dtMs"); dts = f"{dt/1000:.1f}s" if isinstance(dt, (int, float)) else "?"
+        side = (s.get("side") or "?").upper()
+        if s.get("outcome") == "fill":
+            e = s.get("entry"); es = f"{e*100:.0f}c" if isinstance(e, (int, float)) else "?"
+            return (f"👻✅ **leader50 ENTERED {side}** @ {es} — leader_v1 signal "
+                    f"(drift {s.get('driftBps')}bps, +{s.get('entrySec')}s), quote held {a1s}→{a2s} "
+                    f"after {dts} · ${s.get('stake') or 50:g} paper · closes <t:{int(s['t1'])}:R> | `{s.get('slug')}`")
+        reason = {"ran": f"quote ran {a1s}→{a2s} after {dts}, past the limit",
+                  "late": "re-poll landed after the interval rolled",
+                  "busy": "leader50 already holding a position"}.get(s.get("outcome"), "no fill")
+        return (f"👻🚫 **leader_v1 {side} — no position** — {reason}. leader50 stayed flat "
+                f"(drift {s.get('driftBps')}bps) | `{s.get('slug')}`")
+
+    def emit_leader_settle(self, tr):
+        """Oracle-confirmed WIN/LOSS ping for a settled leader50 trade — the
+        result ping the other engines get, fired once per trade from
+        settle_pending only when the outcome is final (not the feed proxy)."""
+        if "leader_v1" not in self.sig_engines: return
+        now = now_ms()
+        won = tr.get("result") == "win"
+        sig = dict(v=1, kind="shadow_settle", orderable=False,
+                   signalId=f"leader_v1-settle-{tr['t0']}", engine="leader_v1", emittedAt=now,
+                   asset=self.st["asset"], slug=tr.get("slug"), t0=tr["t0"], t1=tr.get("t1"),
+                   side=tr["side"], result=tr.get("result"), pnl=tr.get("pnl"),
+                   entry=tr.get("entry"), stake=tr.get("stake"), settledBy=tr.get("settledBy"),
+                   note="leader50 oracle-confirmed result")
+        pnl = tr.get("pnl") or 0.0
+        emoji = "✅" if won else "❌"
+        es = f"{tr.get('entry',0)*100:.0f}c" if tr.get("entry") is not None else "?"
+        sig["_body"] = (f"{emoji} **leader50 {tr.get('result','?').upper()} {tr['side'].upper()}** "
+                        f"{'+' if pnl>=0 else ''}${pnl:.2f} (entered {es}) · oracle-confirmed | `{tr.get('slug')}`")
+        self._emit_bridge(sig, f"[LEADER50] {tr.get('result','?').upper()} {tr['side'].upper()} "
+                               f"{'+' if pnl>=0 else ''}${pnl:.2f} (oracle) → bridge")
 
     def manage_open(self, eid, now):
         tr = self.open_trade(eid)
@@ -1546,7 +1566,11 @@ class Bot:
         # leader_v1 probe records that have NOT yet reached oracle truth (feed
         # proxy is interim only). These settle even when no trade is pending.
         lneed = [r for r in self.ldr.get("book", []) if r.get("winBy") != "oracle"]
-        if not pend and not prov and not lneed: return
+        # leader50 trades that settled to an ORACLE result but haven't pinged yet
+        lres = [t for t in self.trades("leader50")
+                if t.get("status") == "settled" and not t.get("provisional")
+                and t.get("result") in ("win", "loss") and not t.get("lpinged")]
+        if not pend and not prov and not lneed and not lres: return
         if now - self.res_at < 8000: return
         self.res_at = now
         cache = {}
@@ -1604,6 +1628,10 @@ class Bot:
                 self.log(f"[LEADER] {r.get('t0')} feed→oracle CORRECTED "
                          f"({r.get('side')} now {'win' if win else 'loss'})")
             r["win"], r["winBy"] = win, "oracle"
+        # leader50 result ping — oracle-confirmed win/loss, once per trade
+        for tr in lres:
+            tr["lpinged"] = True
+            self.emit_leader_settle(tr)
 
     # --- market fetch for this tick ---
     def find_market(self, t0):
@@ -2357,29 +2385,49 @@ def selftest():
     ok(not bl2.trades("leader50") and r2.get("l50") == "ran",
        "leader50: quote ran past the limit by arrival — NO fill, miss logged as conformance data",
        f"l50={r2.get('l50')}")
-    # follow-up result ping: every alert gets its re-poll resolution on the bridge
+    # ONE combined entry ping: the re-poll makes it definite, then a single
+    # shadow_decision ping fires (no separate alert). Quote holds → 'fill'.
     sfl = os.path.join(tempfile.gettempdir(), "btc5m_l50sig.json")
     slog = os.path.join(tempfile.gettempdir(), "signals.log")
     if os.path.exists(slog): os.remove(slog)
-    blf = mkldr()                                            # quote holds → alert THEN fill result
+    blf = mkldr()                                            # quote holds → single ENTERED ping
     blf.sig_engines = ["leader_v1"]; blf.sig_file = sfl; blf.sig_secret = "testkey"
     blf._leader_tick(now)
     lls = [json.loads(l) for l in open(slog).read().splitlines()]
-    ok(len(lls) == 2 and lls[0]["kind"] == "shadow_alert"
-       and lls[1]["kind"] == "shadow_result" and lls[1]["outcome"] == "fill"
-       and lls[1]["entry"] == 0.63 and lls[1]["ask1"] == 0.62 and lls[1]["orderable"] is False
-       and lls[1]["signalId"] == f"leader_v1-fill-{lls[0]['t0']}",
-       "leader50: alert is followed by a shadow_result fill ping on the bridge",
-       f"kinds={[x.get('kind') for x in lls]} outcome={lls[-1].get('outcome') if lls else None}")
+    ok(len(lls) == 1 and lls[0]["kind"] == "shadow_decision" and lls[0]["outcome"] == "fill"
+       and lls[0]["entry"] == 0.63 and lls[0]["ask1"] == 0.62 and lls[0]["orderable"] is False
+       and "ENTERED" in lls[0]["_body"] and lls[0]["signalId"] == f"leader_v1-{lls[0]['t0']}",
+       "leader50: ONE combined shadow_decision 'ENTERED' ping (no separate alert)",
+       f"n={len(lls)} kinds={[x.get('kind') for x in lls]}")
     os.remove(slog)
-    blr2 = mkldr(ask2=0.71)                                  # quote runs → 'ran' result ping
+    blr2 = mkldr(ask2=0.71)                                  # quote runs → single 'no position' ping
     blr2.sig_engines = ["leader_v1"]; blr2.sig_file = sfl; blr2.sig_secret = "testkey"
     blr2._leader_tick(now)
     lls2 = [json.loads(l) for l in open(slog).read().splitlines()]
-    ok(lls2[-1]["kind"] == "shadow_result" and lls2[-1]["outcome"] == "ran"
-       and lls2[-1]["ask2"] == 0.71 and lls2[-1].get("entry") is None,
-       "leader50: a run-away quote gets a 'ran' result ping (no fill)",
-       f"outcome={lls2[-1].get('outcome')}")
+    ok(len(lls2) == 1 and lls2[0]["kind"] == "shadow_decision" and lls2[0]["outcome"] == "ran"
+       and lls2[0]["ask2"] == 0.71 and lls2[0].get("entry") is None and "no position" in lls2[0]["_body"],
+       "leader50: a run-away quote gets ONE 'no position' decision ping (no fill)",
+       f"n={len(lls2)} outcome={lls2[0].get('outcome') if lls2 else None}")
+    os.remove(slog)
+    # oracle-confirmed WIN/LOSS settle ping (the result ping other engines get)
+    bset = Bot({}, default_state(A)); bset.res_at = 0
+    bset.sig_engines = ["leader_v1"]; bset.sig_file = sfl; bset.sig_secret = "testkey"
+    bset.trades("leader50").insert(0, dict(t0=ns-400, t1=ns-100, slug="btc-updown-5m-set",
+        eng="leader50", side="down", entry=0.54, stake=50.0, shares=92.6, status="settled",
+        result="win", pnl=40.98, provisional=False, settledBy="polymarket"))
+    import sys as _sysm
+    _M2 = _sysm.modules[__name__]; _o2 = (_M2.gamma_by_slug, _M2.parse_event, _M2.winner_of)
+    _M2.gamma_by_slug = lambda s: None; _M2.parse_event = lambda e: e; _M2.winner_of = lambda e: None
+    try:
+        bset.settle_pending(ns*1000)
+    finally:
+        _M2.gamma_by_slug, _M2.parse_event, _M2.winner_of = _o2
+    lls3 = [json.loads(l) for l in open(slog).read().splitlines()]
+    ok(len(lls3) == 1 and lls3[0]["kind"] == "shadow_settle" and lls3[0]["result"] == "win"
+       and lls3[0]["pnl"] == 40.98 and "oracle-confirmed" in lls3[0]["_body"]
+       and bset.trades("leader50")[0].get("lpinged") is True,
+       "leader50: oracle-confirmed settle emits a WIN/LOSS result ping, one-shot",
+       f"n={len(lls3)} body={lls3[0]['_body'][:40] if lls3 else None}")
     os.remove(slog)
     if os.path.exists(sfl): os.remove(sfl)
     # 100% resolution: a leader probe record with NO co-interval trade, stuck on
@@ -2473,28 +2521,28 @@ def selftest():
        and sj["limitCap"]==0.65 and sj["hmac"]==good and bsg.sig_last["band"]==ns-60,
        "signal bridge: schema + tokenId + HMAC + one-shot + webhook failure swallowed",
        f"id={sj['signalId']} tok={sj['tokenId']} hmacOK={sj['hmac']==good}")
-    # leader_v1 shadow alert: own file (never clobbers signal.json), kind/orderable
-    # markers, HMAC, one-shot per t0. sigEngines gates emission.
+    # leader_v1 decision ping: shadow_decision markers, HMAC, one-shot per t0,
+    # and it must NEVER touch signal.json (the order channel).
+    slog0 = os.path.join(os.path.dirname(sf), "signals.log")
+    if os.path.exists(slog0): os.remove(slog0)
     blr = Bot({"sigEngines":["leader_v1"], "sigFile":sf}, default_state(A))
     blr.sig_secret = "testkey"
-    blr.mkt = dict(t0=ns-30, t1=ns+270, ev=True, evClosed=False, slug="btc-updown-5m-test",
-                   tokUp="TOKUP", tokDown="TOKDN", upBid=0.60, upAsk=0.61, pUp=0.605, gAt=now)
-    lrec = dict(t0=ns-30, side="up", drift=5.2, sec=12, ask1=0.61, bid1=0.60)
+    lrec = dict(t0=ns-30, t1=ns+270, slug="btc-updown-5m-test", side="up",
+                drift=5.2, sec=12, ask1=0.61, bid1=0.60, ask2=0.60, dtMs=2500, l50="fill")
+    ltr = dict(entry=0.61, stake=50.0)
     with open(sf, "w") as f: f.write('{"sentinel":1}')                        # order channel must stay untouched
-    blr.emit_leader_alert(lrec, "TOKUP"); blr.emit_leader_alert(lrec, "TOKUP")  # dup ignored
-    af = os.path.join(os.path.dirname(sf), "signal_alerts.json")
-    with open(af) as f: aj = json.load(f)
+    blr.emit_leader_decision(lrec, ltr); blr.emit_leader_decision(lrec, ltr)  # dup ignored
+    aj = json.loads(open(slog0).read().splitlines()[-1])
     with open(sf) as f: untouched = json.load(f)
     canon2 = json.dumps({k:v for k,v in aj.items() if k!="hmac"}, sort_keys=True, separators=(",", ":"))
     good2 = hmac.new(b"testkey", canon2.encode(), hashlib.sha256).hexdigest()[:32]
-    ok(aj["kind"]=="shadow_alert" and aj["orderable"] is False and aj["engine"]=="leader_v1"
-       and aj["signalId"]==f"leader_v1-{ns-30}" and aj["tokenId"]=="TOKUP" and aj["hmac"]==good2
-       and untouched.get("sentinel")==1 and blr.sig_last["leader_v1"]==ns-30,
-       "leader_v1 alert: shadow_alert markers + HMAC + one-shot + order channel untouched",
+    ok(aj["kind"]=="shadow_decision" and aj["orderable"] is False and aj["engine"]=="leader_v1"
+       and aj["signalId"]==f"leader_v1-{ns-30}" and aj["hmac"]==good2
+       and untouched.get("sentinel")==1 and blr.sig_last[f"_ldec-{ns-30}"] is True
+       and len(open(slog0).read().splitlines())==1,
+       "leader_v1 decision: shadow_decision markers + HMAC + one-shot + order channel untouched",
        f"id={aj['signalId']} orderable={aj['orderable']} sentinelOK={untouched.get('sentinel')==1}")
-    ok(any('"leader_v1-' in l for l in open(os.path.join(os.path.dirname(sf), 'signals.log')).read().splitlines()),
-       "leader_v1 alert lands in the append-only signals.log")
-    os.remove(af); os.remove(sf)
+    os.remove(slog0); os.remove(sf)
     # hedge toggle: a pinned position in the hedge zone hedges only when hedgeOn
     def pinned_bot(hedge_on):
         b = Bot({}, default_state(A)); b.st["hedgeOn"] = hedge_on
