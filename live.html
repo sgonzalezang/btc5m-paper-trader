@@ -804,15 +804,20 @@ function curPrice(){
   if(LAST&&LAST.feed&&LAST.feed.price!=null) return LAST.feed.price;   // fallback: bot's published feed
   return null;
 }
-// An interval's strike (price to beat) is its own open, which is the SAME instant as the
-// close of the minute-candle ending at t0. So a window's strike is knowable the moment it
-// turns, and — crucially — stays recoverable after it closes, from the cache.
+// An interval's strike (price to beat). BEST source = Polymarket's OWN Chainlink
+// reference (bot publishes it as pmStrikes[t0]) — the exact number Polymarket
+// shows and settles on. Falls back to our Coinbase open (a ~few-dollar proxy)
+// only when the PM value hasn't been captured yet.
 function strikeOf(t0){
+  const pm=LAST&&LAST.pmStrikes;
+  if(pm&&pm[t0]!=null) return +pm[t0];
   if(CND[t0]&&CND[t0].o!=null) return CND[t0].o;
   if(CND[t0-60]&&CND[t0-60].c!=null) return CND[t0-60].c;
   if(LAST&&LAST.feed&&LAST.feed.t0===t0&&LAST.feed.open!=null) return LAST.feed.open;
   return null;
 }
+// is this interval's strike the exact Polymarket reference (vs the Coinbase proxy)?
+function strikeIsPM(t0){ const pm=LAST&&LAST.pmStrikes; return !!(pm&&pm[t0]!=null); }
 // A window's SETTLE price is the price at its boundary instant — which is exactly the
 // next window's open. Prefer that over the bot's recorded btcClose, which is the last
 // 1-min candle it had seen and can lag the boundary by up to a minute: enough to call a
@@ -867,8 +872,14 @@ function drawBtcBar(){
     : tooClose ? `<span class="prov" title="within $${clearMargin(open).toFixed(0)} of the line — this close, the Coinbase price we show and the Chainlink stream Polymarket settles on can disagree on the sign, so no live feed can call it. The oracle decides at close.">≈ too close to call → oracle decides</span>`
     : d>0 ? `<b class="up">▲ +$${d.toFixed(2)} above → Up leads</b>`
           : `<b class="dn">▼ −$${Math.abs(d).toFixed(2)} below → Down leads</b>`;
+  // Label reflects the strike SOURCE: exact Polymarket/Chainlink reference when we
+  // have it, else our Coinbase proxy (a few dollars off).
+  const pmExact=strikeIsPM(t0);
+  const refLbl=pmExact
+    ? `<b>Polymarket</b> · <a class="pml" target="_blank" rel="noopener" href="https://polymarket.com/event/${slug}" title="Reference to beat, straight from Polymarket's own Chainlink BTC/USD feed — the exact number they settle on: BTC ≥ this at close = Up, below = Down (ties → Up). Fixed for the whole 5-min window.">price to beat</a>`
+    : `${esc(src)} ≈ proxy · <a class="pml" target="_blank" rel="noopener" href="https://polymarket.com/event/${slug}" title="Polymarket's exact reference not loaded yet — showing our ${esc(src)} feed, which is approximate (Polymarket settles on the Chainlink BTC/USD stream, a few dollars off). Updates to the exact number once it loads.">price to beat</a>`;
   el.innerHTML=`<b class="btcpx">₿ ${usd(px)}</b>`
-    +`<span class="mut">${esc(src)} ≈ proxy · <a class="pml" target="_blank" rel="noopener" href="https://polymarket.com/event/${slug}" title="Reference to beat: BTC ≥ this at close settles Up, below settles Down (ties → Up). This number is our ${esc(src)} feed and is approximate — Polymarket actually settles on the Chainlink BTC/USD data stream, which differs by a few dollars. Fixed for the whole 5-min window.">price to beat</a></span> `
+    +`<span class="mut">${refLbl}</span> `
     +`<b class="btcline">${open!=null?usd(open):"—"}</b> ${side}`
     +`<span class="mut"> · ${mmss} to close${live?"":' · <b class="dn">feed blocked</b>'}</span>`;
 }

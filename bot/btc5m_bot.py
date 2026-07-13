@@ -529,6 +529,7 @@ class Bot:
         self.res_at = 0
         self.prev_quote = None
         self.closes = {}                      # t0 -> interval's last spot price (for provisional settle)
+        self.pm_strikes = {}                  # t0 -> Polymarket's OWN Chainlink reference (the exact "price to beat"); display only
         self.prev_ivl = None                  # {t0, open, close, ret} of the just-COMPLETED interval — the reversal engine's signal
         self.ivl_hist = self.st.setdefault("ivlHist", [])   # rolling last-N interval returns (for Latent Fire's trend-efficiency regime gate); persisted
         self.ivl_hist2 = self.st.setdefault("ivlHist2", []) # [[t0, ret], ...] last 20 — impulse gate needs CONTIGUITY, so t0s travel with the returns
@@ -1816,6 +1817,36 @@ class Bot:
         self.mkt = dict(t0=t0, t1=t1, ev=False, evClosed=False, slug=self.asset()["slug"]+str(t0+self.slug_off),
                         tokUp=None, tokDown=None, upBid=None, upAsk=None, pUp=None, gAt=0, bookUp=None, bookDown=None)
 
+    def pm_reference(self, t0):
+        """Polymarket's OWN price-to-beat for the interval at t0 — the FIRST point of
+        its Chainlink-derived price-history (the same number their app displays and
+        settles on). DISPLAY ONLY: the trading logic still uses the Coinbase feed
+        open. Best-effort; empty until the interval has a first tick."""
+        iso = lambda s: datetime.utcfromtimestamp(s).strftime("%Y-%m-%dT%H:%M:%SZ")
+        sym = self.st.get("asset", "BTC")
+        url = ("https://polymarket.com/api/crypto/price-history?symbol=" + urllib.parse.quote(sym)
+               + "&eventStartTime=" + urllib.parse.quote(iso(t0))
+               + "&variant=fiveminute&endDate=" + urllib.parse.quote(iso(t0 + IVL)))
+        j = try_json(url)
+        if isinstance(j, list) and j and isinstance(j[0], dict):
+            v = j[0].get("value")
+            try: return round(float(v), 2)
+            except Exception: return None
+        return None
+
+    def update_pm_strike(self):
+        """Once per interval, capture Polymarket's exact reference for the current
+        interval (and keep the last few for the recap). Never blocks the tick."""
+        try:
+            t0 = self.mkt and self.mkt.get("t0")
+            if not t0 or t0 in self.pm_strikes: return
+            v = self.pm_reference(t0)
+            if v is not None:
+                self.pm_strikes[t0] = v
+                for k in sorted(self.pm_strikes)[:-8]: del self.pm_strikes[k]
+        except Exception as e:
+            self.log(f"pm reference skipped: {e}")
+
     def tick(self):
         try:
             ns = now_s(); t0 = (ns // IVL) * IVL; t1 = t0 + IVL
@@ -1840,6 +1871,7 @@ class Bot:
                          upBid=p["upBid"], upAsk=p["upAsk"], pUp=p["pUp"], gAt=now_ms())
             self.feed_tick(t0)
             self.update_vol(now_ms(), self.feed["last"])
+            self.update_pm_strike()   # capture Polymarket's exact reference for display (never blocks trading)
             delta = (self.feed["last"]-self.feed["open"]) if (self.feed["open"] is not None and self.feed["last"] is not None) else None
             opent = next((self.open_trade(e) for e in ENGINES if self.open_trade(e)), None)
             side = opent["side"] if opent else (None if not delta else ("up" if delta > 0 else "down"))
@@ -1997,6 +2029,7 @@ def snapshot(bot):
                              "feedN": sum(1 for r in st.get("leader", {}).get("book", []) if r.get("winBy") == "feed"),
                              "recent": [r for r in st.get("leader", {}).get("book", [])[-30:]]},
             "vol": bot.vol,
+            "pmStrikes": {str(k): v for k, v in list(bot.pm_strikes.items())[-8:]},   # Polymarket's exact price-to-beat per interval (display)
             "feed": {"src": bot.feed.get("src"), "price": bot.feed.get("last"),
                      "open": bot.feed.get("open"), "t0": bot.feed.get("t0"), "at": bot.feed.get("at")},
             "market": ({"slug": bot.mkt.get("slug"), "t0": bot.mkt.get("t0"),
