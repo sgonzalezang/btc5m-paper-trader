@@ -280,6 +280,18 @@ function leaderPanel(st){
     +(dAvg!=null?` · avg ask drift ${dAvg>=0?"+":""}${(dAvg*100).toFixed(1)}c in ~2.5s · quote held ${persisted}/${repolled.length}`:"")
     +(settled.length?` · would-be q ${wins}/${settled.length} <b title="Every outcome is confirmed by Polymarket's oracle — the fast price-feed proxy is never counted, so this can't be skewed by a wrong settle.">(oracle-confirmed)</b>`:"")
     +(pendRes?` · ${pendRes} awaiting oracle`:"")+`</span>`;
+  // TWO SEPARATE ledgers, never conflated: (1) leader50 ACTUAL — real filled
+  // trades only, from its own book/summary; (2) WOULD-BE — hypothetical P&L on
+  // signals leader50 did NOT fill, at the pre-run ask, tracked only here.
+  const l50=(st.summary||{}).leader50||{};
+  const actual=(typeof l50.pnl==="number")?l50.pnl:null;
+  const missed=rec.filter(r=>r.l50&&r.l50!=="fill"&&typeof r.wbPnl==="number"&&r.win!=null);
+  const wbSum=missed.reduce((a,r)=>a+r.wbPnl,0);
+  const cl=v=>v>=0?"var(--up)":"var(--dn)";
+  const split=`<div style="font-size:12.5px;margin:2px 0 8px;display:flex;flex-wrap:wrap;gap:6px 18px">`
+    +(actual!=null?`<span><b>leader50 actual</b> <span class="mut">(${l50.settled||0} filled)</span> <b style="color:${cl(actual)}">${D$(actual)}</b></span>`:"")
+    +(missed.length?`<span><b>would-be on misses</b> <span class="mut">(${missed.length} not filled, hypothetical)</span> <b style="color:${cl(wbSum)}">${D$(wbSum)}</b></span>`:"")
+    +`<span class="mut" style="font-size:11.5px">— separate ledgers; would-be is never added to leader50's P&amp;L</span></div>`;
   const rows=rec.slice(0,20).map(r=>{
     const iv=new Date(r.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
     const side=r.side==="up"?'<b class="up">▲ up</b>':'<b class="dn">▼ down</b>';
@@ -295,6 +307,7 @@ function leaderPanel(st){
   }).join('');
   return '<h3 class="sec">Leader v1 — 👻 $0-stake shadow <span style="font-weight:400;color:var(--mut)">(fill-conformance probe)</span></h3>'
     +'<div class="mut" style="font-size:12px;margin:-2px 0 4px">Measurement, not a book: when BTC drifts 4–8bps and the drift-leader side quotes 55–66¢ on the real book, it records the ask, <b>re-polls ~2.5s later</b> to see if that quote was real (the R3 stale-ask question), and pings Discord as a <b>shadow alert — never an order, $0 staked</b>. Its staked twin <b style="color:#c07bff">Leader $50</b> paper-trades every qualifying moment at the <b>re-polled</b> price (no fill if the quote ran) — its card and chart line above show the honest returns.</div>'
+    +split
     +'<div style="font-size:12px;margin:0 0 6px">'+stat+'</div>'
     +'<div class="log">'+(rows||'<div class="mut">No qualifying moments yet.</div>')+'</div>';
 }
