@@ -1543,7 +1543,10 @@ class Bot:
     def settle_pending(self, now):
         pend = [t for e in ENGINES for t in self.trades(e) if t["status"] == "pending"]
         prov = [t for e in ENGINES for t in self.trades(e) if t.get("provisional")]
-        if not pend and not prov: return
+        # leader_v1 probe records that have NOT yet reached oracle truth (feed
+        # proxy is interim only). These settle even when no trade is pending.
+        lneed = [r for r in self.ldr.get("book", []) if r.get("winBy") != "oracle"]
+        if not pend and not prov and not lneed: return
         if now - self.res_at < 8000: return
         self.res_at = now
         cache = {}
@@ -1585,6 +1588,22 @@ class Bot:
             if age > 900:
                 tr.update(status="settled", result="unknown", pnl=None, settledBy="unresolved")
                 self.log(f"could not resolve {tr['slug']} — unsettled")
+        # 3) leader_v1 shadow book — drive EVERY record to oracle truth, whether
+        #    or not a trade shared its interval. The feed proxy (~97% agreement)
+        #    is interim display only; a stuck feed result would skew the probe's
+        #    would-be win rate. Bounded per tick so a cold-start backlog can't
+        #    storm the gamma API; it keeps retrying until the oracle answers.
+        for r in sorted(lneed, key=lambda x: x.get("t0", 0))[:12]:
+            t1 = r.get("t1") or (r.get("t0", 0) + IVL)
+            if now/1000 - t1 < 15: continue                  # let the interval close + UMA post
+            slug = r.get("slug") or (self.asset()["slug"] + str(r.get("t0")))
+            w = official(slug)
+            if w not in ("up", "down"): continue
+            win = 1 if r.get("side") == w else 0
+            if r.get("winBy") == "feed" and r.get("win") is not None and r["win"] != win:
+                self.log(f"[LEADER] {r.get('t0')} feed→oracle CORRECTED "
+                         f"({r.get('side')} now {'win' if win else 'loss'})")
+            r["win"], r["winBy"] = win, "oracle"
 
     # --- market fetch for this tick ---
     def find_market(self, t0):
@@ -1805,6 +1824,8 @@ def snapshot(bot):
                               "revEntryMax": ENGINE_CFG[e].get("revEntryMax")} for e in ENGINES},
             "impulse": {k: bot.st.get("impulse", {}).get(k) for k in ("bank", "qlo", "qhi", "benched", "haircut")},
             "leaderShadow": {"n": st.get("leader", {}).get("n", 0),                 # P5/R3 $0-stake shadow
+                             "oracleN": sum(1 for r in st.get("leader", {}).get("book", []) if r.get("winBy") == "oracle"),
+                             "feedN": sum(1 for r in st.get("leader", {}).get("book", []) if r.get("winBy") == "feed"),
                              "recent": [r for r in st.get("leader", {}).get("book", [])[-30:]]},
             "vol": bot.vol,
             "feed": {"src": bot.feed.get("src"), "price": bot.feed.get("last"),
@@ -2361,6 +2382,33 @@ def selftest():
        f"outcome={lls2[-1].get('outcome')}")
     os.remove(slog)
     if os.path.exists(sfl): os.remove(sfl)
+    # 100% resolution: a leader probe record with NO co-interval trade, stuck on
+    # a WRONG feed proxy, must be driven to oracle truth by settle_pending.
+    import sys as _sys
+    _M = _sys.modules[__name__]                             # the running module (__main__ under --selftest)
+    _orig = (_M.gamma_by_slug, _M.parse_event, _M.winner_of)
+    ORACLE = {"btc-updown-5m-orc": "down"}                   # oracle says DOWN
+    _M.gamma_by_slug = lambda slug: slug
+    _M.parse_event = lambda ev: ev
+    _M.winner_of = lambda ev: ORACLE.get(ev)
+    try:
+        bo = Bot({}, default_state(A))
+        bo.res_at = 0
+        # feed proxy wrongly called it a WIN for the UP side; no trade in this interval
+        bo.ldr["book"] = [dict(t0=ns - 400, t1=ns - 100, slug="btc-updown-5m-orc", side="up",
+                               drift=5.0, sec=10, ask1=0.62, bid1=0.61, ask2=0.62, bid2=0.61,
+                               dtMs=2500, win=1, winBy="feed")]
+        bo.settle_pending(ns * 1000)
+        r = bo.ldr["book"][0]
+        ok(r["winBy"] == "oracle" and r["win"] == 0,
+           "100% resolution: settle_pending corrects a wrong feed-only leader record to oracle (no trade needed)",
+           f"winBy={r['winBy']} win={r['win']}")
+        snpo = snapshot(bo)
+        ok(snpo["leaderShadow"]["oracleN"] == 1 and snpo["leaderShadow"]["feedN"] == 0,
+           "100% resolution: snapshot exposes oracle vs feed counts for audit",
+           f"oracleN={snpo['leaderShadow']['oracleN']} feedN={snpo['leaderShadow']['feedN']}")
+    finally:
+        _M.gamma_by_slug, _M.parse_event, _M.winner_of = _orig
     for bad_ask, bad_drift in ((0.62, 2.0), (0.62, 9.0), (0.70, 5.0), (0.54, 5.0)):
         bx = mkldr(ask=bad_ask, drift_bps=bad_drift)
         bx._leader_tick(now)

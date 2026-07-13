@@ -261,18 +261,24 @@ function leaderPanel(st){
   const ls=st.leaderShadow||{}; const rec=(ls.recent||[]).slice().reverse();
   if(!ls.n&&!rec.length) return '';
   const repolled=rec.filter(r=>typeof r.ask2==="number");
-  const settled=rec.filter(r=>r.win!=null);
+  // would-be win counts ORACLE-confirmed records only — the feed proxy (~97%)
+  // is interim and never counted, so the stat can't be skewed by a wrong settle.
+  const settled=rec.filter(r=>r.win!=null&&r.winBy==="oracle");
   const wins=settled.filter(r=>r.win===1).length;
+  const pendRes=rec.filter(r=>r.win==null||r.winBy!=="oracle").length;
   const dAvg=repolled.length?repolled.reduce((a,r)=>a+(r.ask2-r.ask1),0)/repolled.length:null;
   const persisted=repolled.filter(r=>r.ask2<=r.ask1+0.005).length;
   const stat=`<span class="mut">${ls.n} recorded · ${repolled.length} re-polled`
     +(dAvg!=null?` · avg ask drift ${dAvg>=0?"+":""}${(dAvg*100).toFixed(1)}c in ~2.5s · quote held ${persisted}/${repolled.length}`:"")
-    +(settled.length?` · would-be q ${wins}/${settled.length}`:"")+`</span>`;
+    +(settled.length?` · would-be q ${wins}/${settled.length} <b title="Every outcome is confirmed by Polymarket's oracle — the fast price-feed proxy is never counted, so this can't be skewed by a wrong settle.">(oracle-confirmed)</b>`:"")
+    +(pendRes?` · ${pendRes} awaiting oracle`:"")+`</span>`;
   const rows=rec.slice(0,20).map(r=>{
     const iv=new Date(r.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
     const side=r.side==="up"?'<b class="up">▲ up</b>':'<b class="dn">▼ down</b>';
     const a2=(typeof r.ask2==="number")?`→ ${(r.ask2*100).toFixed(0)}c <span class="mut">(${((r.ask2-r.ask1)*100>=0?"+":"")}${((r.ask2-r.ask1)*100).toFixed(1)}c after ${r.dtMs!=null?(r.dtMs/1000).toFixed(1):"?"}s)</span>`:'<span class="mut">re-poll pending</span>';
-    const res=r.win==null?'<span class="tag open">…</span>':r.win===1?'<span class="tag win">WOULD WIN</span>':'<span class="tag loss">WOULD LOSE</span>';
+    // provisional (feed proxy) outcomes wear a * until the oracle confirms them
+    const prov=r.win!=null&&r.winBy!=="oracle"?'<span class="prov" title="provisional — from the price-feed proxy, awaiting Polymarket oracle confirmation">*</span>':"";
+    const res=r.win==null?'<span class="tag open">…</span>':r.win===1?'<span class="tag win">WOULD WIN</span>'+prov:'<span class="tag loss">WOULD LOSE</span>'+prov;
     return `<div><span class="mut">${iv}</span> ${side} <span class="mut">drift ${r.drift}bps · +${r.sec}s ·</span> ask ${(r.ask1*100).toFixed(0)}c ${a2} ${res}</div>`;
   }).join('');
   return '<h3 class="sec">Leader v1 — 👻 $0-stake shadow <span style="font-weight:400;color:var(--mut)">(fill-conformance probe)</span></h3>'
