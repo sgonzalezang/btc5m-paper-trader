@@ -1,0 +1,46 @@
+{
+  "dimension": "RETIRED-ENGINE FORENSICS & INVERSION",
+  "date": "2026-07-12",
+  "data": {
+    "ledger": "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/data/trades_unified.json (3,023 settled momentum-family trades, Jul 7-10)",
+    "spreads": "/Users/sgonzalez/btc5m-paper-trader/bot/signals.log (1,505/3,023 trades matched with exact decision-time bid; spread=1c in 94% of logged books)",
+    "candles": "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/data/cb1m.json"
+  },
+  "scripts": [
+    "01_attribution.py -> attribution.json",
+    "02_inversion.py -> inversion.json",
+    "03_rescue_and_cap.py -> rescue_and_cap.json",
+    "04_oos_signal_check.py -> oos_signal.json"
+  ],
+  "headline_findings": {
+    "1_attribution": {
+      "claim": "The momentum family's $10k loss was PRICE + FEE, not direction. Pooled momentum engines (loose/floor/band/value, n=2,504): realized q=0.568 (1h-block-boot CI [0.537,0.601], excludes 0.5) at avg entry 0.590 where q*=0.596. Decomposition per share: side +6.8c, price -9.0c, fee -1.7c => EV -3.86c/share (CI [-6.77,-0.84]). fade (n=519) is the exception: genuinely wrong side (q=0.447, side -5.3c); its cheap entries (+3.8c) did not save it.",
+      "dollars": "ledger -$10,090; frozen-model hold-to-resolution -$10,372 (all 5 engines, n=3,023)",
+      "artifact": "attribution.json"
+    },
+    "2_head_start_mechanism": {
+      "claim": "The momentum 'signal' contains ZERO forward information. Conditional on a >=2bps first-minute drift (Jun 26-Jul 13, n=2,841 intervals), the FULL interval closes in the drift direction 72.1% (CI [0.704,0.737]) -- but the residual 4 minutes continue only 48.7% (n=2,836, CI [0.469,0.506]; 48.8% at >=4bps CI [0.465,0.512]; 45.7% at >=8bps CI [0.416,0.498] -- mildly reversal-flavored, consistent with the CONFIRMED reversal prior). The 72% is purely the mechanical head start already in the price. Persists on fresh Jul 10-13 data the family never saw (full-interval 75.9% at 2bps, n=303, CI [0.710,0.809]). The market's 59-65c ask therefore priced the head start fairly-to-richly; buying it at ask+1c slip+fee is structurally -3 to -4c/share. This one number reconciles loose 54.6% wr (fills adversely selected below the 65c cap), fade 44.7% (wrong side of head start), and the q=0.77 in the 65-70c entry bucket (market fully agreeing = unconditional head-start rate).",
+      "artifact": "oos_signal.json + residual_decomposition.json (05_residual_decomposition.py)"
+    },
+    "3_inversion_dead": {
+      "claim": "Inversion fails everywhere under honest economics (buy opposite token at 1-bid+1c slip; real logged bid for 1,505 trades, 1c fallback spread else; 2c sensitivity). Pooled all-5 inverted: EV -2.81c/share, CI [-4.85,-0.86], p(EV>=0)=0.0018, n=3,023. Every engine negative (loose -3.15, floor -2.54, band -2.42, value -2.33, fade -3.35 c/share). At 2c fallback spread: pooled -3.31c. Original book -3.75c/share + inverted book -2.81c/share: both sides lose because round-trip structural cost (spread crossing + slip + two fee exposures) ~6.5c exceeds any directional value. Inversion of fee drag is still fee drag -- confirmed. Fill optimism noted: assumes opposite book fillable at 1-bid+1c with no adverse selection, so the negative is a lower bound on badness.",
+      "artifact": "inversion.json"
+    },
+    "4_structural_two_sided_book": {
+      "claim": "fade mirrored loose on ALL 519 of its t0s at the exact opposite side. Combined they paid 103.37c per $1 of guaranteed payout: -3.37c/pair-share before fees, ~-6.8c after two fees. The architecture bled money regardless of direction on those 519 intervals.",
+      "artifact": "rescue_and_cap.json (fade_vs_loose)"
+    },
+    "5_no_rescue": {
+      "claim": "Conditional rescue: pre-declared grid, 3 dims (entry cap {45,50,53,55,60,100c} x side {up,down,both} x passCount {any,>=7,>=8,>=9}) x 7 scopes; K=234 cells with n>=30; 35 positive-EV cells; best raw 1h-block-boot p=0.016 (loose, <=50c, up: +12.6c/share, n=56); Bonferroni x234 => p=1.0. NOTHING survives. Item 4 (momentum <=50c cap, pooled real fills): +4.28c/share, n=254, wr=0.520 at avg 0.460, CI [-2.10,+10.42], raw one-sided p=0.0945 -- fails even before multiplicity, in-sample only (family era Jul 7-10 has no TEST window), fills adversely selected (q=0.52 vs 0.72 unconditional head-start rate), dominated by the DEAD fair-value engine (124/254 trades). fade-inverted <=50c: +4.04c, n=65, p=0.213. Not deployable.",
+      "multiplicity": "K=234 grid cells + 18 inversion cells + 7 calibration buckets + 2 cap tests + 6 OOS cells = 267 comparisons this audit",
+      "artifact": "rescue_and_cap.json"
+    }
+  },
+  "calibration_note": "q(entry) on momentum engines is roughly market-calibrated but engine-side rich: entries 50-65c realized q 2-6c BELOW q*; only 65-70c bucket beat q* (+8.6c, n=179, in-sample, value-engine heavy; prior research already killed >65c entries on TRAIN->TEST -- do not resurrect).",
+  "era_caveats": "Momentum family lived Jul 7-10 only; all ledger results are in-sample for that era by construction. Loose pre-reset (n=261, capless, entries to 79c) broke even (+$6 ledger) on a lucky 59.8% wr; post-reset loose lost -$2,567. Result field = Polymarket settlement; 68 stop-loss exits and 71 hedges excluded from per-share economics by using frozen hold-to-resolution model (ledger pnl cross-checked, diff <3%).",
+  "deployable_implications": [
+    "Never pay for a head start: any engine whose trigger is an intra-interval price move must justify entry at the CURRENT quote, and the residual-drift null (48.7%) says there is nothing to justify. Add as a design invariant: reject entries where qhat derives from already-realized intra-interval movement.",
+    "The only structurally viable direction on this ledger remains buying the CHEAP side below ~50c when a model says the market overreacted (impulse_v2 family) -- every expensive-side construction tested here fails fees.",
+    "Do not run mirrored engine pairs (loose+fade) -- guaranteed -6.8c/pair-share round trip."
+  ]
+}

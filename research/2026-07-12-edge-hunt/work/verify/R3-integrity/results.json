@@ -1,0 +1,574 @@
+{
+ "dup_t0_eng_side": {
+  "n_dup_keys": 0,
+  "examples": {}
+ },
+ "dup_at_ms": 170,
+ "n_settled_winloss": 3495,
+ "excluded": {
+  "status": {
+   "pending": 3,
+   "open": 8
+  },
+  "settled_other_result": {
+   "stopped": 70
+  }
+ },
+ "entrySec_consistency": {
+  "n": 3495,
+  "max_abs_diff": 197,
+  "n_diff_gt2s": 101
+ },
+ "btcEntry_candle_check": {
+  "checked": 3004,
+  "in_current_or_prev_min": 3004,
+  "only_in_future_min": 0,
+  "in_neither": 0
+ },
+ "btcOpen_vs_cb1m": {
+  "checked": 3004,
+  "within_2bps": 2999,
+  "off": 5
+ },
+ "settlement_cb_crosscheck_mom": {
+  "agree": 3011,
+  "disagree": 94,
+  "tie": 0,
+  "no_candle": 0,
+  "disagree_sample": [
+   {
+    "t0": 1783402800,
+    "side": "down",
+    "res": "win",
+    "settledBy": "polymarket"
+   },
+   {
+    "t0": 1783438800,
+    "side": "down",
+    "res": "win",
+    "settledBy": "polymarket (corrected)"
+   },
+   {
+    "t0": 1783440600,
+    "side": "up",
+    "res": "loss",
+    "settledBy": "polymarket"
+   },
+   {
+    "t0": 1783450800,
+    "side": "down",
+    "res": "win",
+    "settledBy": "polymarket"
+   },
+   {
+    "t0": 1783450800,
+    "side": "down",
+    "res": "win",
+    "settledBy": "polymarket"
+   },
+   {
+    "t0": 1783452900,
+    "side": "down",
+    "res": "win",
+    "settledBy": "polymarket"
+   },
+   {
+    "t0": 1783452900,
+    "side": "down",
+    "res": "win",
+    "settledBy": "polymarket"
+   },
+   {
+    "t0": 1783458000,
+    "side": "up",
+    "res": "loss",
+    "settledBy": "polymarket (corrected)"
+   }
+  ]
+ },
+ "cell_rebuilt": {
+  "n_trades": 162,
+  "n_unique": 89,
+  "wins": 70,
+  "q": 0.7865,
+  "p_mean": 0.6274,
+  "ev_c": 14.27,
+  "q_ci95": [
+   0.6905,
+   0.8589
+  ]
+ },
+ "cell_boot": {
+  "mean": 0.1427,
+  "ci95": [
+   0.058,
+   0.223
+  ],
+  "p_le0": 0.0005,
+  "n": 89,
+  "n_blocks": 48
+ },
+ "cell_settledBy": {
+  "polymarket": 85,
+  "polymarket (corrected)": 4
+ },
+ "cell_src": {
+  "archive+research": 9,
+  "live+research": 72,
+  "live": 8
+ },
+ "cell_feed": {
+  "Coinbase": 74,
+  "Binance": 15
+ },
+ "cell_settle_cb": {
+  "agree": 85,
+  "disagree": 4,
+  "tie": 0,
+  "no_candle": 0
+ },
+ "ruleA_rebuilt": {
+  "n": 85,
+  "wins": 62,
+  "q": 0.7294,
+  "ev_c": 6.86
+ },
+ "ruleA_boot": {
+  "mean": 0.0686,
+  "ci95": [
+   -0.0164,
+   0.1593
+  ],
+  "p_le0": 0.059,
+  "n": 85,
+  "n_blocks": 47
+ },
+ "ruleA_ge60_rebuilt": {
+  "n": 71,
+  "wins": 58,
+  "q": 0.8169,
+  "ev_c": 14.0
+ },
+ "ruleA_ge60_boot": {
+  "mean": 0.14,
+  "ci95": [
+   0.0593,
+   0.2239
+  ],
+  "p_le0": 0.0002,
+  "n": 71,
+  "n_blocks": 43
+ },
+ "dedup_sensitivity": {
+  "first": {
+   "ev_c": 14.27,
+   "p_mean": 0.6274
+  },
+  "min_p": {
+   "ev_c": 14.27,
+   "p_mean": 0.6274
+  },
+  "max_p": {
+   "ev_c": 14.27,
+   "p_mean": 0.6274
+  },
+  "earliest_at": {
+   "ev_c": 14.27,
+   "p_mean": 0.6274
+  },
+  "dedup_then_band": {
+   "n": 25,
+   "wins": 21,
+   "q": 0.84,
+   "ev_c": 19.86
+  }
+ },
+ "cell_guard_pass_rates": {
+  "Fresh": {
+   "passed": 162,
+   "n": 162,
+   "rate": 1.0
+  },
+  "Depth>=min": {
+   "passed": 131,
+   "n": 162,
+   "rate": 0.809
+  },
+  "Stable2tick": {
+   "passed": 162,
+   "n": 162,
+   "rate": 1.0
+  },
+  "Window": {
+   "passed": 7,
+   "n": 162,
+   "rate": 0.043
+  },
+  "Spread<=max": {
+   "passed": 162,
+   "n": 162,
+   "rate": 1.0
+  },
+  "Move>=thr": {
+   "passed": 3,
+   "n": 162,
+   "rate": 0.019
+  }
+ },
+ "noncell_guard_pass_rates": {
+  "Fresh": {
+   "rate": 0.997,
+   "n": 2431
+  },
+  "Depth>=min": {
+   "rate": 0.893,
+   "n": 2431
+  },
+  "Stable2tick": {
+   "rate": 0.992,
+   "n": 2431
+  },
+  "Window": {
+   "rate": 0.035,
+   "n": 2431
+  },
+  "Spread<=max": {
+   "rate": 0.992,
+   "n": 2431
+  },
+  "Move>=thr": {
+   "rate": 0.004,
+   "n": 2431
+  }
+ },
+ "cell_fillFrac": {
+  "p10": 1.0,
+  "p50": 1.0,
+  "p90": 1.0,
+  "frac_full": 1.0
+ },
+ "cell_slip": {
+  "1.0": 89
+ },
+ "cell_stake_p50": 50.0,
+ "pooled_60_66_all": {
+  "n": 1257,
+  "q": 0.6325,
+  "ev_c": -1.3
+ },
+ "pooled_60_66_split": {
+  "drift_lt4": {
+   "n": 1041,
+   "q": 0.609,
+   "ev_c": -3.57
+  },
+  "drift_ge4": {
+   "n": 216,
+   "q": 0.7454,
+   "ev_c": 9.61
+  }
+ },
+ "survivorship_lifetime_vs_ledger": {
+  "band": {
+   "ledger": 538,
+   "lifetime_trimmed": 0,
+   "lifetime_settled": 0,
+   "lifetime_wins": 0
+  },
+  "calm": {
+   "ledger": 52,
+   "lifetime_trimmed": null,
+   "lifetime_settled": null,
+   "lifetime_wins": null
+  },
+  "capless": {
+   "ledger": 100,
+   "lifetime_trimmed": null,
+   "lifetime_settled": null,
+   "lifetime_wins": null
+  },
+  "fade": {
+   "ledger": 519,
+   "lifetime_trimmed": 0,
+   "lifetime_settled": 0,
+   "lifetime_wins": 0
+  },
+  "floor": {
+   "ledger": 569,
+   "lifetime_trimmed": 0,
+   "lifetime_settled": 0,
+   "lifetime_wins": 0
+  },
+  "latentfire": {
+   "ledger": 26,
+   "lifetime_trimmed": 0,
+   "lifetime_settled": 0,
+   "lifetime_wins": 0
+  },
+  "loose": {
+   "ledger": 911,
+   "lifetime_trimmed": 87,
+   "lifetime_settled": 87,
+   "lifetime_wins": 50
+  },
+  "reversal": {
+   "ledger": 134,
+   "lifetime_trimmed": 0,
+   "lifetime_settled": 0,
+   "lifetime_wins": 0
+  },
+  "reversal2": {
+   "ledger": 129,
+   "lifetime_trimmed": 0,
+   "lifetime_settled": 0,
+   "lifetime_wins": 0
+  },
+  "strict": {
+   "ledger": 4,
+   "lifetime_trimmed": 0,
+   "lifetime_settled": 0,
+   "lifetime_wins": 0
+  },
+  "value": {
+   "ledger": 488,
+   "lifetime_trimmed": 0,
+   "lifetime_settled": 0,
+   "lifetime_wins": 0
+  }
+ },
+ "mom_winrate_by_src": {
+  "research": {
+   "n": 57,
+   "q": 0.6491
+  },
+  "archive+research": {
+   "n": 388,
+   "q": 0.5902
+  },
+  "live+research": {
+   "n": 2491,
+   "q": 0.552
+  },
+  "live": {
+   "n": 169,
+   "q": 0.5621
+  }
+ },
+ "cell_day_src": {
+  "07-07": {
+   "archive+research": 8
+  },
+  "07-08": {
+   "archive+research": 1,
+   "live+research": 34
+  },
+  "07-09": {
+   "live+research": 29
+  },
+  "07-10": {
+   "live+research": 9,
+   "live": 8
+  }
+ },
+ "v3_era_qualifying": {
+  "n": 0,
+  "detail": []
+ },
+ "v3_era_drift_ge4_anyprice": {
+  "n": 4,
+  "wins": 0,
+  "ev_c": -51.75
+ },
+ "ask_response_sub60s": {
+  "2-4": {
+   "n": 443,
+   "mean_entry": 0.6096,
+   "ledger_q": 0.5937,
+   "candle_fair_60s_jul7_10": 0.6224
+  },
+  "4-8": {
+   "n": 55,
+   "mean_entry": 0.6494,
+   "ledger_q": 0.7091,
+   "candle_fair_60s_jul7_10": 0.7465
+  },
+  "<2": {
+   "n": 330,
+   "mean_entry": 0.5489,
+   "ledger_q": 0.5152,
+   "candle_fair_60s_jul7_10": 0.5219
+  }
+ },
+ "cell_vs_pm_snapshot": {
+  "n_joined": 13,
+  "mean_bot_entry": 0.6333,
+  "mean_snap60": 0.6215,
+  "detail": [
+   {
+    "t0": 1783451700,
+    "side": "down",
+    "entrySec": 133,
+    "bot_entry": 0.63,
+    "snap_p60_side": 0.595,
+    "w": 1.0
+   },
+   {
+    "t0": 1783478100,
+    "side": "down",
+    "entrySec": 132,
+    "bot_entry": 0.64,
+    "snap_p60_side": 0.735,
+    "w": 0.0
+   },
+   {
+    "t0": 1783482900,
+    "side": "up",
+    "entrySec": 140,
+    "bot_entry": 0.6387,
+    "snap_p60_side": 0.775,
+    "w": 1.0
+   },
+   {
+    "t0": 1783494900,
+    "side": "down",
+    "entrySec": 27,
+    "bot_entry": 0.64,
+    "snap_p60_side": 0.595,
+    "w": 1.0
+   },
+   {
+    "t0": 1783503300,
+    "side": "down",
+    "entrySec": 9,
+    "bot_entry": 0.64,
+    "snap_p60_side": 0.795,
+    "w": 1.0
+   },
+   {
+    "t0": 1783524900,
+    "side": "down",
+    "entrySec": 269,
+    "bot_entry": 0.6,
+    "snap_p60_side": 0.225,
+    "w": 1.0
+   },
+   {
+    "t0": 1783526100,
+    "side": "up",
+    "entrySec": 28,
+    "bot_entry": 0.64,
+    "snap_p60_side": 0.505,
+    "w": 1.0
+   },
+   {
+    "t0": 1783528500,
+    "side": "up",
+    "entrySec": 52,
+    "bot_entry": 0.62,
+    "snap_p60_side": 0.515,
+    "w": 1.0
+   },
+   {
+    "t0": 1783564500,
+    "side": "down",
+    "entrySec": 37,
+    "bot_entry": 0.6356,
+    "snap_p60_side": 0.795,
+    "w": 0.0
+   },
+   {
+    "t0": 1783565700,
+    "side": "down",
+    "entrySec": 49,
+    "bot_entry": 0.63,
+    "snap_p60_side": 0.645,
+    "w": 1.0
+   },
+   {
+    "t0": 1783607700,
+    "side": "down",
+    "entrySec": 18,
+    "bot_entry": 0.6382,
+    "snap_p60_side": 0.32,
+    "w": 0.0
+   },
+   {
+    "t0": 1783644900,
+    "side": "up",
+    "entrySec": 16,
+    "bot_entry": 0.64,
+    "snap_p60_side": 0.775,
+    "w": 1.0
+   },
+   {
+    "t0": 1783676100,
+    "side": "up",
+    "entrySec": 129,
+    "bot_entry": 0.64,
+    "snap_p60_side": 0.805,
+    "w": 1.0
+   }
+  ]
+ },
+ "followup_staleness_join": {
+  "method": "momentum dedup fills joined to independent pm_prices_sample snapshots of the SAME market (p60 for entrySec<=90, p150 for 90<entrySec<=210); gap = snapshot price of trade side minus bot paper fill (entry=ask+1c)",
+  "gap_by_drift": {
+   "drift<2": {
+    "n": 76,
+    "mean": -0.0359,
+    "median": -0.055
+   },
+   "drift2-4": {
+    "n": 129,
+    "mean": -0.0021,
+    "median": 0.005
+   },
+   "drift4-8": {
+    "n": 17,
+    "mean": 0.0766,
+    "median": 0.0764
+   },
+   "drift_neg": {
+    "n": 94,
+    "mean": -0.0391,
+    "median": -0.025
+   }
+  },
+  "reading": "the paper fill is ~7.7c CHEAPER than the contemporaneous market snapshot ONLY in the drift>=4bps state where the claimed edge lives; everywhere else the bot pays at/above snapshot. Confirms stale-ask capture artifact.",
+  "cell_es_ge70_direct": [
+   [
+    1783451700,
+    133,
+    0.63,
+    0.595,
+    "win"
+   ],
+   [
+    1783478100,
+    132,
+    0.64,
+    0.735,
+    "loss"
+   ],
+   [
+    1783482900,
+    140,
+    0.6387,
+    0.775,
+    "win"
+   ],
+   [
+    1783676100,
+    129,
+    0.64,
+    0.805,
+    "win"
+   ]
+  ],
+  "market_fair_pricing_independent": "pm_prices_join (autopsy, n=54/65 markets): drift 4-8bps charged 0.7245@60s / 0.776@150s, realized q 0.7407/0.7692 -> EV after fees -0.74c / -2.85c. At real market prices the drift-leader state has ~zero edge.",
+  "entrySec_anomalies": "101 trades |at/1000-t0-entrySec|>2s, ALL eng=loose from archive/research reconstruction; 1 in cell \u2014 immaterial",
+  "v3_era": "0 qualifying trades after Jul 10 15:05; only 1 interval (4 engine dupes) with sdrift>=4 at any price, lost (p=0.50). No out-of-era support.",
+  "dedup_then_band_note": "interval-first-fill dedup then band gives n=25 q=0.84; claim's n=71 is dedup then p>=0.60 (fills up to 75c); n=89 is band-before-dedup. Stats reproduce under all orderings.",
+  "verdict": "WEAKENED/REFUTED as exploitable edge: ledger statistics reproduce exactly; fill-realism artifact confirmed"
+ }
+}

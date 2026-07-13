@@ -1,0 +1,63 @@
+{
+ "efficient_null_MC": {
+  "mechanical_component_c_per_signal": 3.96,
+  "expected_delta_under_null_c": 3.95,
+  "observed_c": 10.55,
+  "P(delta>=observed | null)": 0.024,
+  "null_ci90_c_per_signal": [
+   -4.16,
+   10.55
+  ],
+  "note": "improvement leg is deterministic given fill prices; only skip outcomes are stochastic. This is the honest p for \"the f>0 rule added value beyond mechanics\" "
+ },
+ "skip_binomial_n8_all_skips": {
+  "n": 8,
+  "wins": 2,
+  "mix": 0.5125,
+  "qstar": 0.53,
+  "P(K<=k|q*)": 0.1087
+ },
+ "v2_absolute_book": {
+  "n": 26,
+  "wins": 12,
+  "wr": 0.4615,
+  "avg_entry": 0.4093,
+  "qstar": 0.4262,
+  "ps_mean_c": 3.57,
+  "binom_P(K>=k|q*)": 0.4304,
+  "note": "is the flagship book itself distinguishable from break-even? "
+ },
+ "toxic_zone_overlap": {
+  "i50_first_fills_ge48c": {
+   "n": 22,
+   "wins": 9,
+   "wr": 0.409,
+   "sum_ps_c": -256.8,
+   "of_which_common": 14,
+   "skips": 8
+  },
+  "policy_delta_total_c": 358.7,
+  "delta_from_zone_signals_c": 358.7,
+  "share_of_delta_from_zone": 1.0,
+  "note": "R1 delta and any separate 48-53c-toxic-zone finding are the SAME trades counted twice"
+ },
+ "settledBy": {
+  "polymarket": 58,
+  "polymarket (corrected)": 2
+ },
+ "v2_fill_cap_check": {
+  "max_v2_entry_common": 0.48,
+  "max_identical_pair_entry": 0.48,
+  "skip_first_poll_entries": [
+   0.49,
+   0.5,
+   0.51,
+   0.51,
+   0.51,
+   0.52,
+   0.53,
+   0.53
+  ],
+  "note": "v2 never filled above ~0.48 entry (=47c ask); consistent with f>0 iff p_eff<=~0.4886 from qlo=0.5068"
+ }
+}

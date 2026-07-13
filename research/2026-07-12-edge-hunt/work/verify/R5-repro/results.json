@@ -1,0 +1,59 @@
+{
+  "finding": "R5 — pooled -$8.8k is cost structure, not direction; momentum trigger = mechanical head start, zero residual info",
+  "verdict": "WEAKENED",
+  "one_line": "Core thesis (costs dominate, residual continuation ~= 50%, ~3.3c gross hurdle) reproduces exactly and survives every stress; but the 'POSITIVE gross selection at mid +0.55c' leg is refuted — it is an asymmetric-survivorship artifact (keeps 71 profit-locked hedged winners, drops 70 stop-lossed trades whose hold-to-resolution counterfactual win rate is 1.4%) and is statistically zero in every universe.",
+  "reproduction": {
+    "accounting_pooled_3495": {
+      "mine_vs_artifact": "sel_at_mid +0.551 vs +0.55; sel_at_fill -1.056 vs -1.06; fee 1.683 vs 1.68; slip 1.107 vs 1.10; net -2.743 vs -2.74 — exact match",
+      "reconciliation": "pnl_model vs pnl_logged gap 0.00c/share on 3,424 clean holds; -0.031c/share pooled (hedge legs, ~-$98.6)"
+    },
+    "residual_continuation_theta2bps": {
+      "mine": {"full": 0.7219, "n_full": 2851, "resid": 0.4902, "n_resid": 2850, "resid_ci95_1hblock": [0.4711, 0.5085]},
+      "artifact": {"full": 0.7209, "resid": 0.487, "ci": [0.469, 0.5055]},
+      "theta8bps": {"mine": 0.465, "ci": [0.4223, 0.507], "artifact": 0.4572},
+      "fresh_jul10_13": {"full": 0.7335, "resid": 0.4902, "n": 408, "ci": [0.4384, 0.5414]}
+    },
+    "momentum_subclaim": "claimed 'won 56.8% at 59c (q*=.596)'; I measure loose/floor/band/value/fade win/loss trades: 56.0% unweighted, 54.6% share-weighted, at 55.5c share-weighted fill (q*=.573). Numbers differ slightly from claim but conclusion identical: win rate < q* at fill."
+  },
+  "flaw_check_merge_agent": {
+    "flagged": "positive-selection-at-mid rests on mid = ask-0.5c and hold-to-resolution counterfactuals for stop-loss + hedged trades; true gross selection could be zero/negative",
+    "resolution": "CONFIRMED in substance, with the mechanism pinned down differently than hypothesized:",
+    "details": [
+      "mid = ask-0.5c itself is fine mechanically: 32/33 decision-time spreads in state_extract are exactly 1c",
+      "the real defect is sample construction: the 3,495 win/loss sample INCLUDES 71 hedged trades (all 'loose'; profit-lock hedge placed median 263s/300s into the interval at 1-7c, i.e. only when main leg had reached ~93-99c; 70/71 won) and EXCLUDES 70 stop-lossed trades (result='stopped'); reconstructing their hold-to-resolution outcome from cb1m opens gives a 1.4% counterfactual win rate (1/70)",
+      "symmetric all-entries universe (n=3,565 = every signal that fired, stopped trades held to resolution): sel_at_mid = -0.475c/share, sel_at_ask = -0.975c, 1h-block CI at mid [-2.22, +1.23] — zero-to-negative",
+      "even in the artifact's own universe the +0.551c has CI [-1.26, +2.28]: never distinguishable from zero",
+      "conclusion: 'signals were right, prices were fatal' is not supported; correct statement is 'signals carried ~zero information relative to the standing quote; prices (costs) did the rest'"
+    ]
+  },
+  "stress_tests": {
+    "residual_leg": {
+      "drop_most_favorable_day": {"dropped_day_resid": 0.4199, "remaining_resid": 0.4949, "ci": [0.4765, 0.5137], "survives_null_at_50": true},
+      "first_half": {"resid": 0.4919, "ci": [0.4657, 0.5195]},
+      "second_half": {"resid": 0.4884, "ci": [0.4638, 0.5141]},
+      "theta_jitter_1_2_3_4_8bps": [0.4905, 0.4902, 0.4963, 0.491, 0.465],
+      "conclusion": "zero-residual-information claim survives every stress; note residual is never significantly BELOW 50% at 2bps either (no exploitable fade)"
+    },
+    "selection_leg_on_symmetric_universe": {
+      "drop_best_day": {"sel_mid_c": -0.856, "ci": [-2.692, 0.991]},
+      "first_half_c": 0.602,
+      "second_half_c": -1.492,
+      "mid_jitter_halfspread_0_05_1c": [-0.975, -0.475, 0.025],
+      "bucket_edge_52_53_54c": "sel_at_mid below/above edge: +0.95/-1.41, +0.84/-1.46, -0.19/-0.72 — above-cap entries always negative; sign of pooled selection not rescued at any edge",
+      "conclusion": "positive selection does NOT survive; zero/negative under every stress"
+    }
+  },
+  "corrected_numbers": {
+    "cost_stack_c_per_share": {"fees": -1.68, "slip": -1.11, "half_spread": -0.5, "gas": -0.004, "total": -3.29},
+    "gross_selection_at_mid_c_per_share": {"point": -0.48, "ci95_1hblock": [-2.22, 1.23], "universe": "all 3,565 entries, stopped held to resolution"},
+    "net_c_per_share_symmetric": -3.66,
+    "residual_continuation": {"point": 0.4902, "ci95": [0.4711, 0.5085], "n": 2850, "fresh_jul10_13": 0.4902},
+    "gross_hurdle_for_future_signal_c": "~3.3c (costs) with selection contributing ~0; invariants of R5 unchanged"
+  },
+  "multiple_comparisons": "residual tested at K=5 thresholds (1/2/3/4/8bps), all reported; selection at 3 benchmarks x 3 universes x 3 bucket edges, all reported; conclusions are nulls, so K inflates rather than deflates confidence in them",
+  "files": {
+    "repro_accounting": "repro_accounting.py -> accounting_results.json",
+    "repro_residual": "repro_residual.py -> residual_results.json",
+    "stress_selection": "stress_selection.py -> selection_stress_results.json"
+  }
+}

@@ -1,0 +1,14 @@
+{
+ "n_with_fillFrac": 3481,
+ "frac_partial_lt1": 0.0009,
+ "fillFrac_dist": {
+  "1.0": 3478,
+  "0.75-1": 1,
+  "<0.5": 2
+ },
+ "n_stake_lt_reqStake": 3,
+ "partial_vs_full": {
+  "n_partial": 3,
+  "note": "too few partial fills for inference"
+ }
+}

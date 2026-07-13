@@ -1,0 +1,43 @@
+{
+  "finding": "R4 phase-1 kill-metric semantics: measurement book records first-poll costs, diverging 9.8c/share from operated arm",
+  "verdict": "CONFIRMED",
+  "rederived_from_raw": {
+    "sources": ["data/state_extract.json measure[] (36 records)", "data/trades_unified.json (3576 trades)", "data/cb1m.json", "bot/btc5m_bot.py", "2026-07-10-edge-hunt/FINAL-DESIGN.md"],
+    "cost_field_semantics": "cost = (ask+0.01) + 0.07*p*(1-p); exact for all records carrying f (0 mismatches)",
+    "t0_join": "36 measure records vs 27 impulse_v2 ledger trades: 15 sized -> joined (15/15, incl. 1 unsettled), 12 f_nonpos -> joined (entered later), 9 f_nonpos -> no trade. 15+12=27 = every impulse_v2 trade; zero impulse_v2 trades missing from the measure book (no survivorship), zero eng+t0 duplicates in entire 3576-trade ledger (no _src merge dupes), no 600-cap rotation issue (n=27 << cap)",
+    "headline_numbers": {
+      "measurement_book_first_poll_net_ps_c": -6.23,
+      "n_settled": 35, "wins": 15,
+      "iid_bootstrap_ci90_c": [-19.97, 7.56],
+      "block_1h_bootstrap_ci90_c": [-15.20, 3.13],
+      "note_ci": "analyst CI [-15.35,+3.33] matches a 1h-block bootstrap (18 blocks); iid CI is wider; both straddle the -2c kill bar",
+      "operated_impulse_v2_net_ps_c": 3.55,
+      "operated_share_weighted_ps_c": 3.49,
+      "gap_c": 9.79,
+      "classes": {
+        "never_entered": {"n": 9, "wins": 3, "first_poll_ev_ps_c": -19.64},
+        "sized_first_poll": {"n_settled": 14, "wins": 6, "ev_ps_c": -0.61},
+        "rich_first_poll_entered_later": {"n": 12, "wins": 6, "realized_ps_c": 8.43, "at_first_poll_cost_ps_c": -2.75}
+      }
+    },
+    "win_field_integrity": "win agrees with ledger result on all joined records (0 disagreements) and with Coinbase open(t0) vs open(t0+300) on 35/35 settled; zero exact ties; no lookahead in the finding (win used only for outcome evaluation; f features recorded at sec 0-37 in-window)"
+  },
+  "merge_agent_flag_resolution": {
+    "same_signal_check": "All 12 rich-first-poll-entered-later records map to a flagship trade with SAME t0, SAME side, entrySec > first-poll sec (12/12), strictly cheaper all-in (12/12, mean 11.19c, range 3.0-38.8c). impulse50 (same signal stream, flat stake) also entered the same t0+side 12/12. Ledger has exactly one impulse_v2 trade per t0 and the bot's risk_ok 'not dup' guard forbids a second entry per (eid,t0). These are re-polls of ONE signal inside the 45s window, not second triggers.",
+    "sized_class_check": "All 15 sized records: measure cost == ledger entry all-in to <0.06c and entrySec == f.sec (+/-1s) — sized records really are first-poll fills, so the join classes are clean.",
+    "design_intent": "SPLIT. (a) The kill book at first-fillable-poll cost IS pre-registered: FINAL-DESIGN.md SS3.2 pseudocode 'measurement book records ONCE per interval - first fillable poll (matches the CONFIRMED fast-entry regime)' and SS7 Phase 1 kill reads 'measurement-book net/share'. So evaluating the kill on the first-poll counterfactual is design intent -> that half is an AMENDMENT REQUEST, not a bug. (b) The sized/skip FLAGS are a genuine code-vs-design divergence: MF6 pre-registers 'skip is final at t0+45s ... snapshot of last in-window eval', but btc5m_bot.py _measure_record (dedupe line 581) stamps sized/skip from the FIRST fillable poll and increments skips there (line 585), so 12 of 21 f_nonpos records (and the skips counter) misdescribe intervals the flagship actually entered. That half IS a bug versus the pre-registered spec, and it breaks availability/skip accounting.",
+    "design_assumption_violated": "The 'matches the CONFIRMED fast-entry regime' rationale is empirically wrong for the sizer: 12/27 (44%) of operated entries happen after a rich first poll, mean 11.2c cheaper. The design did not anticipate the f<=0 wait-then-fill dynamic, so the pre-registered kill input systematically prices the operated policy's worst poll."
+  },
+  "kill_evaluability": {
+    "cadence_per_day": 14.6,
+    "span_days": 2.46,
+    "day14_projection_n": 205,
+    "note": "min 200 fills is plausibly reached by day 14 (design assumed ~20/day -> 280), so the concern is timely: at current -6.23c the kill WOULD fire on a book whose operated arm runs +3.55c/share. Fix (store best in-window fillable cost or realized fill alongside first-poll cost) must land before day 14."
+  },
+  "corrections_to_claim": [
+    "Operated flagship is +3.55c/share equal-weighted (+3.49 share-weighted), not +3.57 (immaterial rounding/gas treatment)",
+    "The claim's framing 'misclassifies 12 of 27 flagship entries as skips' is correct for the sized flag; the kill-book cost semantics are pre-registered design, so the action item is an amendment plus a flag-semantics bugfix, not purely a bug report",
+    "n=35 at 14.6/day reaches ~205 by day 14, so 'kill not yet evaluable' will stop being true right around the kill date - strengthens urgency"
+  ],
+  "scripts": ["crossmatch.py"]
+}

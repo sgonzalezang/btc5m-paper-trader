@@ -1,0 +1,62 @@
+{
+  "sweep": "2026-07-12 fresh alpha sweep on market data (alphasweep)",
+  "method": {
+    "label": "up_i = 1 if o[i+1] >= o[i] (open-to-open, ties Up; 13 exact ties; 20.9% of intervals <2bps where resolution noise ~11%)",
+    "fill_assumption": "51c (ask 50c + 1c slip) for the predicted side; breakeven q*(0.51)=0.52753 incl gas 0.004c/share",
+    "cost_model": "EV/share = q - p - 0.07*p*(1-p) - 0.00004 (gas), frozen",
+    "split": "TRAIN May 11 - Jun 26 00:00 UTC (13,105 intervals), TEST Jun 26 - Jul 13 03:40 (4,940)",
+    "family4_split": "cb1m only exists Jun 26+: TRAIN' Jun 26 - Jul 5, TEST' Jul 5 - Jul 13 (candidate-grade only)",
+    "pvals": "1h-block bootstrap (2000-4000 reps), one-sided vs EV<=0; 90% CI",
+    "selection": "per sub-family best TRAIN ev_c with TRAIN n>=250 (n>=150 family 4), evaluated once on TEST"
+  },
+  "multiplicity": {
+    "K_grid_total": 204,
+    "K_by_family": {"momrev_raw+volnorm": 88, "sign_interactions": 12, "crossvenue": 42, "eth+shape": 44, "intra1m": 18},
+    "K_test_picks": 16,
+    "bonferroni_test_bar": "0.05/16 = 0.0031 (program bar 0.01 stricter still)"
+  },
+  "headline": "ZERO of 204 grid cells / 16 pre-registered picks clear the bar (TRAIN p<0.01 AND positive TEST persistence). Of 170 evaluable 5m cells, exactly 2 cleared TRAIN p<0.01 and both failed TEST: vnorm_k12_z2_rev (TRAIN +4.16c p=.0075 -> TEST +0.49c p=.43) and wick_0.65_wickfade (TRAIN +2.70c p=.006 -> TEST -1.58c p=.82).",
+  "baseline": {
+    "up_rate_test": 0.503,
+    "rev12_ungated": {"TRAIN": {"n": 3009, "q": 0.5218, "ev_c": -0.576, "p": 0.744}, "TEST": {"n": 1093, "q": 0.5599, "ev_c": 3.239, "p": 0.0088}},
+    "rev12_fresh_jul10_13": {"n": 70, "q": 0.4714, "ev_c": -5.61, "ci90_c": [-14.29, 3.09]}
+  },
+  "gate_refresh_frozen_params": {
+    "note": "deployed impulse gate eff6>=0.10 & cnt12<=6, 12bps trigger, zero refit, independent pipeline",
+    "gated_TEST": {"n": 787, "q": 0.5731, "ev_c": 4.553, "p": 0.0035, "ci90_c": [1.64, 7.51]},
+    "ungated_TEST": {"n": 1093, "q": 0.5599, "ev_c": 3.239, "p": 0.0088},
+    "gated_TRAIN": {"n": 2015, "q": 0.54, "ev_c": 1.242, "p": 0.129},
+    "ungated_TRAIN": {"n": 3008, "q": 0.5216, "ev_c": -0.592, "p": 0.731},
+    "gated_fresh_jul10_13": {"n": 52, "q": 0.5, "ev_c": -2.753, "ci90_c": [-12.75, 7.71]},
+    "ungated_fresh_jul10_13": {"n": 70, "q": 0.4714, "ev_c": -5.61, "ci90_c": [-14.29, 3.09]},
+    "unpaired_gate_increment": "TRAIN +1.83c, TEST +1.31c, fresh +2.86c - directionally positive everywhere, never individually significant (consistent with prior 'level real, increment unproven')"
+  },
+  "weekly_stability_gated_ev_c": [
+    {"week_of": "05-11", "n": 212, "ev_c": 6.68}, {"week_of": "05-18", "n": 241, "ev_c": -2.96},
+    {"week_of": "05-25", "n": 216, "ev_c": 2.8}, {"week_of": "06-01", "n": 427, "ev_c": -0.29},
+    {"week_of": "06-08", "n": 370, "ev_c": -0.86}, {"week_of": "06-15", "n": 314, "ev_c": 5.85},
+    {"week_of": "06-22", "n": 373, "ev_c": 2.74}, {"week_of": "06-29", "n": 345, "ev_c": 5.22},
+    {"week_of": "07-06", "n": 290, "ev_c": 2.42}, {"week_of": "07-13(partial)", "n": 14, "ev_c": -9.9}
+  ],
+  "near_misses_all_rejected": {
+    "ethdiv_thr10bps_fade": "TEST +4.79c p=.012 n=610 BUT TRAIN -1.09c p=.81 -> TRAIN->TEST sign flip, terminal by program standard; also correlated with the known reversal (fires on ETH-led divergence in a reversal-friendly TEST period)",
+    "volspike_body_m3_rev": "sign-consistent (TRAIN +1.70c p=.20 n=584; TEST +4.08c p=.11 n=227) but never significant; at most a shadow-book candidate",
+    "trig12_backloaded_rev": "increment on the DEPLOYED signal: contrarian after 12bps trigger whose last-2m delivered >=60% of the move; TRAIN' +8.69c p=.0075 n=153 -> TEST' +1.30c p=.38 n=111 (frontloaded control +3.87c -> +1.09c). Decayed; candidate-grade only, short 1m history (16.7d)",
+    "eth_k3_thr30bps_fade": "TRAIN +1.45c p=.07, TEST +2.21c p=.08 - sign-consistent, never clears either bar; overlaps BTC reversal (ETH-BTC 5m correlation)"
+  },
+  "fill_realism_caveat": "51c assumption favors contrarian-side signals (validated live fill quantiles .45/.49/.51). Momentum-direction cells (all dead anyway) would fill 62-65c per prior work, making them MORE dead. No finding depends on optimistic fills.",
+  "artifacts": {
+    "baseline": "baseline.py -> baseline.json",
+    "family1": "sweep_momrev.py -> family1_momrev.json",
+    "family1b": "sweep_signinter.py -> family1b_signinter.json",
+    "family2": "sweep_crossvenue.py -> family2_crossvenue.json",
+    "family35": "sweep_eth_shape.py -> family35_eth_shape.json",
+    "family4": "sweep_intra1m.py -> family4_intra1m.json",
+    "gate_refresh": "gate_refresh.py -> gate_refresh.json",
+    "weekly": "weekly_stability.py -> weekly_stability.json"
+  },
+  "data_caveats": {
+    "bn5m/premium/oi end Jul 9-10": "family 2 TEST windows shortened accordingly; OI lagged one interval for publication delay; OI TRAIN only Jun 10-25",
+    "cb1m starts Jun 26": "family 4 uses its own short sub-split entirely inside the program TEST window"
+  }
+}

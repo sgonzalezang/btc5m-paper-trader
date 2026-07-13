@@ -1,0 +1,26 @@
+{
+ "n_stopped": 70,
+ "n_stopped_imputable": 70,
+ "stopped_hold_to_res_wr": 0.0143,
+ "stopped_avg_ask": 0.5516,
+ "stopped_ledger_pnl": -3153.15,
+ "hedged_n": 71,
+ "hedged_q_sw": 0.9845,
+ "hedged_ask_sw": 0.5735,
+ "augmented_pool": {
+  "n": 3565,
+  "q_sw": 0.5251,
+  "ask_sw": 0.5348,
+  "sel_at_ask_c": -0.98,
+  "sel_at_mid_c": -0.48,
+  "sel_at_mid_ci95_c": [
+   -2.16,
+   1.26
+  ],
+  "sel_at_mid_p_le0": 0.686,
+  "fee_c": 1.68,
+  "slip_c": 1.11,
+  "net_c": -3.77
+ },
+ "full_ledger_pnl_incl_stopped": -11982.02
+}

@@ -1,0 +1,83 @@
+{
+ "construction": "1m drift at t0+60s; outcome open(t0+300) vs open(t0), tie->up; Coinbase proxy",
+ "eras": {
+  "A_family_alive_Jun26-Jul10": {
+   "theta_2bps": {
+    "n": 2538,
+    "continuation": 0.7163,
+    "ci95": [
+     0.6988,
+     0.7339
+    ],
+    "net_at_59c_c": 10.94,
+    "net_at_55c_c": 14.9,
+    "net_at_50c_c": 19.88
+   },
+   "theta_4bps": {
+    "n": 1480,
+    "continuation": 0.7689,
+    "ci95": [
+     0.7478,
+     0.7893
+    ],
+    "net_at_59c_c": 16.2,
+    "net_at_55c_c": 20.16,
+    "net_at_50c_c": 25.14
+   },
+   "theta_8bps": {
+    "n": 549,
+    "continuation": 0.8015,
+    "ci95": [
+     0.7703,
+     0.8318
+    ],
+    "net_at_59c_c": 19.45,
+    "net_at_55c_c": 23.41,
+    "net_at_50c_c": 28.4
+   }
+  },
+  "B_fresh_Jul10-Jul13": {
+   "theta_2bps": {
+    "n": 303,
+    "continuation": 0.7591,
+    "ci95": [
+     0.7104,
+     0.8088
+    ],
+    "net_at_59c_c": 15.21,
+    "net_at_55c_c": 19.18,
+    "net_at_50c_c": 24.16
+   },
+   "theta_4bps": {
+    "n": 119,
+    "continuation": 0.7899,
+    "ci95": [
+     0.72,
+     0.8678
+    ],
+    "net_at_59c_c": 18.3,
+    "net_at_55c_c": 22.26,
+    "net_at_50c_c": 27.24
+   },
+   "theta_8bps": {
+    "n": 35,
+    "continuation": 0.8286,
+    "ci95": [
+     0.7419,
+     0.9286
+    ],
+    "net_at_59c_c": 22.16,
+    "net_at_55c_c": 26.12,
+    "net_at_50c_c": 31.11
+   }
+  }
+ },
+ "up_rate_era_A": {
+  "n": 4075,
+  "up": 0.5036
+ },
+ "up_rate_era_B": {
+  "n": 719,
+  "up": 0.5118
+ }
+}

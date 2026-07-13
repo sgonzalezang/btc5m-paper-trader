@@ -1,0 +1,215 @@
+{
+ "cutoffs_bps": [
+  66.91,
+  114.25
+ ],
+ "TRAIN": {
+  "tercile_0": {
+   "uncond": {
+    "n": 4359,
+    "rev_rate": 0.4994,
+    "ev_c": -2.81,
+    "ev_ci": [
+     -4.3,
+     -1.25
+    ],
+    "p_ev_le_0": 1.0
+   },
+   "trig12": {
+    "n": 189,
+    "rev_rate": 0.4709,
+    "ev_c": -5.66,
+    "ev_ci": [
+     -12.65,
+     1.46
+    ],
+    "p_ev_le_0": 0.9357
+   }
+  },
+  "tercile_1": {
+   "uncond": {
+    "n": 4360,
+    "rev_rate": 0.5165,
+    "ev_c": -1.1,
+    "ev_ci": [
+     -2.56,
+     0.42
+    ],
+    "p_ev_le_0": 0.9253
+   },
+   "trig12": {
+    "n": 788,
+    "rev_rate": 0.5533,
+    "ev_c": 2.58,
+    "ev_ci": [
+     -0.87,
+     6.09
+    ],
+    "p_ev_le_0": 0.071
+   }
+  },
+  "tercile_2": {
+   "uncond": {
+    "n": 4365,
+    "rev_rate": 0.5136,
+    "ev_c": -1.39,
+    "ev_ci": [
+     -2.9,
+     0.1
+    ],
+    "p_ev_le_0": 0.9653
+   },
+   "trig12": {
+    "n": 2031,
+    "rev_rate": 0.514,
+    "ev_c": -1.35,
+    "ev_ci": [
+     -3.49,
+     0.8
+    ],
+    "p_ev_le_0": 0.8907
+   }
+  },
+  "hi_vs_lomid_trig_ev_diff_c": {
+   "diff": -2.33,
+   "ci": [
+    -6.05,
+    1.37
+   ],
+   "p_le_0": 0.8837,
+   "n_hi": 2031,
+   "n_lomid": 977
+  }
+ },
+ "TEST": {
+  "tercile_0": {
+   "uncond": {
+    "n": 1487,
+    "rev_rate": 0.5259,
+    "ev_c": -0.16,
+    "ev_ci": [
+     -2.78,
+     2.35
+    ],
+    "p_ev_le_0": 0.576
+   },
+   "trig12": {
+    "n": 74,
+    "rev_rate": 0.5676,
+    "ev_c": 4.01,
+    "ev_ci": [
+     -6.92,
+     15.82
+    ],
+    "p_ev_le_0": 0.247
+   }
+  },
+  "tercile_1": {
+   "uncond": {
+    "n": 2026,
+    "rev_rate": 0.5192,
+    "ev_c": -0.82,
+    "ev_ci": [
+     -3.06,
+     1.47
+    ],
+    "p_ev_le_0": 0.7623
+   },
+   "trig12": {
+    "n": 381,
+    "rev_rate": 0.5801,
+    "ev_c": 5.26,
+    "ev_ci": [
+     0.09,
+     10.34
+    ],
+    "p_ev_le_0": 0.022
+   }
+  },
+  "tercile_2": {
+   "uncond": {
+    "n": 1423,
+    "rev_rate": 0.5488,
+    "ev_c": 2.13,
+    "ev_ci": [
+     -0.16,
+     4.62
+    ],
+    "p_ev_le_0": 0.035
+   },
+   "trig12": {
+    "n": 638,
+    "rev_rate": 0.547,
+    "ev_c": 1.95,
+    "ev_ci": [
+     -1.53,
+     5.34
+    ],
+    "p_ev_le_0": 0.134
+   }
+  },
+  "hi_vs_lomid_trig_ev_diff_c": {
+   "diff": -3.1,
+   "ci": [
+    -8.77,
+    2.61
+   ],
+   "p_le_0": 0.8487,
+   "n_hi": 638,
+   "n_lomid": 455
+  }
+ },
+ "ledger_by_vol_tercile": {
+  "reversal_family_all": {
+   "tercile_0": {
+    "n": 39,
+    "wr": 0.3333,
+    "net_pnl_c_per_share": -19.41
+   },
+   "tercile_1": {
+    "n": 175,
+    "wr": 0.5029,
+    "net_pnl_c_per_share": 0.03
+   },
+   "tercile_2": {
+    "n": 176,
+    "wr": 0.4659,
+    "net_pnl_c_per_share": -2.6
+   }
+  },
+  "v3_era": {
+   "tercile_0": {
+    "n": 13,
+    "wr": 0.2308,
+    "net_pnl_c_per_share": -28.67
+   },
+   "tercile_1": {
+    "n": 50,
+    "wr": 0.42,
+    "net_pnl_c_per_share": -5.21
+   },
+   "tercile_2": {
+    "n": 40,
+    "wr": 0.5,
+    "net_pnl_c_per_share": 3.74
+   }
+  },
+  "momentum_family": {
+   "tercile_0": {
+    "n": 384,
+    "wr": 0.5885,
+    "net_pnl_c_per_share": -1.49
+   },
+   "tercile_1": {
+    "n": 1167,
+    "wr": 0.5647,
+    "net_pnl_c_per_share": -4.29
+   },
+   "tercile_2": {
+    "n": 895,
+    "wr": 0.6,
+    "net_pnl_c_per_share": -0.78
+   }
+  }
+ }
+}

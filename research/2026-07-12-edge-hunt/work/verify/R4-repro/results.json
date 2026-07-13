@@ -1,0 +1,261 @@
+{
+ "cost_model_ok": true,
+ "measurement_book": {
+  "n": 36,
+  "n_settled": 35,
+  "wins": 15,
+  "mean_cps": -6.23,
+  "ci90_1hblock": [
+   -15.46,
+   3.53
+  ]
+ },
+ "operated_flagship": {
+  "n_matched": 27,
+  "n_settled": 26,
+  "wins": 12,
+  "mean_cps": 3.55,
+  "ci90_1hblock": [
+   -9.91,
+   16.04
+  ],
+  "fl_trades_total": 27,
+  "fl_settled_total": 26,
+  "fl_t0_not_in_measure": []
+ },
+ "classes": {
+  "sized": {
+   "n": 15,
+   "n_settled": 14,
+   "wins": 6,
+   "cps_realized": -0.63,
+   "mean_entry_discount_c": -0.0
+  },
+  "skip_entered_later": {
+   "n": 12,
+   "n_settled": 12,
+   "wins": 6,
+   "cps_realized": 8.43,
+   "mean_entry_discount_c": 11.19
+  },
+  "skip_never_entered": {
+   "n": 9,
+   "n_settled": 9,
+   "wins": 3,
+   "cps_at_firstpoll_cost": -19.64
+  }
+ },
+ "same_signal_audit": {
+  "ok": true,
+  "rows": [
+   {
+    "t0": 1783734000,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 11,
+    "trade_entry_sec": 19,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5474,
+    "trade_allin_cost": 0.4472,
+    "result": "loss"
+   },
+   {
+    "t0": 1783782900,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 3,
+    "trade_entry_sec": 26,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5075,
+    "trade_allin_cost": 0.4269,
+    "result": "win"
+   },
+   {
+    "t0": 1783784400,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 3,
+    "trade_entry_sec": 16,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5175,
+    "trade_allin_cost": 0.4874,
+    "result": "loss"
+   },
+   {
+    "t0": 1783791000,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 3,
+    "trade_entry_sec": 33,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5175,
+    "trade_allin_cost": 0.4371,
+    "result": "loss"
+   },
+   {
+    "t0": 1783837800,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 4,
+    "trade_entry_sec": 13,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5175,
+    "trade_allin_cost": 0.4371,
+    "result": "win"
+   },
+   {
+    "t0": 1783858500,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 1,
+    "trade_entry_sec": 25,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5474,
+    "trade_allin_cost": 0.4673,
+    "result": "win"
+   },
+   {
+    "t0": 1783893000,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 18,
+    "trade_entry_sec": 27,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5375,
+    "trade_allin_cost": 0.4874,
+    "result": "loss"
+   },
+   {
+    "t0": 1783901100,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 1,
+    "trade_entry_sec": 30,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5474,
+    "trade_allin_cost": 0.1599,
+    "result": "loss"
+   },
+   {
+    "t0": 1783903200,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 22,
+    "trade_entry_sec": 30,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5175,
+    "trade_allin_cost": 0.3761,
+    "result": "win"
+   },
+   {
+    "t0": 1783906500,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 4,
+    "trade_entry_sec": 12,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5375,
+    "trade_allin_cost": 0.3863,
+    "result": "win"
+   },
+   {
+    "t0": 1783909200,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 0,
+    "trade_entry_sec": 15,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5175,
+    "trade_allin_cost": 0.4371,
+    "result": "win"
+   },
+   {
+    "t0": 1783911900,
+    "side_match": true,
+    "n_trades_this_t0": 1,
+    "measure_first_poll_sec": 4,
+    "trade_entry_sec": 13,
+    "entered_after_first_poll": true,
+    "within_45s_window": true,
+    "measure_cost": 0.5175,
+    "trade_allin_cost": 0.4371,
+    "result": "loss"
+   }
+  ]
+ },
+ "mechanism_f_sign": {
+  "agree": 36,
+  "disagree": 0,
+  "rows": []
+ },
+ "divergence": {
+  "cps": 9.79,
+  "ci90_1hblock": [
+   0.75,
+   17.76
+  ],
+  "frac_boot_positive": 0.96
+ },
+ "stress": {
+  "drop_day_min_divergence": {
+   "day_utc": 20646,
+   "div_meas_op": [
+    3.52,
+    -10.02,
+    -6.51
+   ]
+  },
+  "per_day": [
+   {
+    "day": 20644,
+    "div": 11.51,
+    "meas": -3.98,
+    "op": 7.54
+   },
+   {
+    "day": 20645,
+    "div": 14.02,
+    "meas": -5.79,
+    "op": 8.24
+   },
+   {
+    "day": 20646,
+    "div": 3.52,
+    "meas": -10.02,
+    "op": -6.51
+   },
+   {
+    "day": 20647,
+    "div": 9.83,
+    "meas": -5.43,
+    "op": 4.4
+   }
+  ],
+  "half1": {
+   "div": 9.73,
+   "meas": -9.74,
+   "op": -0.01
+  },
+  "half2": {
+   "div": 9.09,
+   "meas": -2.92,
+   "op": 6.16
+  },
+  "bucket_edge_jitter_flips": {
+   "0.49": 0,
+   "0.5": 0,
+   "0.51": 0
+  }
+ }
+}

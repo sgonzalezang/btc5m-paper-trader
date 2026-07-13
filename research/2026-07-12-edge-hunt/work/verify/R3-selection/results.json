@@ -1,0 +1,329 @@
+{
+ "repro_ruleA_ge60": {
+  "label": "dedup-first, drift>=4, p>=0.60 (claimed n=71)",
+  "n": 71,
+  "wins": 58,
+  "q": 0.8169,
+  "p_mean": 0.6613,
+  "qstar": 0.677,
+  "ev_c": 14.0,
+  "q_ci95": [
+   0.7115,
+   0.8898
+  ]
+ },
+ "repro_band6065_dedup": {
+  "label": "filter-first dedup, drift>=4, p in [0.60,0.65) (claimed n=89)",
+  "n": 89,
+  "wins": 70,
+  "q": 0.7865,
+  "p_mean": 0.6274,
+  "qstar": 0.6438,
+  "ev_c": 14.27,
+  "q_ci95": [
+   0.6905,
+   0.8589
+  ]
+ },
+ "pval_ruleA_ge60": {
+  "n": 71,
+  "wins": 58,
+  "breakeven_q": 0.6769,
+  "binom_p_iid": 0.00633,
+  "block_boot": {
+   "mean": 0.14,
+   "ci95": [
+    0.0607,
+    0.2219
+   ],
+   "p_le0": 0.0002,
+   "n": 71,
+   "n_blocks": 43
+  }
+ },
+ "pval_band6065": {
+  "n": 89,
+  "wins": 70,
+  "breakeven_q": 0.6438,
+  "binom_p_iid": 0.00261,
+  "block_boot": {
+   "mean": 0.1427,
+   "ci95": [
+    0.058,
+    0.223
+   ],
+   "p_le0": 0.0005,
+   "n": 89,
+   "n_blocks": 48
+  }
+ },
+ "ruleA_hour_conc": {
+  "n_hours": 43,
+  "max_per_hour": 4,
+  "top5": [
+   4,
+   3,
+   3,
+   3,
+   3
+  ]
+ },
+ "ruleA_ev_by_hour_top5_c": [
+  106.3,
+  99.3,
+  90.3,
+  74.7,
+  70.7
+ ],
+ "ruleA_ev_total_c_per_trade": 14.0,
+ "neighbor_50-55": {
+  "label": "drift>=4, p in [0.5,0.55) dedup",
+  "n": 7,
+  "wins": 2,
+  "q": 0.2857,
+  "p_mean": 0.5243,
+  "qstar": 0.5417,
+  "ev_c": -25.6,
+  "q_ci95": [
+   0.0822,
+   0.6411
+  ]
+ },
+ "neighbor_55-60": {
+  "label": "drift>=4, p in [0.55,0.6) dedup",
+  "n": 31,
+  "wins": 13,
+  "q": 0.4194,
+  "p_mean": 0.5847,
+  "qstar": 0.6017,
+  "ev_c": -18.24,
+  "q_ci95": [
+   0.2642,
+   0.5923
+  ]
+ },
+ "neighbor_65-75": {
+  "label": "drift>=4, p in [0.65,0.75) dedup",
+  "n": 120,
+  "wins": 89,
+  "q": 0.7417,
+  "p_mean": 0.6801,
+  "qstar": 0.6953,
+  "ev_c": 4.64,
+  "q_ci95": [
+   0.6567,
+   0.8116
+  ]
+ },
+ "reconcile_mom_6066_all": {
+  "label": "mom all fills 60-66c (merge agent cited -1.29c n=1227)",
+  "n": 1244,
+  "wins": 787,
+  "q": 0.6326,
+  "p_mean": 0.6288,
+  "qstar": 0.6452,
+  "ev_c": -1.25,
+  "q_ci95": [
+   0.6055,
+   0.659
+  ]
+ },
+ "reconcile_mom_6066_complement": {
+  "label": "mom 60-66c fills with drift<4bps",
+  "n": 1035,
+  "wins": 630,
+  "q": 0.6087,
+  "p_mean": 0.6282,
+  "qstar": 0.6445,
+  "ev_c": -3.58,
+  "q_ci95": [
+   0.5786,
+   0.638
+  ]
+ },
+ "cndl_coverage": {
+  "ok": 3105,
+  "missing": 0
+ },
+ "corr_sdrift_cdrift": 0.3,
+ "cell_candledrift_ge60": {
+  "label": "cdrift>=4 (cb1m opens, pre-decision), p>=0.60, dedup",
+  "n": 86,
+  "wins": 61,
+  "q": 0.7093,
+  "p_mean": 0.6497,
+  "qstar": 0.6656,
+  "ev_c": 4.37,
+  "q_ci95": [
+   0.606,
+   0.7947
+  ]
+ },
+ "cell_candledrift_boot": {
+  "mean": 0.0437,
+  "ci95": [
+   -0.0445,
+   0.134
+  ],
+  "p_le0": 0.1737,
+  "n": 86,
+  "n_blocks": 54
+ },
+ "cell_overlap": {
+  "ledger_only": 52,
+  "candle_only": 67,
+  "both": 19
+ },
+ "cell_ledgeronly": {
+  "label": "in ruleA cell but candle drift <4bps or missing",
+  "n": 52,
+  "wins": 42,
+  "q": 0.8077,
+  "p_mean": 0.6613,
+  "qstar": 0.677,
+  "ev_c": 13.08,
+  "q_ci95": [
+   0.681,
+   0.892
+  ]
+ },
+ "cell_both": {
+  "label": "in cell under BOTH drift definitions",
+  "n": 19,
+  "wins": 16,
+  "q": 0.8421,
+  "p_mean": 0.6612,
+  "qstar": 0.6769,
+  "ev_c": 16.53,
+  "q_ci95": [
+   0.6243,
+   0.9448
+  ]
+ },
+ "btcEntry_minus_minuteopen_bps": {
+  "n": 3105,
+  "p10": -3.29,
+  "p50": 0.39,
+  "p90": 7.31
+ },
+ "split_selection_test": [
+  {
+   "train": [
+    "07-07",
+    "07-08"
+   ],
+   "best_cell": "p[0.6,0.65) drift>=4",
+   "train_n": 43,
+   "train_ev_c": 19.34,
+   "test_n": 46,
+   "test_ev_c": 9.54
+  },
+  {
+   "train": [
+    "07-09",
+    "07-10"
+   ],
+   "best_cell": "p[0.6,0.65) drift>=4",
+   "train_n": 46,
+   "train_ev_c": 9.54,
+   "test_n": 43,
+   "test_ev_c": 19.34
+  },
+  {
+   "train": [
+    "07-07",
+    "07-09"
+   ],
+   "best_cell": "p[0.6,0.65) drift>=4",
+   "train_n": 37,
+   "train_ev_c": 5.89,
+   "test_n": 52,
+   "test_ev_c": 20.24
+  },
+  {
+   "train": [
+    "07-08",
+    "07-10"
+   ],
+   "best_cell": "p[0.6,0.65) drift>=4",
+   "train_n": 52,
+   "train_ev_c": 20.24,
+   "test_n": 37,
+   "test_ev_c": 5.89
+  }
+ ],
+ "claimed_cell_by_day": {
+  "07-07": {
+   "n": 32,
+   "wins": 24,
+   "ev_c": 5.82
+  },
+  "07-08": {
+   "n": 17,
+   "wins": 14,
+   "ev_c": 16.03
+  },
+  "07-09": {
+   "n": 13,
+   "wins": 12,
+   "ev_c": 25.05
+  },
+  "07-10": {
+   "n": 9,
+   "wins": 8,
+   "ev_c": 23.32
+  }
+ },
+ "perm_scanmax": {
+  "observed_max_ev_c": 14.27,
+  "perm_ge_obs": 175,
+  "B": 400,
+  "p_perm": 0.4389,
+  "note": "trade-level shuffle of drift within 5c price band; ignores time clustering (anti-conservative)"
+ },
+ "perm2": {
+  "obs_grid_cells": 12,
+  "obs_zmax": 3.255,
+  "obs_cell_6065_4": {
+   "n": 89,
+   "ev_c": 14.27,
+   "z": 3.255
+  },
+  "perm_zmax_tradelevel": {
+   "B": 500,
+   "p": 0.024,
+   "note": "P(max cell z over grid >= observed max z) under within-band drift shuffle"
+  },
+  "perm_fixedcell_tradelevel": {
+   "B": 500,
+   "p": 0.002,
+   "note": "P(cell 60-65 drift>=4 z >= observed) \u2014 no selection, drift-increment test"
+  },
+  "perm_zmax_hourblock": {
+   "B": 500,
+   "p": 0.008,
+   "note": "hour-vector reassignment within band (size-matched); preserves within-hour drift correlation"
+  },
+  "perm_fixedcell_hourblock": {
+   "B": 500,
+   "p": 0.006
+  }
+ },
+ "VERDICT": {
+  "verdict": "WEAKENED",
+  "reproduction": "exact: n=71 q=.8169 +14.0c (p>=0.60) and n=89 q=.7865 +14.27c ([0.60,0.65)); claim conflates the two (quotes q=.817 from the first with q*=.644 from the second, and mislabels n=71 as [0.60,0.65))",
+  "significance": {
+   "claimed": "block-boot p_le0=0.0005, survives x8 and <0.05 at ~x40",
+   "honest_raw": "exact binomial vs per-trade q*: p=0.0063 (n=71) / 0.0026 (n=89) \u2014 bootstrap overstated ~10-30x; 0.0063 x40 = 0.25, so the x40 claim fails",
+   "selection_corrected": "z-max permutation over the searched grid (12 viable cells, drift shuffled within 5c price band): p=0.024 trade-level / 0.008 hour-block; fixed-cell drift-increment p=0.002-0.006. Survives the declared scan, but only marginally once the wider autopsy search (calibration views, sec-x-drift grid, dedup and band variants; effective K~40-80) is priced in: ~0.04-0.10",
+   "split_test": "cell [0.60,0.65) drift>=4 is selected as best in all 4 two-day splits; out-of-fold EV +9.5/+19.3/+20.2/+5.9c \u2014 stable WITHIN the 4-day retired era, no forward data exists (v3 caps 53c)"
+  },
+  "lookahead_check": "NOT a data-alignment artifact: bot tick fetches spot feed BEFORE the CLOB book, so the recorded ask is fresher than btcEntry; fills walk a real depth ladder (fillFrac p50=1.0, stake $50 fully filled). The cheap asks really rested there at snapshot time.",
+  "mechanism_check": "BROKEN as stated: same signal at cheaper asks is strongly NEGATIVE (55-60c: n=31 dedup, q=.419, -18.2c; 50-55c: n=7, -25.6c). If the edge were generic stale-ask capture, cheaper lagging asks should be more profitable. The ask level itself is highly informative; the 60c boundary is post-hoc. 65-75c is mildly positive (+4.6c, n=120).",
+  "freshness_decomposition": "signal lives sub-minute: recomputing drift from independent cb1m minute opens (strictly pre-decision) keeps only 19/71 cell members and yields +4.4c, CI [-4.5,+13.4], p=0.17 \u2014 the edge requires the bot-feed sub-minute freshness vs a still-cheap quote, i.e. exactly the quote-staleness window",
+  "deployability": "entire edge is execution-model-dependent: independent PM snapshots price the drift side .72-.78 in this state (p60|drift4-8 EV -0.74c/share) vs ledger fills at .63. Paper assumes every cancel-race vs MMs is won; live capture rate and its adverse selection are unknown. entrySec p50=25s fills.",
+  "reconciliation": "pooled mom 60-66c: -1.25c/share n=1,244 (matches merge agent). Same fill model loses on the band overall; only the drift slice wins, complement (drift<4) is -3.58c.",
+  "corrected_effect": "paper fills: ~+8-12c/share after winner-curse shrinkage (out-of-fold range +6 to +20c), selection-corrected p~0.02-0.08, Jul 7-10 only; live tradable edge: unproven, plausibly ~0 until the $0-stake leader_v1 fill-conformance data exists",
+  "action_on_claim": "the proposed action (measurement-only engine, promote only after live fill realism conformance) is appropriate and survives; the +14c headline and the multiplicity/mechanism claims do not survive at face value"
+ }
+}

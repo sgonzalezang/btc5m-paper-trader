@@ -1,0 +1,42 @@
+{
+  "finding": "R1 quarter-Kelly f>0 rule as flagship's live edge; freeze <=47c first-fill cap",
+  "verdict": "WEAKENED",
+  "rederivation_from_raw": {
+    "matches_claim_exactly": true,
+    "n_signals": 34,
+    "common_pairs": 26,
+    "v2_richer_pairs": 0,
+    "improved_pairs": {"n": 12, "mean_improvement_c": 11.11, "sum_delta_c": 134.7},
+    "skips": {"n": 8, "i50_wins": 2, "sum_delta_c": 224.0, "first_poll_entries": [0.49, 0.5, 0.51, 0.51, 0.51, 0.52, 0.53, 0.53]},
+    "policy_delta_c_per_signal": 10.55,
+    "dollar_gap": 310.19,
+    "note_on_n7_vs_n8": "flagship used n=7 skips (dropped 07-10 16:55 boundary t0 outside its period window); misses used n=8; raw ledger says 8. Cosmetic."
+  },
+  "integrity_checks_all_clean": {
+    "duplicates_across_src": "none - all 62 impulse trades are _src=live, unique t0 per engine",
+    "survivorship": "1 open trade per engine, both at t0=1783914000 (last interval), symmetric exclusion, no bias",
+    "ledger_600cap_rotation": "does not touch impulse engines (all recent, counts match)",
+    "lookahead": "entrySec consistent with at(ms)-t0(s) on all 60 trades; max v2 entrySec 33s, max i50 45s; all inside first-45s window; no future features",
+    "pnl_model": "all 60 pnl within 2c of frozen cost model q-p-0.07p(1-p), gas 0.004",
+    "outcome_vs_coinbase": "60/60 ledger winners agree with open(t0+300) vs open(t0) on cb1m; 12 trades had |move|<4bps and still agree; settledBy: 58 polymarket, 2 polymarket(corrected); no tie/void anomalies",
+    "epoch_units": "at in ms, t0 in s, candle t in s - handled correctly everywhere checked",
+    "mechanism_in_code": "bot line 564 buckets cost<0.50 into qlo; f>0 iff q_bucket>cost; with state qlo=0.5068 the effective first-fill cap is ~48.9c cost (~47c ask); v2's max entry was 0.48; self-test at line 1572 proves qlo drift to 0.56 re-opens 53c fills, so the <=47c hard-cap recommendation is a real safeguard"
+  },
+  "inference_weaknesses": {
+    "same_trades_counted_three_ways": "flagship/misses/micro all re-tabulate the identical 34 t0s over 2.55 days; 'replicated by 3 analysts' is arithmetic replication, zero independent data",
+    "improvement_leg_is_mechanical": "paired same-market trades ALWAYS share the outcome; conditional on a cheaper fill the delta is strictly positive by construction (win: gain more; loss: lose less). The +5.18c paired CI contains no outcome uncertainty - it measures 2.5 days of intra-window price drift toward the contrarian side, a regime property never tested against a null. Deterministic component = +3.96c/signal of the +10.55",
+    "skip_leg_not_significant": "2/8 wins at 51.25c mix (q*=0.530): exact binomial P(K<=2)=0.109 one-sided. The claimed p=0.034 is an iid bootstrap on 8 values which understates tail probability - merge agent's variance concern CONFIRMED. A magnitude-weighted efficient-null MC gives P=0.024 but only because the 2 winning skips happened to be the 2 most expensive (53c) ones - favorable luck credited as precision",
+    "efficient_null_MC": {"expected_delta_under_null_c": 3.95, "observed_c": 10.55, "P_ge_observed": 0.024, "robust_count_based_p": 0.109},
+    "blockboot_fragility": {"1h_18blocks_p": 0.014, "3h_11blocks_p": 0.059, "6h_10blocks_p": 0.017, "1d_4blocks_p": 0.007, "note": "p swings 4x with block size; 5 of the 8 skip deltas are near-identical +52c values so resampling blocks understates variance exactly as flagged"},
+    "double_count_with_R2_toxic_zone": "100.0% of the policy delta comes from signals whose i50 first poll was >=48c. Those 22 i50 fills (9/22 wins, -256.8c summed ps) ARE the 48-53c toxic-zone effect. R1 and R2 are one phenomenon described twice; do not sum them at the merge level",
+    "absolute_edge_unsupported": "flagship's own book: 12/26 wins at 40.9c mix (q*=0.4262), binomial p=0.43 vs break-even, ps +3.57c CI90 [-9.7,+16.1]. The claim 'the flagship's entire live edge' is true only RELATIVE to a control that mechanically bought a losing zone; positive absolute edge is not demonstrated"
+  },
+  "corrected_effect": "Relative policy delta vs flat-$50 twin: point estimate +10.55c/share-signal stands ledger-exact, but only the ~+4.0c/signal mechanical price-improvement component is high-confidence (and it is a regime-dependent drift measurement, not proven forward EV); the ~+6.6c/signal skip-avoidance component is consistent with luck (p~=0.11 count-based). Absolute flagship edge: indistinguishable from 0 at n=26. The <=47c hard first-fill cap remains a sound zero-cost risk control - it codifies behavior currently dependent on a drifting learned parameter.",
+  "artifacts": [
+    "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/verify/R1-integrity/rederive.py",
+    "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/verify/R1-integrity/rederive_out.json",
+    "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/verify/R1-integrity/null_tests.py",
+    "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/verify/R1-integrity/null_tests_out.json"
+  ],
+  "multiplicity": "This verification ran 4 bootstrap variants + 2 exact binomials + 1 MC null + 1 absolute-book test = 8 tests, all pre-specified by the verification brief, none selected best-of."
+}

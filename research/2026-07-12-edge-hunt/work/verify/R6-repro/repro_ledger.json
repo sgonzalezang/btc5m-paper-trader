@@ -1,0 +1,115 @@
+{
+ "ledger_impulse50_fresh": {
+  "n": 34,
+  "mean_c": -7.82,
+  "ci90_c": [
+   -17.54,
+   2.16
+  ],
+  "wr": 0.4118,
+  "pnl_$": -287.66
+ },
+ "ledger_reversal_v2_fresh": {
+  "n": 43,
+  "mean_c": -7.21,
+  "ci90_c": [
+   -17.41,
+   1.31
+  ],
+  "wr": 0.4186,
+  "pnl_$": -347.31
+ },
+ "ledger_impulse_v2_fresh": {
+  "n": 26,
+  "mean_c": 3.55,
+  "ci90_c": [
+   -9.88,
+   15.6
+  ],
+  "wr": 0.4615,
+  "pnl_$": 74.25
+ },
+ "impulse50_frozen_cost_model": {
+  "n": 34,
+  "mean_c": -7.82,
+  "ci90_c": [
+   -17.91,
+   2.22
+  ]
+ },
+ "measure_book": {
+  "n_records": 36,
+  "n_settled": 35,
+  "wins": 15,
+  "wr": 0.4286
+ },
+ "overlap_audit": {
+  "impulse50_hours": 18,
+  "reversal_v2_hours": 21,
+  "impulse_v2_hours": 15,
+  "measure_hours": 18,
+  "i50_and_rev_shared_hours": 18,
+  "i50_and_measure_shared_hours": 18,
+  "shared_t0_i50_rev": 34,
+  "note": "all books sample the same Jul 10 15:05 - Jul 13 markets; corroboration is the same period, only fill/selection differ"
+ },
+ "fresh_window_span": {
+  "first": "2026-07-10T15:20:00",
+  "last": "2026-07-13T03:10:00",
+  "span_hours": 59.8
+ },
+ "ungated_daily_jul_07_13": {
+  "07-07": [
+   68,
+   1.66
+  ],
+  "07-08": [
+   80,
+   2.25
+  ],
+  "07-09": [
+   67,
+   2.47
+  ],
+  "07-10": [
+   49,
+   -13.98
+  ],
+  "07-11": [
+   13,
+   -6.6
+  ],
+  "07-12": [
+   19,
+   5.14
+  ],
+  "07-13": [
+   22,
+   -2.75
+  ]
+ },
+ "ungated_worst5": [
+  [
+   -18.14,
+   "06-14"
+  ],
+  [
+   -16.86,
+   "05-23"
+  ],
+  [
+   -15.72,
+   "05-24"
+  ],
+  [
+   -13.98,
+   "07-10"
+  ],
+  [
+   -9.36,
+   "05-29"
+  ]
+ ],
+ "ungated_jul10_rank_from_worst": 4,
+ "ungated_n_days": 64
+}

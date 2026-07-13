@@ -1,0 +1,164 @@
+{
+ "theta_1bps": {
+  "n_full": 3725,
+  "full": 0.6891,
+  "n_resid": 3723,
+  "resid": 0.4905,
+  "ties_full": 3,
+  "ties_resid": 5,
+  "resid_ci95": [
+   0.4744,
+   0.5063
+  ],
+  "full_ci95": [
+   0.6747,
+   0.704
+  ]
+ },
+ "theta_2bps": {
+  "n_full": 2851,
+  "full": 0.7219,
+  "n_resid": 2850,
+  "resid": 0.4902,
+  "ties_full": 2,
+  "ties_resid": 3,
+  "resid_ci95": [
+   0.4711,
+   0.5085
+  ],
+  "full_ci95": [
+   0.7062,
+   0.738
+  ]
+ },
+ "theta_3bps": {
+  "n_full": 2178,
+  "full": 0.7498,
+  "n_resid": 2178,
+  "resid": 0.4963,
+  "ties_full": 2,
+  "ties_resid": 2,
+  "resid_ci95": [
+   0.477,
+   0.5168
+  ],
+  "full_ci95": [
+   0.7314,
+   0.7675
+  ]
+ },
+ "theta_4bps": {
+  "n_full": 1611,
+  "full": 0.7709,
+  "n_resid": 1611,
+  "resid": 0.491,
+  "ties_full": 2,
+  "ties_resid": 2,
+  "resid_ci95": [
+   0.4672,
+   0.5141
+  ],
+  "full_ci95": [
+   0.7511,
+   0.7907
+  ]
+ },
+ "theta_8bps": {
+  "n_full": 584,
+  "full": 0.8048,
+  "n_resid": 585,
+  "resid": 0.465,
+  "ties_full": 1,
+  "ties_resid": 0,
+  "resid_ci95": [
+   0.4223,
+   0.507
+  ],
+  "full_ci95": [
+   0.775,
+   0.8339
+  ]
+ },
+ "fresh_jul10_13_theta2": {
+  "n_full": 409,
+  "full": 0.7335,
+  "n_resid": 408,
+  "resid": 0.4902,
+  "ties_full": 0,
+  "ties_resid": 1,
+  "resid_ci95": [
+   0.4384,
+   0.5414
+  ],
+  "full_ci95": [
+   0.6893,
+   0.7792
+  ]
+ },
+ "stress_drop_best_day": {
+  "dropped_day_utc": "1783555200",
+  "dropped_day_resid": 0.4199,
+  "n_full": 2669,
+  "full": 0.7261,
+  "n_resid": 2669,
+  "resid": 0.4949,
+  "ties_full": 2,
+  "ties_resid": 2,
+  "resid_ci95": [
+   0.4765,
+   0.5137
+  ],
+  "full_ci95": [
+   0.7087,
+   0.7425
+  ]
+ },
+ "stress_first_half": {
+  "n_full": 1425,
+  "full": 0.7333,
+  "n_resid": 1425,
+  "resid": 0.4919,
+  "ties_full": 1,
+  "ties_resid": 1,
+  "resid_ci95": [
+   0.4657,
+   0.5195
+  ],
+  "full_ci95": [
+   0.7114,
+   0.7552
+  ]
+ },
+ "stress_second_half": {
+  "n_full": 1426,
+  "full": 0.7104,
+  "n_resid": 1425,
+  "resid": 0.4884,
+  "ties_full": 1,
+  "ties_resid": 2,
+  "resid_ci95": [
+   0.4638,
+   0.5141
+  ],
+  "full_ci95": [
+   0.6869,
+   0.7349
+  ]
+ },
+ "stress_random_half": {
+  "n_full": 1426,
+  "full": 0.7244,
+  "n_resid": 1426,
+  "resid": 0.4958,
+  "ties_full": 0,
+  "ties_resid": 0,
+  "resid_ci95": [
+   0.4694,
+   0.5219
+  ],
+  "full_ci95": [
+   0.7017,
+   0.7468
+  ]
+ }
+}

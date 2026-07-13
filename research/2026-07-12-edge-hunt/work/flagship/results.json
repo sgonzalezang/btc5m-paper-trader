@@ -1,0 +1,483 @@
+{
+ "generated": "2026-07-13T03:50:53.325677Z",
+ "cost_model": "EV/share = q - p - 0.07*p*(1-p); fill = ask+1c; gas $0.004",
+ "ledger_check_max_pnl_diff": {
+  "impulse_v2": 0.0047682603999987805,
+  "impulse50": 0.004918781199990008,
+  "reversal_v2": 0.004918781199990008,
+  "reversal": 0.004918781199990008
+ },
+ "sizing_verdict": {
+  "period": [
+   "07-10 17:10",
+   "07-13 03:10"
+  ],
+  "impulse_v2": {
+   "n": 26,
+   "wins": 12,
+   "pnl": 74.25,
+   "avg_entry": 0.4093,
+   "avg_stake": 28.36,
+   "ps_mean_c": 3.57
+  },
+  "impulse50": {
+   "n": 33,
+   "wins": 14,
+   "pnl": -235.94,
+   "avg_entry": 0.4716,
+   "ps_mean_c": -6.46
+  },
+  "common_signals": {
+   "n": 26,
+   "same_result": 26,
+   "mean_entry_v2": 0.4093,
+   "mean_entry_50": 0.4605,
+   "mean_entry_advantage_c": 5.13,
+   "paired_delta_ps_c": {
+    "mean": 5.18,
+    "ci90_blockboot": [
+     3.11,
+     7.1
+    ]
+   },
+   "note": "entries differ on common signals because the Kelly f>0 rule makes v2 wait within the 45s window for a price below ~qhat-implied cost; impulse50 fills at first poll"
+  },
+  "kelly_skips": {
+   "n": 7,
+   "wins": 2,
+   "wr": 0.2857,
+   "avg_entry": 0.5129,
+   "qstar_at_mix": 0.5303,
+   "ps_mean_c": {
+    "mean": -24.46,
+    "ci90_blockboot": [
+     -52.32,
+     3.54
+    ]
+   },
+   "pnl_dollars": -173.28,
+   "binom_p_vs_qstar_two_sided_note": "exact binomial vs break-even at the skip mix",
+   "binom_p_le": 0.1798
+  },
+  "only_v2_t0s": [],
+  "gap_decomposition_dollars": {
+   "total_gap_v2_minus_50": 310.19,
+   "skip_avoidance": 173.28,
+   "price_improvement_on_common": 130.79,
+   "stake_sizing_residual": 6.12
+  }
+ },
+ "gate_verdict": {
+  "period": [
+   "07-10 16:55",
+   "07-13 03:10"
+  ],
+  "construction": "reversal_v2 (ungated flat $50) split by whether the gate fired at that t0 (t0 in impulse50/impulse_v2/measure book). Same engine, same fills -> isolates the gate.",
+  "gate_pass": {
+   "n": 34,
+   "wins": 14,
+   "wr": 0.4118,
+   "avg_entry": 0.4725,
+   "ps_mean_c": -7.79,
+   "ci90": [
+    -17.72,
+    2.28
+   ]
+  },
+  "gate_rejected": {
+   "n": 7,
+   "wins": 3,
+   "wr": 0.4286,
+   "avg_entry": 0.4634,
+   "ps_mean_c": -5.21,
+   "ci90": [
+    -46.22,
+    25.97
+   ]
+  },
+  "gate_increment_c": {
+   "pass_minus_rejected": -2.57,
+   "perm_p_two_sided": 0.7947,
+   "n_pass": 34,
+   "n_rej": 7
+  },
+  "pre_registered_paired_delta_c": {
+   "mean": 9.61,
+   "ci90_blockboot": [
+    3.04,
+    17.64
+   ],
+   "n_pairs": 41,
+   "note": "flagship ps (0 if not entered) minus reversal_v2 ps per common signal; includes sizing-policy effects, not gate alone"
+  }
+ },
+ "cap_verdict": {
+  "period_overlap": [
+   "07-10 15:20",
+   "07-13 03:35"
+  ],
+  "confound_warning": "the live 55c arm is the OLD reversal spec (revWinMin=180 -> first 120s), not the pre-registered cap55_shadow (45s). Cap and window effects are entangled; subsets below separate them.",
+  "n_reversal_overlap": 53,
+  "n_common_both": 43,
+  "common_entry_diff_c": 1.19,
+  "common_same_result": 43,
+  "only55_split": {
+   "cap_skipped_53_55_within45s": {
+    "label": "53-55c entries inside 45s (pure cap effect)",
+    "n": 8,
+    "wins": 5,
+    "wr": 0.625,
+    "avg_entry": 0.5447,
+    "qstar_at_mix": 0.5621,
+    "ps_mean_c": 6.29,
+    "ci90": [
+     -27.8,
+     32.81
+    ]
+   },
+   "late_window_45_120s": {
+    "label": "entered after 45s (window effect)",
+    "n": 2,
+    "wins": 2,
+    "wr": 1.0,
+    "avg_entry": 0.5312,
+    "qstar_at_mix": 0.5486,
+    "ps_mean_c": 45.14,
+    "ci90": [
+     45.03,
+     45.26
+    ]
+   },
+   "other": {
+    "label": "other (book/timing)",
+    "n": 0
+   }
+  },
+  "full_ledger_unpaired": {
+   "entries_le53": {
+    "label": "reversal ledger <=53c (n incl. pre-overlap)",
+    "n": 100,
+    "wins": 49,
+    "wr": 0.49,
+    "avg_entry": 0.4755,
+    "qstar_at_mix": 0.493,
+    "ps_mean_c": -0.28,
+    "ci90": [
+     -7.79,
+     6.72
+    ]
+   },
+   "entries_53_55": {
+    "label": "reversal ledger 53-55c",
+    "n": 33,
+    "wins": 16,
+    "wr": 0.4848,
+    "avg_entry": 0.5452,
+    "qstar_at_mix": 0.5626,
+    "ps_mean_c": -7.77,
+    "ci90": [
+     -22.05,
+     6.64
+    ]
+   },
+   "rich_minus_cheap_c": -7.49,
+   "perm_p": 0.4654
+  }
+ },
+ "measurement_book": {
+  "n": 36,
+  "state_impulse_cfg": {
+   "bank": 1074.25,
+   "bank0": 1000.0,
+   "qlo": 0.5068,
+   "qhi": 0.503,
+   "benched": false,
+   "skips": {
+    "f_nonpos": 21
+   },
+   "lastNightly": 1783901400,
+   "haircut": false
+  },
+  "bench_haircut_actual": {
+   "benched": false,
+   "haircut": false,
+   "note": "state says NOT benched, NO haircut. Guard minimums (>=120 signals 7d) unreachable at n=36; guards cannot fire yet."
+  },
+  "first_poll_semantics_bug": "measure.sized flags the FIRST fillable poll only; 12 of 21 f_nonpos records were entered later in-window at cheaper prices by impulse_v2. Availability/skip accounting in the nightly job undercounts sized intervals if it reads this flag naively.",
+  "classes": {
+   "never_entered": {
+    "n": 9,
+    "settled": 9,
+    "wins": 3,
+    "wr": 0.3333,
+    "ev_ps_c": -19.64,
+    "ci90": [
+     -41.31,
+     2.25
+    ]
+   },
+   "sized_first_poll": {
+    "n": 15,
+    "settled": 14,
+    "wins": 6,
+    "wr": 0.4286,
+    "ev_ps_c": -0.61,
+    "ci90": [
+     -20.71,
+     21.12
+    ]
+   },
+   "rich_first_poll_entered_later": {
+    "n": 12,
+    "settled": 12,
+    "wins": 6,
+    "wr": 0.5,
+    "ev_ps_c": 8.44,
+    "ci90": [
+     -14.09,
+     28.75
+    ]
+   }
+  },
+  "never_entered_at_first_poll_cost": {
+   "n": 9,
+   "settled": 9,
+   "wins": 3,
+   "wr": 0.3333,
+   "ev_ps_c": -19.64,
+   "ci90": [
+    -41.31,
+    2.25
+   ]
+  },
+  "all_records_at_first_poll_cost": {
+   "n_settled": 35,
+   "wins": 15,
+   "wr": 0.4286,
+   "net_ps_c": -6.23,
+   "ci90": [
+    -15.35,
+    3.33
+   ],
+   "note": "counterfactual 'take every gated cap-compliant signal at first-poll price' book = phase-1 kill metric input"
+  },
+  "phase1_kill_check": {
+   "rule": "day-14 kill if measurement net/share <= -2c (min 200 fills)",
+   "current_net_ps_c": -6.23,
+   "n": 35,
+   "verdict": "n far below the 200 minimum; kill not evaluable yet"
+  },
+  "qhat_check": {
+   "state_qlo": 0.5068,
+   "state_qhi": 0.503,
+   "recomputed_qlo": 0.4954,
+   "recomputed_qhi": 0.4932,
+   "lo_fills": [
+    16,
+    7
+   ],
+   "hi_fills": [
+    19,
+    8
+   ],
+   "note": "recomputed from the 36-record extract with seed prior (wins+100)/(n+200); state uses trailing-30d book which includes the same records + seeds"
+  }
+ },
+ "posterior": {
+  "prior_test_estimate_c": {
+   "mu": 1.6,
+   "se": 1.9,
+   "source": "FINAL-DESIGN 3.3 verify-regime decomposition"
+  },
+  "live_gated_flat_book_c": {
+   "mu": -7.82,
+   "se": 6.02,
+   "n": 34,
+   "ci90": [
+    -17.75,
+    2.05
+   ],
+   "book": "impulse50 (takes every gated signal at first fill)"
+  },
+  "posterior_gated_level_c": {
+   "mu": 0.75,
+   "se": 1.81,
+   "note": "inverse-variance normal combine; assumes prior and live sample the same regime (they may not)"
+  },
+  "flagship_as_operated_c": {
+   "mu": 3.57,
+   "se": 7.83,
+   "n": 26,
+   "ci90": [
+    -9.71,
+    16.06
+   ],
+   "posterior_mu": 1.71,
+   "posterior_se": 1.85,
+   "note": "the Kelly f>0 price filter makes the flagship's fill mix cheaper (41c) than anything the prior estimate modeled; combine is indicative only"
+  }
+ },
+ "multiplicity": "Three pre-registered verdicts (sizing, gate, cap) + one pre-registered measurement metric. Exploratory additions: gap decomposition (3 terms), cap subset split (3), unpaired cap read (1). K approx 8 comparisons total in this module; none was selected post-hoc as a best-of.",
+ "qhat_reconciliation": {
+  "state": {
+   "qlo": 0.5068,
+   "qhi": 0.503,
+   "lastNightly_utc": "2026-07-13T00:10:00"
+  },
+  "replicated_at_lastNightly": {
+   "n_lo": 7,
+   "w_lo": 4,
+   "qlo": 0.5068,
+   "n_hi": 14,
+   "w_hi": 5,
+   "qhi": 0.5017
+  },
+  "match": "exact (qlo), exact-modulo-one-lagged-settlement-record (qhi)",
+  "if_rerun_now_all_settled": {
+   "n_lo": 14,
+   "w_lo": 6,
+   "qlo": 0.5031,
+   "n_hi": 21,
+   "w_hi": 9,
+   "qhi": 0.5029
+  },
+  "spec_deviations_in_bot": [
+   "bucket boundary is cost<0.50 (= p_eff <~0.4831), NOT p_eff<0.50 as pre-registered (design MF2); the 'hi' bucket therefore contains 48-53c fills",
+   "prior mass 400 PER BUCKET seeded at ledger seeds (qhat=(w+400*seed)/(n+400)); design section 4.2 pre-registered (w+100)/(n+200) per bucket (mass 200). Learning is ~2x slower than designed",
+   "guard windows NOT seeded with the pre-launch n=123 ledger (design M2); netps() returns None below min-n so bench/haircut cannot fire before ~day 7-8"
+  ],
+  "design_formula_for_contrast": {
+   "qlo": 0.4954,
+   "qhi": 0.4932,
+   "note": "design buckets by p_eff<0.50 and prior mass 200/bucket, on all 35 settled"
+  },
+  "sizing_threshold_implied": {
+   "current": "f>0 iff cost < qlo=0.5068 iff p_eff <= 0.4886 (lo bucket); hi bucket dead (qhi=0.503 < min hi cost 0.50)",
+   "comment": "the qlo threshold sits almost exactly at the design's launch geometry (~0.488)"
+  },
+  "qhi_boundary_note": {
+   "state_qhi_implies": "(w=5,n=13): (5+202.72)/413=0.502954 -> round4 = 0.5030",
+   "strict_cutoff_replication": "(5,14)=0.5017 because it includes t0=1783901100 (00:05 UTC, loss, cost 0.5474, closes exactly 00:10)",
+   "explanation": "that record's Polymarket resolution lagged the 00:10 nightly tick by 1-2 min, so the nightly excluded it. Replication is exact once resolution lag is accounted for. No qhat bug.",
+   "verified": "qlo exact match (4 wins/7 fills -> 0.5068); qhi exact match modulo the one lagged-settlement boundary record"
+  }
+ },
+ "gate_retention_conformance": {
+  "preregistered_band": [
+   0.4,
+   0.7
+  ],
+  "live_window": {
+   "signals": 64,
+   "gated": 49,
+   "retention": 0.7656
+  },
+  "last_21d": {
+   "signals": 1389,
+   "gated": 1008,
+   "retention": 0.7257
+  },
+  "note": "computed from cb5m opens with the bot's trigger-inclusive eff6 / pre-trigger cnt12 convention; outside the band = pre-registered gate-code-bug flag (Phase 0)"
+ },
+ "gate_rejected_verification": {
+  "n": 7,
+  "rows": [
+   {
+    "t0": 1783706700,
+    "utc": "2026-07-10T18:05:00",
+    "entry": 0.47,
+    "result": "loss",
+    "eff6": 0.0458,
+    "cnt12": 3,
+    "gate_should_fail": true
+   },
+   {
+    "t0": 1783715700,
+    "utc": "2026-07-10T20:35:00",
+    "entry": 0.42,
+    "result": "loss",
+    "eff6": 0.0832,
+    "cnt12": 1,
+    "gate_should_fail": true
+   },
+   {
+    "t0": 1783814100,
+    "utc": "2026-07-11T23:55:00",
+    "entry": 0.5023,
+    "result": "loss",
+    "eff6": 0.0483,
+    "cnt12": 3,
+    "gate_should_fail": true
+   },
+   {
+    "t0": 1783896900,
+    "utc": "2026-07-12T22:55:00",
+    "entry": 0.39,
+    "result": "loss",
+    "eff6": 0.0661,
+    "cnt12": 3,
+    "gate_should_fail": true
+   },
+   {
+    "t0": 1783905000,
+    "utc": "2026-07-13T01:10:00",
+    "entry": 0.4817,
+    "result": "win",
+    "eff6": 0.0719,
+    "cnt12": 7,
+    "gate_should_fail": true
+   },
+   {
+    "t0": 1783906800,
+    "utc": "2026-07-13T01:40:00",
+    "entry": 0.47,
+    "result": "win",
+    "eff6": 0.0131,
+    "cnt12": 7,
+    "gate_should_fail": true
+   },
+   {
+    "t0": 1783909800,
+    "utc": "2026-07-13T02:30:00",
+    "entry": 0.51,
+    "result": "win",
+    "eff6": 0.1151,
+    "cnt12": 7,
+    "gate_should_fail": true
+   }
+  ],
+  "all_verified_fail": true
+ },
+ "sizing_mechanics": {
+  "common_pairs": 26,
+  "same_price_pairs": {
+   "n": 14,
+   "mean_sec_v2": 12.071428571428571,
+   "wins": 6
+  },
+  "v2_cheaper_pairs": {
+   "n": 12,
+   "mean_advantage_c": 11.11,
+   "mean_sec_v2": 21.583333333333332,
+   "mean_sec_50": 7.583333333333333,
+   "wins": 6
+  },
+  "v2_richer_pairs": {
+   "n": 0
+  },
+  "note": "v2 enters later than the flat twin only when the first poll priced above the qhat threshold; the f>0 rule = an implicit limit order at ~48.9c effective"
+ },
+ "stake_weighting_quality": {
+  "n": 26,
+  "equal_weight_ps_c": 3.57,
+  "stake_weight_ps_c": 5.95,
+  "delta_c": 2.38,
+  "note": "positive delta = bigger stakes landed on better trades; magnitude at n=26 is noise-level"
+ },
+ "kill_metric_tension": {
+  "measurement_book_net_ps_c": -6.23,
+  "operated_flagship_net_ps_c": 3.57,
+  "gap_c": 9.8,
+  "issue": "Phase-1 kill (day-14, -2c bar) reads the measurement book at FIRST-POLL cost; the operated arm systematically fills cheaper (re-poll under the f>0 threshold). The kill metric can fire on a policy whose operated book is positive. The design intended the measurement book to BE the would-be-fill book (fast first fill); the sizer's wait behavior was not anticipated by that definition."
+ }
+}

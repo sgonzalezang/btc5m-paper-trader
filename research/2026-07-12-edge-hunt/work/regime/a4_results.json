@@ -1,0 +1,125 @@
+{
+ "K_comparisons": "5 flag families x 2 splits = 10 contrasts",
+ "results": {
+  "TRAIN": [
+   {
+    "name": "funding_flip_within_24h",
+    "n_flag": 1412,
+    "n_rest": 1596,
+    "ev_flag_c": -0.84,
+    "ev_rest_c": -0.37,
+    "diff_c": -0.47,
+    "ci": [
+     -4.06,
+     3.04
+    ],
+    "p_le_0": 0.61
+   },
+   {
+    "name": "funding_abs_ge_train_p90",
+    "n_flag": 487,
+    "n_rest": 2521,
+    "ev_flag_c": -5.11,
+    "ev_rest_c": 0.29,
+    "diff_c": -5.4,
+    "ci": [
+     -10.27,
+     -0.47
+    ],
+    "p_le_0": 0.9833
+   },
+   {
+    "name": "oi_1h_chg_abs_ge_train_p90",
+    "n_flag": 167,
+    "n_rest": 861,
+    "ev_flag_c": -2.45,
+    "ev_rest_c": 1.37,
+    "diff_c": -3.82,
+    "ci": [
+     -11.27,
+     3.44
+    ],
+    "p_le_0": 0.8413
+   },
+   {
+    "name": "premium_sign_flip_last_1h",
+    "n_flag": 50,
+    "n_rest": 2958,
+    "ev_flag_c": -0.75,
+    "ev_rest_c": -0.59,
+    "diff_c": -0.16,
+    "ci": [
+     -13.3,
+     14.33
+    ],
+    "p_le_0": 0.502
+   },
+   {
+    "name": "premium_negative",
+    "n_flag": 2983,
+    "n_rest": 25,
+    "ev_flag_c": -0.52,
+    "ev_rest_c": -8.75,
+    "diff_c": 8.23,
+    "ci": [
+     -11.63,
+     27.11
+    ],
+    "p_le_0": 0.2027
+   }
+  ],
+  "TEST": [
+   {
+    "name": "funding_flip_within_24h",
+    "n_flag": 249,
+    "n_rest": 844,
+    "ev_flag_c": 6.69,
+    "ev_rest_c": 2.23,
+    "diff_c": 4.46,
+    "ci": [
+     -2.33,
+     10.94
+    ],
+    "p_le_0": 0.0993
+   },
+   {
+    "name": "funding_abs_ge_train_p90",
+    "n_flag": 630,
+    "n_rest": 463,
+    "ev_flag_c": 2.96,
+    "ev_rest_c": 3.62,
+    "diff_c": -0.66,
+    "ci": [
+     -6.35,
+     4.89
+    ],
+    "p_le_0": 0.5943
+   },
+   {
+    "name": "oi_1h_chg_abs_ge_train_p90",
+    "n_flag": 228,
+    "n_rest": 767,
+    "ev_flag_c": 4.27,
+    "ev_rest_c": 4.49,
+    "diff_c": -0.22,
+    "ci": [
+     -7.73,
+     6.94
+    ],
+    "p_le_0": 0.5197
+   },
+   {
+    "name": "premium_sign_flip_last_1h",
+    "n_flag": 15,
+    "n_rest": 886,
+    "skipped": "insufficient n"
+   },
+   {
+    "name": "premium_negative",
+    "n_flag": 893,
+    "n_rest": 8,
+    "skipped": "insufficient n"
+   }
+  ]
+ }
+}

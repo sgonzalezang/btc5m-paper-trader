@@ -1,0 +1,311 @@
+{
+ "counts": {
+  "v2_settled": 26,
+  "i50_settled": 34,
+  "v2_open": [
+   [
+    1783914000,
+    "07-13 03:40:00"
+   ]
+  ],
+  "i50_open": [
+   [
+    1783914000,
+    "07-13 03:40:00"
+   ]
+  ]
+ },
+ "entrysec_check": {
+  "n_flagged": 0,
+  "rows": [],
+  "max_entrySec_v2": 33,
+  "max_entrySec_i50": 45
+ },
+ "pnl_model_check": {
+  "n_dev_gt_2c": 0,
+  "rows": []
+ },
+ "result_vs_coinbase": {
+  "n_mismatch": 0,
+  "rows": [],
+  "n_tiny_lt4bps": 12,
+  "tiny_rows": [
+   {
+    "eng": "impulse_v2",
+    "t0": 1783734000,
+    "mv_bps": -0.45,
+    "ledger_winner": "down",
+    "cb_winner": "down"
+   },
+   {
+    "eng": "impulse_v2",
+    "t0": 1783784400,
+    "mv_bps": -3.29,
+    "ledger_winner": "down",
+    "cb_winner": "down"
+   },
+   {
+    "eng": "impulse_v2",
+    "t0": 1783791300,
+    "mv_bps": -3.32,
+    "ledger_winner": "down",
+    "cb_winner": "down"
+   },
+   {
+    "eng": "impulse_v2",
+    "t0": 1783903200,
+    "mv_bps": 3.55,
+    "ledger_winner": "up",
+    "cb_winner": "up"
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783734000,
+    "mv_bps": -0.45,
+    "ledger_winner": "down",
+    "cb_winner": "down"
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783784400,
+    "mv_bps": -3.29,
+    "ledger_winner": "down",
+    "cb_winner": "down"
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783791300,
+    "mv_bps": -3.32,
+    "ledger_winner": "down",
+    "cb_winner": "down"
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783811400,
+    "mv_bps": 2.33,
+    "ledger_winner": "up",
+    "cb_winner": "up"
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783815000,
+    "mv_bps": -0.73,
+    "ledger_winner": "down",
+    "cb_winner": "down"
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783903200,
+    "mv_bps": 3.55,
+    "ledger_winner": "up",
+    "cb_winner": "up"
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783907400,
+    "mv_bps": -0.49,
+    "ledger_winner": "down",
+    "cb_winner": "down"
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783912200,
+    "mv_bps": 1.2,
+    "ledger_winner": "up",
+    "cb_winner": "up"
+   }
+  ]
+ },
+ "pairing": {
+  "common": 26,
+  "i50_only(skips)": 8,
+  "v2_only": 0,
+  "skip_t0s": [
+   [
+    1783702500,
+    "07-10 16:55:00"
+   ],
+   [
+    1783811400,
+    "07-11 23:10:00"
+   ],
+   [
+    1783815000,
+    "07-12 00:10:00"
+   ],
+   [
+    1783836600,
+    "07-12 06:10:00"
+   ],
+   [
+    1783843800,
+    "07-12 08:10:00"
+   ],
+   [
+    1783902900,
+    "07-13 00:35:00"
+   ],
+   [
+    1783907400,
+    "07-13 01:50:00"
+   ],
+   [
+    1783912200,
+    "07-13 03:10:00"
+   ]
+  ],
+  "side_mismatch": [],
+  "result_agree": 26
+ },
+ "policy_delta": {
+  "n_signals": 34,
+  "mean_c": 10.55
+ },
+ "decomposition": {
+  "identical": {
+   "n": 14,
+   "sum_delta_c": 0.0
+  },
+  "improved": {
+   "n": 12,
+   "sum_delta_c": 134.67,
+   "mean_improvement_c": 11.11,
+   "mean_delta_c": 11.22
+  },
+  "richer": {
+   "n": 0
+  },
+  "skips": {
+   "n": 8,
+   "sum_delta_c": 223.98,
+   "i50_wins_on_skips": 2,
+   "mean_i50_entry": 0.5125,
+   "rows": [
+    {
+     "t0": 1783702500,
+     "utc": "07-10 16:55:00",
+     "entry": 0.51,
+     "result": "loss",
+     "delta_c": 52.7
+    },
+    {
+     "t0": 1783811400,
+     "utc": "07-11 23:10:00",
+     "entry": 0.53,
+     "result": "win",
+     "delta_c": -45.3
+    },
+    {
+     "t0": 1783815000,
+     "utc": "07-12 00:10:00",
+     "entry": 0.51,
+     "result": "loss",
+     "delta_c": 52.7
+    },
+    {
+     "t0": 1783836600,
+     "utc": "07-12 06:10:00",
+     "entry": 0.52,
+     "result": "loss",
+     "delta_c": 53.7
+    },
+    {
+     "t0": 1783843800,
+     "utc": "07-12 08:10:00",
+     "entry": 0.51,
+     "result": "loss",
+     "delta_c": 52.7
+    },
+    {
+     "t0": 1783902900,
+     "utc": "07-13 00:35:00",
+     "entry": 0.5,
+     "result": "loss",
+     "delta_c": 51.7
+    },
+    {
+     "t0": 1783907400,
+     "utc": "07-13 01:50:00",
+     "entry": 0.49,
+     "result": "loss",
+     "delta_c": 50.7
+    },
+    {
+     "t0": 1783912200,
+     "utc": "07-13 03:10:00",
+     "entry": 0.53,
+     "result": "win",
+     "delta_c": -45.3
+    }
+   ]
+  }
+ },
+ "bootstrap": {
+  "1h_blocks": {
+   "nblocks": 18,
+   "mean_c": 10.55,
+   "ci90": [
+    3.52,
+    17.21
+   ],
+   "p_two_sided": 0.0137
+  },
+  "3h_blocks": {
+   "nblocks": 11,
+   "mean_c": 10.55,
+   "ci90": [
+    1.56,
+    17.26
+   ],
+   "p_two_sided": 0.0591
+  },
+  "6h_blocks": {
+   "nblocks": 10,
+   "mean_c": 10.55,
+   "ci90": [
+    3.92,
+    18.25
+   ],
+   "p_two_sided": 0.0173
+  },
+  "1d_blocks": {
+   "nblocks": 4,
+   "mean_c": 10.55,
+   "ci90": [
+    3.7,
+    18.81
+   ],
+   "p_two_sided": 0.0074
+  }
+ },
+ "skip_leg_test": {
+  "n": 8,
+  "wins": 2,
+  "mix_entry": 0.5125,
+  "qstar": 0.53,
+  "binom_P(K<=k | q=qstar)": 0.1087,
+  "note": "one-sided exact test that skipped trades were worse than break-even"
+ },
+ "improved_leg_mechanical": {
+  "all_positive_by_construction": true,
+  "explanation": "same outcome + lower entry => delta strictly positive whichever way the trade settles; the leg has selection risk (waiting) priced only via the skip leg"
+ },
+ "fragility": {
+  "drop_best": 9.24,
+  "drop_worst": 12.24,
+  "drop_best2": 7.88,
+  "top3_deltas": [
+   52.7,
+   52.7,
+   53.7
+  ],
+  "bottom3": [
+   -45.3,
+   -45.3,
+   0.0
+  ],
+  "n_nonzero": 20,
+  "n_positive": 18,
+  "n_negative": 2
+ }
+}

@@ -1,0 +1,305 @@
+{
+ "A_live_increment": {
+  "n_pass": 34,
+  "n_rej": 7,
+  "ps_pass_c": -7.79,
+  "ps_rej_c": -5.22,
+  "increment_c": -2.57,
+  "perm_p_two_sided": 0.7924,
+  "increment_ci90_c": [
+   -35.72,
+   30.3
+  ],
+  "claimed": {
+   "n_pass": 34,
+   "n_rej": 7,
+   "ps_pass": -7.79,
+   "ps_rej": -5.21,
+   "inc": -2.57,
+   "p": 0.79
+  }
+ },
+ "B_convention_check": {
+  "n_pass_logged": 33,
+  "n_rej_logged": 7,
+  "eff6_absdiff_max": 0.221,
+  "cnt12_mismatch": 13,
+  "decision_mismatch_bot_conv": 4,
+  "decision_mismatch_o2o_conv": 4,
+  "rows_checked": 40,
+  "skipped_no_candles": 0,
+  "detail": {
+   "rejected_7": "all 7 reproduce flagship's candle values (eff6 within 0.004, cnt12 exact); all genuinely fail (4 on eff6<0.10, 3 on cnt12=7)",
+   "pass_33_vs_candle": "eff6 feed-vs-candle jitter up to 0.22; cnt12 off by +/-1 in 13/40; 4 pass-records the candle calls FAIL (all cnt12 6-vs-7 borderline, one also eff6 0.0898, all in the Jul-13 01:00-02:00 cascade cluster)",
+   "direction": "every disagreement runs bot-LOOSER-than-candle; candle-recomputed retention therefore UNDERSTATES the bot's effective retention -- the convention mismatch cannot move retention back inside [0.40,0.70]",
+   "agreement": "36/40 gate decisions agree; 100% agreement outside the borderline cnt12=6/7 cascade cluster"
+  }
+ },
+ "C_retention_grid": {
+  "live_0710_0713": {
+   "bot(c-o,inclEff,exclCnt)|A010_B6": {
+    "n": 62,
+    "gated": 47,
+    "retention": 0.7581
+   },
+   "bot(c-o,inclEff,exclCnt)|A032_B6": {
+    "n": 62,
+    "gated": 36,
+    "retention": 0.5806
+   },
+   "o2o,inclEff,exclCnt|A010_B6": {
+    "n": 62,
+    "gated": 47,
+    "retention": 0.7581
+   },
+   "o2o,inclEff,exclCnt|A032_B6": {
+    "n": 62,
+    "gated": 36,
+    "retention": 0.5806
+   },
+   "bot,exclEff,exclCnt|A010_B6": {
+    "n": 62,
+    "gated": 50,
+    "retention": 0.8065
+   },
+   "bot,exclEff,exclCnt|A032_B6": {
+    "n": 62,
+    "gated": 34,
+    "retention": 0.5484
+   },
+   "bot,inclEff,inclCnt|A010_B6": {
+    "n": 62,
+    "gated": 44,
+    "retention": 0.7097
+   },
+   "bot,inclEff,inclCnt|A032_B6": {
+    "n": 62,
+    "gated": 34,
+    "retention": 0.5484
+   },
+   "o2o,exclEff,inclCnt|A010_B6": {
+    "n": 62,
+    "gated": 47,
+    "retention": 0.7581
+   },
+   "o2o,exclEff,inclCnt|A032_B6": {
+    "n": 62,
+    "gated": 31,
+    "retention": 0.5
+   }
+  },
+  "last21d": {
+   "bot(c-o,inclEff,exclCnt)|A010_B6": {
+    "n": 1395,
+    "gated": 1000,
+    "retention": 0.7168
+   },
+   "bot(c-o,inclEff,exclCnt)|A032_B6": {
+    "n": 1395,
+    "gated": 709,
+    "retention": 0.5082
+   },
+   "o2o,inclEff,exclCnt|A010_B6": {
+    "n": 1389,
+    "gated": 1007,
+    "retention": 0.725
+   },
+   "o2o,inclEff,exclCnt|A032_B6": {
+    "n": 1389,
+    "gated": 711,
+    "retention": 0.5119
+   },
+   "bot,exclEff,exclCnt|A010_B6": {
+    "n": 1395,
+    "gated": 1000,
+    "retention": 0.7168
+   },
+   "bot,exclEff,exclCnt|A032_B6": {
+    "n": 1395,
+    "gated": 686,
+    "retention": 0.4918
+   },
+   "bot,inclEff,inclCnt|A010_B6": {
+    "n": 1395,
+    "gated": 946,
+    "retention": 0.6781
+   },
+   "bot,inclEff,inclCnt|A032_B6": {
+    "n": 1395,
+    "gated": 673,
+    "retention": 0.4824
+   },
+   "o2o,exclEff,inclCnt|A010_B6": {
+    "n": 1389,
+    "gated": 937,
+    "retention": 0.6746
+   },
+   "o2o,exclEff,inclCnt|A032_B6": {
+    "n": 1389,
+    "gated": 647,
+    "retention": 0.4658
+   }
+  },
+  "TEST_0626_0713": {
+   "bot(c-o,inclEff,exclCnt)|A010_B6": {
+    "n": 1100,
+    "gated": 785,
+    "retention": 0.7136
+   },
+   "bot(c-o,inclEff,exclCnt)|A032_B6": {
+    "n": 1100,
+    "gated": 549,
+    "retention": 0.4991
+   },
+   "o2o,inclEff,exclCnt|A010_B6": {
+    "n": 1094,
+    "gated": 788,
+    "retention": 0.7203
+   },
+   "o2o,inclEff,exclCnt|A032_B6": {
+    "n": 1094,
+    "gated": 551,
+    "retention": 0.5037
+   },
+   "bot,exclEff,exclCnt|A010_B6": {
+    "n": 1100,
+    "gated": 784,
+    "retention": 0.7127
+   },
+   "bot,exclEff,exclCnt|A032_B6": {
+    "n": 1100,
+    "gated": 524,
+    "retention": 0.4764
+   },
+   "bot,inclEff,inclCnt|A010_B6": {
+    "n": 1100,
+    "gated": 753,
+    "retention": 0.6845
+   },
+   "bot,inclEff,inclCnt|A032_B6": {
+    "n": 1100,
+    "gated": 530,
+    "retention": 0.4818
+   },
+   "o2o,exclEff,inclCnt|A010_B6": {
+    "n": 1094,
+    "gated": 743,
+    "retention": 0.6792
+   },
+   "o2o,exclEff,inclCnt|A032_B6": {
+    "n": 1094,
+    "gated": 500,
+    "retention": 0.457
+   }
+  },
+  "TRAIN_0511_0625": {
+   "bot(c-o,inclEff,exclCnt)|A010_B6": {
+    "n": 3011,
+    "gated": 2007,
+    "retention": 0.6666
+   },
+   "bot(c-o,inclEff,exclCnt)|A032_B6": {
+    "n": 3011,
+    "gated": 1378,
+    "retention": 0.4577
+   },
+   "o2o,inclEff,exclCnt|A010_B6": {
+    "n": 3008,
+    "gated": 2015,
+    "retention": 0.6699
+   },
+   "o2o,inclEff,exclCnt|A032_B6": {
+    "n": 3008,
+    "gated": 1378,
+    "retention": 0.4581
+   },
+   "bot,exclEff,exclCnt|A010_B6": {
+    "n": 3011,
+    "gated": 2008,
+    "retention": 0.6669
+   },
+   "bot,exclEff,exclCnt|A032_B6": {
+    "n": 3011,
+    "gated": 1370,
+    "retention": 0.455
+   },
+   "bot,inclEff,inclCnt|A010_B6": {
+    "n": 3011,
+    "gated": 1854,
+    "retention": 0.6157
+   },
+   "bot,inclEff,inclCnt|A032_B6": {
+    "n": 3011,
+    "gated": 1279,
+    "retention": 0.4248
+   },
+   "o2o,exclEff,inclCnt|A010_B6": {
+    "n": 3008,
+    "gated": 1858,
+    "retention": 0.6177
+   },
+   "o2o,exclEff,inclCnt|A032_B6": {
+    "n": 3008,
+    "gated": 1275,
+    "retention": 0.4239
+   }
+  }
+ },
+ "C_live_vs_test_z": {
+  "live": 0.7581,
+  "n": 62,
+  "test_baseline": 0.7136,
+  "z": 0.78
+ },
+ "D_test_increment": {
+  "n_gated": 784,
+  "n_rej": 315,
+  "wr_gated": 0.5714,
+  "wr_rej": 0.5238,
+  "increment_c": 4.76,
+  "block_boot_p_le_0": 0.0508,
+  "gated_ev_c": 4.39,
+  "note": "fixed 0.51 fill; ties excluded; a3 claimed +4.69c p=0.0625 on its trigger set"
+ },
+ "C_band_anchor": {
+  "A032_B6_retention": {
+   "TRAIN": 0.4577,
+   "TEST": 0.4991,
+   "last21d": 0.5082,
+   "live": 0.5806
+  },
+  "A010_B6_retention": {
+   "TRAIN": 0.6666,
+   "TEST": 0.7136,
+   "last21d": 0.7168,
+   "live": 0.7581
+  },
+  "deploy_spec_numbers": {
+   "walkforward_oos_retention": 0.406,
+   "train_test_test_retention": 0.522,
+   "note": "deploy_spec.json's retention lines describe the walk-forward/TRAIN-calibrated (A=0.32) gate; FINAL-DESIGN's 'expected 0.5-0.6' and Phase-0 band [0.40,0.70] match THOSE numbers, not the deployed A=0.10 gate"
+  },
+  "conclusion": "the deployed A=0.10/B=6 gate was ALREADY at retention 0.714 on TEST (Jun 26-Jul 13) before launch under the bot's own convention -- above the band's 0.70 cap on day 0. Live 0.758 (n=62, z=0.78 vs TEST) and last-21d 0.717 are statistically indistinguishable from pre-launch TEST. The out-of-band reading is a band mis-registration (anchored on the A=0.32 arm), not a regime shift and not a gate-code bug."
+ },
+ "multiplicity_accounting": {
+  "live_increment": "single pre-registered comparison (day-60 gate-verdict analog); result is a null -- no selection correction can rescue or harm it; CI90 [-35.7,+30.3]c means it is uninformative, not 'negative'",
+  "TEST_increment": "reproduced +4.76c, 1h-block-boot one-sided p=0.051 (a3: +4.69c p=0.0625). Additionally OPTIMISTICALLY biased: A=0.10/B=6 was calibrated on trailing-20d asof Jul-10 (Jun-20..Jul-10), overlapping TEST (Jun-26..Jul-13) by ~15d. Honest read is weaker than p=0.06 -> increment unproven, as claimed",
+  "retention_conventions_searched_here": "K=5 conventions x 2 params x 4 windows = 40 cells searched ADVERSARIALLY to find any convention inside the band; only trigger-INCLUSIVE cnt12 (not the bot's verified convention, contradicted by 40/40 logged-decision checks) reaches 0.675-0.678 -- barely inside; every convention consistent with the bot's logs stays outside",
+  "train_test_hygiene": "R7's null claims cannot benefit from selection; the one significant-looking number it relies on (candle LEVEL +4.55c TEST p=0.0035) was pre-registered in the 07-10 round before Jul-10-13 data existed"
+ },
+ "verdict_summary": {
+  "verdict": "WEAKENED (numbers CONFIRMED, one attribution REFUTED)",
+  "confirmed": [
+   "live increment -2.57c (n=34/7, perm p=0.792) reproduced to the cent",
+   "all 7 gate rejections genuine on candles",
+   "TEST increment not significant (p~0.05-0.06), and contaminated optimistically by deploy calibration overlap",
+   "retention outside [0.40,0.70] under the bot's verified convention (live 0.758, last21d 0.717)",
+   "day-60 increment underpowered at ~25-27% rejection mass (~2.8 rejected fills/day -> SE ~4.3c at day 60)"
+  ],
+  "refuted": [
+   "'regime shift (fewer cascades)': TEST-wide retention was ALREADY 0.714 pre-launch; last-21d 0.717 is no shift (z~0); live-window z=0.78 vs TEST baseline",
+   "implicit 'gate-code bug' reading of the Phase-0 flag: 36/40 logged decisions match candles; the 4 borderline mismatches make the bot LOOSER, worsening not curing the excursion"
+  ],
+  "corrected_action": "log the excursion as a BAND MIS-REGISTRATION (Phase-0 band anchored on the A=0.32 train-calibrated arm's 0.41-0.52 retention; deployed A=0.10 arm was at 0.71 on TEST before launch). Do NOT treat as gate-code bug, do NOT reset the Phase-0 clock, no parameter change. Re-register the band around the deployed arm's design-time value (e.g. 0.60-0.80) and note the feed-vs-candle cnt12 jitter (+/-1 on ~1/3 of borderline signals) for day-60 diagnostics."
+ }
+}

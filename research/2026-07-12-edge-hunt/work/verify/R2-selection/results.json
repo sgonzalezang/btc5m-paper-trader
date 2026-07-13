@@ -1,0 +1,192 @@
+{
+ "verdict": "WEAKENED",
+ "reproduction": {
+  "pooled_50_53": {
+   "n": 436,
+   "wins": 203,
+   "q": 0.4656,
+   "p_mean": 0.5107,
+   "qstar": 0.5282,
+   "ev_c": -6.26
+  },
+  "pooled_50_53_boot": {
+   "obs_c": -6.26,
+   "ci95_c": [
+    -11.92,
+    -1.01
+   ],
+   "p_boot_le0": 0.9901,
+   "p_boot_ge0": 0.0099,
+   "n": 436,
+   "blocks": 80
+  },
+  "rev_ge50": {
+   "n": 220,
+   "wins": 101,
+   "q": 0.4591,
+   "p_mean": 0.5241,
+   "qstar": 0.5416,
+   "ev_c": -8.25
+  },
+  "rev_ge50_wilson_q": [
+   0.3945,
+   0.5251
+  ],
+  "era_split": {
+   "pre_v3": {
+    "n": 113,
+    "wins": 51,
+    "q": 0.4513,
+    "p_mean": 0.5263,
+    "qstar": 0.5438,
+    "ev_c": -9.24
+   },
+   "v3": {
+    "n": 107,
+    "wins": 50,
+    "q": 0.4673,
+    "p_mean": 0.5218,
+    "qstar": 0.5393,
+    "ev_c": -7.2
+   }
+  },
+  "fisher_replication": {
+   "cheap": "15/35",
+   "capmiss": "10/12",
+   "p_one_sided": 0.01643,
+   "p_two_sided": 0.02049
+  },
+  "diff_lt50_minus_ge50": {
+   "obs_diff_c": 11.82,
+   "ci95_c": [
+    -4.83,
+    27.56
+   ],
+   "p_le0": 0.0791
+  },
+  "note": "All headline artifact numbers reproduce exactly or within engine-set rounding."
+ },
+ "preregistration_check": {
+  "bucket_boundary": "[0.50,0.53) IS genuinely pre-registered: it is the frozen hi-qhat bucket of 2026-07-10 FINAL-DESIGN.md S4.2 (p_eff in [.50,.53]), the S7 day-60 cap-verdict zone, and cap55_shadow exists to settle it. NOT a fresh scan winner. Merge agent's K=13 bucket-selection concern is answered.",
+  "replication_direction": "fillable q .4516 vs unfillable .7692 is on the written Jul-10 record (FINAL-DESIGN.md line 87). BUT the same paragraph records verify-regime finding the OPPOSITE sign (expensive fills win more, z=1.86) and labels it an 'unresolved contradiction' - so a one-sided test is generous; two-sided Fisher p=0.0205. The misses analyst separately disclosed the overlapping cap53-miss cell was best-of-7 (honest adjusted ~0.09).",
+  "train_test": "No candle-fit choices; live-ledger only. No TEST contamination found."
+ },
+ "fatal_correction_cluster_weighting": {
+  "problem": "trades cluster: up to 12 engines fill the SAME (t0,side). The pooled -6.26c is trade-weighted; losing intervals carry more engines (q by cluster size: 1->0.5548 n=155, 2->0.431, 4->0.370). Block bootstrap fixes the SE, not the weighting of the point estimate.",
+  "cluster_level_50_53": {
+   "n_clusters": 259,
+   "ev_c_unweighted": -2.63,
+   "q_unweighted": 0.5019,
+   "mean_cluster_size": 1.68
+  },
+  "cluster_boot": {
+   "ci95_c": [
+    -6.67,
+    1.12
+   ],
+   "p_ge0": 0.089
+  },
+  "cluster_level_rev_ge50": {
+   "n_clusters": 85,
+   "q": 0.4706,
+   "ev_c": -7.3,
+   "ci95_c": [
+    -18.54,
+    3.83
+   ],
+   "p_ge0": 0.1002
+  },
+  "reading": "interval-level 50-53c EV = -2.63c/share [CI -6.67,+1.12], p=0.089 - statistically indistinguishable from the -2.75c mechanical cost drag (1c slip + ~1.75c fee) that the frozen model predicts for ANY no-edge fill at ~51c."
+ },
+ "null_misspecification": {
+  "problem": "p=0.0115 tests EV<0, but EV<0 is the NULL expectation under zero edge (costs alone). The distinctive claim - adverse selection beyond costs - tests q < ask-implied prob (entry-0.01).",
+  "adverse_selection_50_53_tradewt": {
+   "obs_c": -3.51,
+   "ci95_c": [
+    -9.16,
+    1.78
+   ],
+   "p_boot_le0": 0.9031,
+   "p_boot_ge0": 0.0969,
+   "n": 436,
+   "blocks": 80
+  },
+  "adverse_selection_scan_cluster_level": [
+   {
+    "bucket": "35-40",
+    "n_cl": 82,
+    "adv_c": -2.06,
+    "p_lowtail": 0.349
+   },
+   {
+    "bucket": "40-45",
+    "n_cl": 219,
+    "adv_c": 0.76,
+    "p_lowtail": 0.5899
+   },
+   {
+    "bucket": "45-50",
+    "n_cl": 257,
+    "adv_c": 6.03,
+    "p_lowtail": 0.9733
+   },
+   {
+    "bucket": "50-55",
+    "n_cl": 402,
+    "adv_c": -1.74,
+    "p_lowtail": 0.2428
+   },
+   {
+    "bucket": "55-60",
+    "n_cl": 380,
+    "adv_c": -3.3,
+    "p_lowtail": 0.0989
+   },
+   {
+    "bucket": "60-65",
+    "n_cl": 465,
+    "adv_c": 1.99,
+    "p_lowtail": 0.8123
+   },
+   {
+    "bucket": "65-70",
+    "n_cl": 227,
+    "adv_c": 6.66,
+    "p_lowtail": 0.9872
+   },
+   {
+    "bucket": "70-75",
+    "n_cl": 58,
+    "adv_c": -1.03,
+    "p_lowtail": 0.4331
+   }
+  ],
+  "reading": "adverse-selection increment: -3.51c trade-weighted (p=0.097), -1.74c cluster-level (p=0.24). No bucket in the fair scan shows significant adverse selection (best p=0.099 at 55-60c, K=8)."
+ },
+ "stability": {
+  "odd_even_day_split": {
+   "even": {
+    "n": 175,
+    "ev_c": -13.36,
+    "p": 0.0001
+   },
+   "odd": {
+    "n": 261,
+    "ev_c": -1.49,
+    "p": 0.34
+   }
+  },
+  "reading": "a pre-registrable alternative split does NOT reproduce the strong effect in both halves; the negativity concentrates in even UTC days. Era split (pre -9.2 / v3 -7.2) is stabler but each era CI individually includes 0."
+ },
+ "what_survives": {
+  "fee_dead_weak_form": "TRUE and reproduced: no evidence q clears q* anywhere in 50-53c (trade-wt Wilson upper .5125 < q*=.5282; cluster-level q .5019 < q*=.5272). Buying there without positive evidence is -2.6 to -6c/share realized. Capping flat arms below 0.50 remains a defensible cost-avoidance default.",
+  "v3_action_targets": "reversal_v2+impulse50+impulse_v2 at 50-53c: n=29 trades/16 intervals, q=.345, EV -18c/share - direction supports the action but sample is tiny.",
+  "capmiss_signal": "10/12 cap-missed wins (Fisher one-sided p=0.016, two-sided 0.021, reproduced) is the strongest independent piece; direction on the Jul-10 written record, but n=12 and the overlapping best-of-7 scan version self-adjusts to ~0.09.",
+  "direct_contrast": "lt50 vs ge50 diff +11.8c, CI [-4.8,+27.6], p=0.079 - the decision-relevant contrast for CAP-DOWN is NOT significant."
+ },
+ "multiplicity_accounting": {
+  "cells_in_source_artifacts": "~60 calibration cells (q2: 13 pooled + up/down/family/era views) + 5 followup capzones + 10 ev_bucket segments + ~35 disclosed misses comparisons; R2 rests on the pre-registered zone so full-scan Bonferroni does not apply to the zone choice itself; Bonferroni x13 on the bucket-scan reading would give p=0.13.",
+  "invalid_check_note": "the label-shuffle permutation in verify_r2.py is invalid (global shuffle destroys price calibration, making expensive buckets auto-negative); disregard selection.perm_frac_minp_scan_beats_obs."
+ },
+ "corrected_effect": "50-53c pooled, interval-weighted: -2.6c/share (CI [-6.7,+1.1], p=0.089) - consistent with pure cost drag, no demonstrated adverse selection. Zone still shows no evidence of clearing fees (q_upper < q* holds), so CAP-DOWN on flat arms stays defensible as a default, but the claimed -6.3 to -9.2c/share of avoidable adverse selection is not established; the significant headline p=0.0115 is an artifact of multi-engine pile-in weighting against a strawman null."
+}

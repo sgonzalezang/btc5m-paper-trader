@@ -1,0 +1,85 @@
+{
+ "n_measure_total": 36,
+ "replication_bot_formula_excl_lagged": {
+  "n_lo": 7,
+  "w_lo": 4,
+  "qlo": 0.5068,
+  "n_hi": 13,
+  "w_hi": 5,
+  "qhi": 0.503
+ },
+ "replication_bot_formula_strict_cutoff": {
+  "n_lo": 7,
+  "w_lo": 4,
+  "qlo": 0.5068,
+  "n_hi": 14,
+  "w_hi": 5,
+  "qhi": 0.5017
+ },
+ "state_values": {
+  "qlo": 0.5068,
+  "qhi": 0.503,
+  "benched": false,
+  "haircut": false,
+  "bank": 1074.25
+ },
+ "replication_match": {
+  "qlo_match": true,
+  "qhi_match_excl_lagged": true,
+  "note": "R8 claimed qlo exact, qhi exact modulo one lagged-settlement record"
+ },
+ "design_formula_all_settled": {
+  "n_lo": 16,
+  "w_lo": 7,
+  "qlo": 0.4954,
+  "n_hi": 19,
+  "w_hi": 8,
+  "qhi": 0.4932,
+  "claimed_by_R8": {
+   "qlo": 0.4954,
+   "qhi": 0.4932
+  }
+ },
+ "boundary": {
+  "code_boundary_cost": 0.5,
+  "equals_p_eff": 0.4825,
+  "registered_boundary_p_eff": 0.5,
+  "misassigned_band": "p_eff in [0.4825, 0.50) goes to HI bucket in code, LO in design",
+  "settled_records_misbucketed": 2,
+  "of_total_settled": 35
+ },
+ "sizing_threshold": {
+  "code_sized_iff_cost_lt": 0.503,
+  "code_p_eff": 0.4855,
+  "design_bucketing_same_qhats_iff_cost_lt": 0.5068,
+  "design_p_eff": 0.4893
+ },
+ "restart_flapping": {
+  "selftest_fixture_prediction": {
+   "qlo": 0.4175,
+   "n15": -0.1975,
+   "measured": 300,
+   "benched": true,
+   "haircut": true
+  },
+  "observed_anomalous_lines": 10,
+  "all_match_fixture": true,
+  "prelaunch_ledger_n": 123,
+  "live_state_ever_benched_in_real_nightlies": false,
+  "verdict": "The qlo=0.4175/n15=-0.1975/measured=300 lines are EXACTLY the --selftest dead-regime fixture (bot line 1587: 300 rows, cost .4975, 30% win) run on a throwaway Bot object; they polluted loop_metrics.jsonl but never touched live state. The pre-launch ledger was n=123, not 300. R8's 'restarts re-ran the nightly on stale pre-launch state 5 times' misattributes the mechanism; live benched flag never flapped."
+ },
+ "mid_experiment_fix_assessment": {
+  "day14_kill_input": "measurement-book net/share mean (raw), design 7 Phase 1 - qhat-free",
+  "day60_phase2_input": "measurement-book net EV/share + block-boot CI (raw) - qhat-free",
+  "day60_gate_verdict_input": "paired flagship vs reversal_v2 delta on common signals - qhat-free",
+  "day60_cap_verdict_input": "\u00a74.2 bucket q's = raw (n,wins) per bucket; shrinkage prior not part of the verdict statistic; cost stored per record so registered p_eff bucketing is recomputable retroactively",
+  "phase0_status": "only 36 measurement records vs >=100 required; Phase 0 not closed, clock not started",
+  "phase0_rule": "'Any conformance miss = code bug; fix before the clock starts' (\u00a77 Phase 0)",
+  "conclusion": "Fixing IMP_PRIOR 400->200 (and the boundary) now is what the pre-registered protocol itself prescribes: all Phase verdicts read the raw measurement book, not the shrunk qhat, and Phase 0 has not closed. Leaving the deviation is the worse option; it is also NOT 'documented' - the code comment (line 152) falsely claims FINAL-DESIGN MF2/MF3 conformance."
+ },
+ "additional_deviations_found": [
+  "haircut trigger (line 647) includes 15d<-1c, resurrecting the tier \u00a75.2 explicitly deleted",
+  "haircut has no release hysteresis (design: releases at 7d>=-1c; code releases at 7d>=-2c)",
+  "design nightly formula shrinks to prior MEAN 0.5 with mass 200; code shrinks to the ledger seed (.5057/.5068) with mass 400 - two distinct differences, R8 named only the mass"
+ ]
+}

@@ -1,0 +1,112 @@
+{
+ "universes": {
+  "A_clean_holds": {
+   "label": "A_clean_holds",
+   "n": 3424,
+   "shares": 312914.4,
+   "q_sw": 0.5266,
+   "fill_sw": 0.5451,
+   "ask_sw": 0.534,
+   "sel_at_fill_c": -1.854,
+   "sel_at_ask_c": -0.746,
+   "sel_at_mid_c": -0.246,
+   "fee_c": 1.683,
+   "slip_c": 1.108,
+   "halfspread_c": 0.5,
+   "gas_c": 0.0044,
+   "net_c_model": -3.541,
+   "identity_check": 0.0,
+   "pnl_logged": -11072.57,
+   "pnl_model": -11073.74,
+   "recon_gap_c_per_share": 0.0,
+   "ci95_sel_at_mid": [
+    -2.026,
+    1.546
+   ],
+   "ci95_sel_at_ask": [
+    -2.526,
+    1.046
+   ],
+   "ci95_sel_at_fill": [
+    -3.634,
+    -0.065
+   ]
+  },
+  "B_plus_stopped_cf": {
+   "label": "B_plus_stopped_cf",
+   "n": 3424,
+   "shares": 312914.4,
+   "q_sw": 0.5266,
+   "fill_sw": 0.5451,
+   "ask_sw": 0.534,
+   "sel_at_fill_c": -1.854,
+   "sel_at_ask_c": -0.746,
+   "sel_at_mid_c": -0.246,
+   "fee_c": 1.683,
+   "slip_c": 1.108,
+   "halfspread_c": 0.5,
+   "gas_c": 0.0044,
+   "net_c_model": -3.541,
+   "identity_check": 0.0,
+   "pnl_logged": -11072.57,
+   "pnl_model": -11073.74,
+   "recon_gap_c_per_share": 0.0,
+   "ci95_sel_at_mid": [
+    -2.026,
+    1.546
+   ],
+   "ci95_sel_at_ask": [
+    -2.526,
+    1.046
+   ],
+   "ci95_sel_at_fill": [
+    -3.634,
+    -0.065
+   ]
+  },
+  "C_all_incl_hedged": {
+   "label": "C_all_incl_hedged",
+   "n": 3495,
+   "shares": 318990.5,
+   "q_sw": 0.5353,
+   "fill_sw": 0.5458,
+   "ask_sw": 0.5348,
+   "sel_at_fill_c": -1.056,
+   "sel_at_ask_c": 0.051,
+   "sel_at_mid_c": 0.551,
+   "fee_c": 1.683,
+   "slip_c": 1.107,
+   "halfspread_c": 0.5,
+   "gas_c": 0.0044,
+   "net_c_model": -2.743,
+   "identity_check": 0.0,
+   "pnl_logged": -8828.87,
+   "pnl_model": -8730.25,
+   "recon_gap_c_per_share": -0.031,
+   "ci95_sel_at_mid": [
+    -1.152,
+    2.295
+   ],
+   "ci95_sel_at_ask": [
+    -1.652,
+    1.795
+   ],
+   "ci95_sel_at_fill": [
+    -2.758,
+    0.687
+   ]
+  }
+ },
+ "momentum": {
+  "n": 2955,
+  "winrate_unwtd": 0.5597,
+  "winrate_sharewtd": 0.5463,
+  "fill_sharewtd": 0.5553,
+  "qstar_at_fill": 0.5726
+ },
+ "mid_sensitivity_cleanholds": {
+  "halfspread_0c(sel_at_ask)": -0.746,
+  "halfspread_0.5c(sel_at_mid)": -0.246,
+  "halfspread_1c": 0.254
+ }
+}

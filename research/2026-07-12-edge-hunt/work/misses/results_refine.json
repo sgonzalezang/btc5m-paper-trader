@@ -1,0 +1,622 @@
+{
+ "paired_sizing": {
+  "n_pairs": 26,
+  "mean_delta_c": 5.18,
+  "mean_price_improve_c": 5.13,
+  "n_price_improved": 12,
+  "block_boot": {
+   "mean_c": 5.18,
+   "lo_c": 2.75,
+   "hi_c": 7.45,
+   "p_vs0": 0.0,
+   "nblocks": 15
+  },
+  "iv2_only": [],
+  "i50_only": [
+   1783702500,
+   1783811400,
+   1783815000,
+   1783836600,
+   1783843800,
+   1783902900,
+   1783907400,
+   1783912200
+  ],
+  "pairs": [
+   {
+    "t0": 1783703400,
+    "iso": "07-10 17:10",
+    "iv2_entry": 0.37,
+    "i50_entry": 0.37,
+    "iv2_ev_c": -38.63,
+    "i50_ev_c": -38.63,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783712100,
+    "iso": "07-10 19:35",
+    "iv2_entry": 0.48,
+    "i50_entry": 0.48,
+    "iv2_ev_c": -49.75,
+    "i50_ev_c": -49.75,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783734000,
+    "iso": "07-11 01:40",
+    "iv2_entry": 0.43,
+    "i50_entry": 0.53,
+    "iv2_ev_c": -44.72,
+    "i50_ev_c": -54.74,
+    "delta_c": 10.03,
+    "price_improve_c": 10.0
+   },
+   {
+    "t0": 1783782900,
+    "iso": "07-11 15:15",
+    "iv2_entry": 0.41,
+    "i50_entry": 0.4938,
+    "iv2_ev_c": 57.31,
+    "i50_ev_c": 48.87,
+    "delta_c": 8.44,
+    "price_improve_c": 8.38
+   },
+   {
+    "t0": 1783784400,
+    "iso": "07-11 15:40",
+    "iv2_entry": 0.47,
+    "i50_entry": 0.5,
+    "iv2_ev_c": -48.74,
+    "i50_ev_c": -51.75,
+    "delta_c": 3.01,
+    "price_improve_c": 3.0
+   },
+   {
+    "t0": 1783791000,
+    "iso": "07-11 17:30",
+    "iv2_entry": 0.42,
+    "i50_entry": 0.5,
+    "iv2_ev_c": -43.71,
+    "i50_ev_c": -51.75,
+    "delta_c": 8.04,
+    "price_improve_c": 8.0
+   },
+   {
+    "t0": 1783791300,
+    "iso": "07-11 17:35",
+    "iv2_entry": 0.47,
+    "i50_entry": 0.47,
+    "iv2_ev_c": 51.26,
+    "i50_ev_c": 51.26,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783813500,
+    "iso": "07-11 23:45",
+    "iv2_entry": 0.42,
+    "i50_entry": 0.42,
+    "iv2_ev_c": -43.71,
+    "i50_ev_c": -43.71,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783820700,
+    "iso": "07-12 01:45",
+    "iv2_entry": 0.47,
+    "i50_entry": 0.47,
+    "iv2_ev_c": 51.26,
+    "i50_ev_c": 51.26,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783837800,
+    "iso": "07-12 06:30",
+    "iv2_entry": 0.42,
+    "i50_entry": 0.5,
+    "iv2_ev_c": 56.29,
+    "i50_ev_c": 48.25,
+    "delta_c": 8.04,
+    "price_improve_c": 8.0
+   },
+   {
+    "t0": 1783858500,
+    "iso": "07-12 12:15",
+    "iv2_entry": 0.45,
+    "i50_entry": 0.53,
+    "iv2_ev_c": 53.27,
+    "i50_ev_c": 45.26,
+    "delta_c": 8.01,
+    "price_improve_c": 8.0
+   },
+   {
+    "t0": 1783893000,
+    "iso": "07-12 21:50",
+    "iv2_entry": 0.47,
+    "i50_entry": 0.52,
+    "iv2_ev_c": -48.74,
+    "i50_ev_c": -53.75,
+    "delta_c": 5.0,
+    "price_improve_c": 5.0
+   },
+   {
+    "t0": 1783893900,
+    "iso": "07-12 22:05",
+    "iv2_entry": 0.48,
+    "i50_entry": 0.48,
+    "iv2_ev_c": 50.25,
+    "i50_ev_c": 50.25,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783894800,
+    "iso": "07-12 22:20",
+    "iv2_entry": 0.38,
+    "i50_entry": 0.38,
+    "iv2_ev_c": 60.35,
+    "i50_ev_c": 60.35,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783901100,
+    "iso": "07-13 00:05",
+    "iv2_entry": 0.1509,
+    "i50_entry": 0.53,
+    "iv2_ev_c": -15.99,
+    "i50_ev_c": -54.74,
+    "delta_c": 38.76,
+    "price_improve_c": 37.91
+   },
+   {
+    "t0": 1783901400,
+    "iso": "07-13 00:10",
+    "iv2_entry": 0.37,
+    "i50_entry": 0.37,
+    "iv2_ev_c": -38.63,
+    "i50_ev_c": -38.63,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783901700,
+    "iso": "07-13 00:15",
+    "iv2_entry": 0.37,
+    "i50_entry": 0.37,
+    "iv2_ev_c": 61.37,
+    "i50_ev_c": 61.37,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783903200,
+    "iso": "07-13 00:40",
+    "iv2_entry": 0.36,
+    "i50_entry": 0.5,
+    "iv2_ev_c": 62.39,
+    "i50_ev_c": 48.25,
+    "delta_c": 14.14,
+    "price_improve_c": 14.0
+   },
+   {
+    "t0": 1783903800,
+    "iso": "07-13 00:50",
+    "iv2_entry": 0.44,
+    "i50_entry": 0.44,
+    "iv2_ev_c": -45.72,
+    "i50_ev_c": -45.72,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783904700,
+    "iso": "07-13 01:05",
+    "iv2_entry": 0.42,
+    "i50_entry": 0.42,
+    "iv2_ev_c": -43.71,
+    "i50_ev_c": -43.71,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783905300,
+    "iso": "07-13 01:15",
+    "iv2_entry": 0.45,
+    "i50_entry": 0.45,
+    "iv2_ev_c": 53.27,
+    "i50_ev_c": 53.27,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783906500,
+    "iso": "07-13 01:35",
+    "iv2_entry": 0.37,
+    "i50_entry": 0.52,
+    "iv2_ev_c": 61.37,
+    "i50_ev_c": 46.25,
+    "delta_c": 15.12,
+    "price_improve_c": 15.0
+   },
+   {
+    "t0": 1783908000,
+    "iso": "07-13 02:00",
+    "iv2_entry": 0.47,
+    "i50_entry": 0.47,
+    "iv2_ev_c": -48.74,
+    "i50_ev_c": -48.74,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783908900,
+    "iso": "07-13 02:15",
+    "iv2_entry": 0.26,
+    "i50_entry": 0.26,
+    "iv2_ev_c": -27.35,
+    "i50_ev_c": -27.35,
+    "delta_c": 0.0,
+    "price_improve_c": 0.0
+   },
+   {
+    "t0": 1783909200,
+    "iso": "07-13 02:20",
+    "iv2_entry": 0.42,
+    "i50_entry": 0.5,
+    "iv2_ev_c": 56.29,
+    "i50_ev_c": 48.25,
+    "delta_c": 8.04,
+    "price_improve_c": 8.0
+   },
+   {
+    "t0": 1783911900,
+    "iso": "07-13 03:05",
+    "iv2_entry": 0.42,
+    "i50_entry": 0.5,
+    "iv2_ev_c": -43.71,
+    "i50_ev_c": -51.75,
+    "delta_c": 8.04,
+    "price_improve_c": 8.0
+   }
+  ],
+  "note": "delta per share = price improvement (same outcome both books); impulse_v2 waits out the first poll when ask>=48c (f_nonpos) and refills cheaper"
+ },
+ "early_book_lean": {
+  "cheap": {
+   "n": 35,
+   "wins": 15,
+   "wr": 0.429
+  },
+  "expensive_capmissed": {
+   "n": 12,
+   "wins": 10,
+   "wr": 0.833
+  },
+  "fisher_onesided_p": 0.01643,
+  "note": "one-sided pre-specified: prior round found fillable q=.4516 vs unfillable q=.7692 on the pm-matched sample; this is the live Jul10-13 replication. cheap = contrarian ask fillable <=53c in first 45s; expensive = signal present but ask stayed above cap."
+ },
+ "capmiss_x_rev55": {
+  "rows": [
+   {
+    "t0": 1783709700,
+    "iso": "07-10 18:55",
+    "side": "up",
+    "win": true,
+    "fill_55c_book": {
+     "eng": "reversal",
+     "entry": 0.55,
+     "result": "win",
+     "ev_c": 43.27
+    }
+   },
+   {
+    "t0": 1783719600,
+    "iso": "07-10 21:40",
+    "side": "down",
+    "win": true,
+    "fill_55c_book": null
+   },
+   {
+    "t0": 1783724700,
+    "iso": "07-10 23:05",
+    "side": "up",
+    "win": true,
+    "fill_55c_book": {
+     "eng": "reversal",
+     "entry": 0.53,
+     "result": "win",
+     "ev_c": 45.26
+    }
+   },
+   {
+    "t0": 1783798200,
+    "iso": "07-11 19:30",
+    "side": "up",
+    "win": false,
+    "fill_55c_book": {
+     "eng": "reversal",
+     "entry": 0.54,
+     "result": "win",
+     "ev_c": 44.26
+    }
+   },
+   {
+    "t0": 1783819200,
+    "iso": "07-12 01:20",
+    "side": "down",
+    "win": true,
+    "fill_55c_book": null
+   },
+   {
+    "t0": 1783836300,
+    "iso": "07-12 06:05",
+    "side": "up",
+    "win": false,
+    "fill_55c_book": {
+     "eng": "reversal",
+     "entry": 0.55,
+     "result": "loss",
+     "ev_c": -56.73
+    }
+   },
+   {
+    "t0": 1783872900,
+    "iso": "07-12 16:15",
+    "side": "up",
+    "win": true,
+    "fill_55c_book": null
+   },
+   {
+    "t0": 1783878900,
+    "iso": "07-12 17:55",
+    "side": "up",
+    "win": true,
+    "fill_55c_book": null
+   },
+   {
+    "t0": 1783895100,
+    "iso": "07-12 22:25",
+    "side": "down",
+    "win": true,
+    "fill_55c_book": {
+     "eng": "reversal",
+     "entry": 0.5323,
+     "result": "win",
+     "ev_c": 45.03
+    }
+   },
+   {
+    "t0": 1783909500,
+    "iso": "07-13 02:25",
+    "side": "up",
+    "win": true,
+    "fill_55c_book": null
+   },
+   {
+    "t0": 1783913400,
+    "iso": "07-13 03:30",
+    "side": "down",
+    "win": true,
+    "fill_55c_book": {
+     "eng": "reversal",
+     "entry": 0.5433,
+     "result": "win",
+     "ev_c": 43.93
+    }
+   },
+   {
+    "t0": 1783913700,
+    "iso": "07-13 03:35",
+    "side": "up",
+    "win": true,
+    "fill_55c_book": {
+     "eng": "reversal",
+     "entry": 0.5421,
+     "result": "win",
+     "ev_c": 44.05
+    }
+   }
+  ],
+  "n": 12,
+  "n_filled_by_55c_book": 7,
+  "note": "how many cap53-missed signals the 55c-cap shadow actually caught, and at what EV"
+ },
+ "band_54_56_fills": {
+  "n": 10,
+  "ev_share_c": 3.49,
+  "wr": 0.6,
+  "block_boot": {
+   "mean_c": 3.49,
+   "lo_c": -31.73,
+   "hi_c": 33.65,
+   "p_vs0": 0.815,
+   "nblocks": 8
+  }
+ },
+ "context_jun26_jul13": {
+  "all_triggers": {
+   "n": 1026,
+   "wr": 0.5663
+  },
+  "gate_pass": {
+   "n": 737,
+   "wr": 0.5821
+  },
+  "gate_pass_daily": {
+   "06-26": {
+    "n": 24,
+    "wr": 0.792
+   },
+   "06-27": {
+    "n": 31,
+    "wr": 0.581
+   },
+   "06-28": {
+    "n": 39,
+    "wr": 0.718
+   },
+   "06-29": {
+    "n": 42,
+    "wr": 0.357
+   },
+   "06-30": {
+    "n": 55,
+    "wr": 0.709
+   },
+   "07-01": {
+    "n": 68,
+    "wr": 0.485
+   },
+   "07-02": {
+    "n": 65,
+    "wr": 0.554
+   },
+   "07-03": {
+    "n": 53,
+    "wr": 0.755
+   },
+   "07-04": {
+    "n": 25,
+    "wr": 0.68
+   },
+   "07-05": {
+    "n": 31,
+    "wr": 0.581
+   },
+   "07-06": {
+    "n": 59,
+    "wr": 0.593
+   },
+   "07-07": {
+    "n": 56,
+    "wr": 0.554
+   },
+   "07-08": {
+    "n": 57,
+    "wr": 0.544
+   },
+   "07-09": {
+    "n": 57,
+    "wr": 0.561
+   },
+   "07-10": {
+    "n": 33,
+    "wr": 0.485
+   },
+   "07-11": {
+    "n": 12,
+    "wr": 0.5
+   },
+   "07-12": {
+    "n": 16,
+    "wr": 0.562
+   },
+   "07-13": {
+    "n": 14,
+    "wr": 0.429
+   }
+  },
+  "era_gate_pass": {
+   "n": 52,
+   "wr": 0.5
+  },
+  "pre_era_gate_pass": {
+   "n": 685,
+   "wr": 0.5883
+  }
+ },
+ "funnel_holes": {
+  "rows": [
+   {
+    "t0": 1783695900,
+    "iso": "07-10 15:05",
+    "win": 0,
+    "nearest_bot_record_min": 0.0,
+    "prior_move_bps": 13.0
+   },
+   {
+    "t0": 1783697100,
+    "iso": "07-10 15:25",
+    "win": 1,
+    "nearest_bot_record_min": 5.0,
+    "prior_move_bps": 12.1
+   },
+   {
+    "t0": 1783704300,
+    "iso": "07-10 17:25",
+    "win": 0,
+    "nearest_bot_record_min": 15.0,
+    "prior_move_bps": 12.3
+   },
+   {
+    "t0": 1783718700,
+    "iso": "07-10 21:25",
+    "win": 1,
+    "nearest_bot_record_min": 15.0,
+    "prior_move_bps": 13.1
+   },
+   {
+    "t0": 1783730700,
+    "iso": "07-11 00:45",
+    "win": 1,
+    "nearest_bot_record_min": 55.0,
+    "prior_move_bps": 13.7
+   },
+   {
+    "t0": 1783763100,
+    "iso": "07-11 09:45",
+    "win": 0,
+    "nearest_bot_record_min": 330.0,
+    "prior_move_bps": 12.9
+   },
+   {
+    "t0": 1783788000,
+    "iso": "07-11 16:40",
+    "win": 1,
+    "nearest_bot_record_min": 50.0,
+    "prior_move_bps": 12.2
+   },
+   {
+    "t0": 1783814400,
+    "iso": "07-12 00:00",
+    "win": 1,
+    "nearest_bot_record_min": 5.0,
+    "prior_move_bps": 12.5
+   },
+   {
+    "t0": 1783847700,
+    "iso": "07-12 09:15",
+    "win": 0,
+    "nearest_bot_record_min": 65.0,
+    "prior_move_bps": 14.0
+   },
+   {
+    "t0": 1783856100,
+    "iso": "07-12 11:35",
+    "win": 1,
+    "nearest_bot_record_min": 40.0,
+    "prior_move_bps": 14.2
+   },
+   {
+    "t0": 1783904100,
+    "iso": "07-13 00:55",
+    "win": 0,
+    "nearest_bot_record_min": 5.0,
+    "prior_move_bps": 14.8
+   },
+   {
+    "t0": 1783912800,
+    "iso": "07-13 03:20",
+    "win": 1,
+    "nearest_bot_record_min": 10.0,
+    "prior_move_bps": 12.6
+   }
+  ],
+  "note": "nearest bot record distance: <15 min => bot was alive, likely tick-feed prior-move < 12bps (boundary miss); large => downtime"
+ }
+}

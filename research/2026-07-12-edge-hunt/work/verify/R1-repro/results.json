@@ -1,0 +1,162 @@
+{
+ "n_signals": 34,
+ "n_common_settled": 26,
+ "n_skips": 8,
+ "n_v2_only": 0,
+ "pnl_model_max_dev_usd": 0.0049,
+ "total_policy_delta_usd": 361.91,
+ "c_per_share_signal_pooled": 9.84,
+ "c_per_share_signal_mean_of_ratios": 10.84,
+ "decomposition_usd": {
+  "skip_leg_usd": 225.0,
+  "price_leg_usd": 148.74,
+  "stake_leg_usd": -11.83
+ },
+ "price_pairs": {
+  "n_cheaper": 12,
+  "n_same": 14,
+  "n_richer": 0,
+  "mean_improvement_c": 11.11,
+  "price_leg_paired_c_per_share": 5.14
+ },
+ "bootstrap_1h": {
+  "n_blocks": 18,
+  "ci95_c_per_share": [
+   -0.15,
+   19.09
+  ],
+  "p_le0": 0.0265
+ },
+ "bootstrap_day": {
+  "n_blocks": 4,
+  "ci95_c_per_share": [
+   4.6,
+   18.46
+  ],
+  "p_le0": 0.0
+ },
+ "skip_leg_sensitivity": {
+  "skip_leg_usd": 225.0,
+  "skip_record": "2/8",
+  "p_le_2wins_if_market_fair": 0.1286,
+  "skip_leg_if_one_loss_flips_to_win": 130.59,
+  "expected_skip_leg_if_q_equals_p_usd": 13.68
+ },
+ "stress": {
+  "drop_best_day": {
+   "best_day": "2026-07-13",
+   "best_day_delta_usd": 185.51,
+   "day_totals_usd": {
+    "2026-07-10": 100.93,
+    "2026-07-11": 20.69,
+    "2026-07-12": 54.78,
+    "2026-07-13": 185.51
+   },
+   "remaining_n": 19,
+   "remaining_total_usd": 176.4,
+   "remaining_c_per_share": 8.92,
+   "sign_survives": true
+  },
+  "leave_one_day_out": {
+   "2026-07-10": {
+    "total_usd": 260.98,
+    "c_per_share": 7.81
+   },
+   "2026-07-11": {
+    "total_usd": 341.22,
+    "c_per_share": 11.52
+   },
+   "2026-07-12": {
+    "total_usd": 307.13,
+    "c_per_share": 11.16
+   },
+   "2026-07-13": {
+    "total_usd": 176.4,
+    "c_per_share": 8.92
+   }
+  },
+  "halve_chrono": {
+   "first_half": {
+    "n": 17,
+    "total_usd": 237.68,
+    "c_per_share": 13.65
+   },
+   "second_half": {
+    "n": 17,
+    "total_usd": 124.23,
+    "c_per_share": 6.42
+   }
+  },
+  "halve_random": {
+   "draws": 4000,
+   "frac_nonpositive": 0.036
+  },
+  "cap_jitter": {
+   "47c_entry(=46c_ask)": {
+    "cap_entry": 0.47,
+    "n_taken": 12,
+    "n_skipped": 22,
+    "pnl_taken_usd": -34.34,
+    "pnl_avoided_usd": 253.32,
+    "delta_vs_takeall_usd": 253.32
+   },
+   "48c_entry(=47c_ask)": {
+    "cap_entry": 0.48,
+    "n_taken": 14,
+    "n_skipped": 20,
+    "pnl_taken_usd": -33.82,
+    "pnl_avoided_usd": 253.84,
+    "delta_vs_takeall_usd": 253.84
+   },
+   "49c_entry(=48c_ask)": {
+    "cap_entry": 0.49,
+    "n_taken": 15,
+    "n_skipped": 19,
+    "pnl_taken_usd": -85.61,
+    "pnl_avoided_usd": 202.05,
+    "delta_vs_takeall_usd": 202.05
+   }
+  }
+ },
+ "toxic_zone_overlap": {
+  "note": "merge-agent concern test: where does the policy delta come from, by twin entry band",
+  "common_pairs_twin_entry_le_047": {
+   "n": 12,
+   "delta_usd": -44.5,
+   "all_identical_fills": true
+  },
+  "common_pairs_twin_entry_048": {
+   "n": 2,
+   "delta_usd": -1.7,
+   "all_identical_fills": true
+  },
+  "common_pairs_twin_entry_ge_049": {
+   "n": 12,
+   "delta_usd": 183.11,
+   "all_price_improved": true
+  },
+  "skips_all_entries_ge_049": {
+   "n": 8,
+   "entries": [
+    0.49,
+    0.5,
+    0.51,
+    0.51,
+    0.51,
+    0.52,
+    0.53,
+    0.53
+   ],
+   "delta_usd": 225.0
+  },
+  "conclusion": "100% of the 20 active events (12 improved fills + 8 skips) occur at twin entry >=0.49; the entire +$362 policy delta = +$408 from the >=49c zone minus -$46 of Kelly under-staking drag at <=48c. R1 is the R2 toxic-zone effect expressed through the f>0 rule, NOT an independent second edge.",
+  "active_event_concentration": "20 events in 14 distinct 1h blocks across 4 UTC days; Jul 13 (a single 3h session) holds 12 of 34 signals and $185 of $362"
+ },
+ "deviations_from_claim": {
+  "total_usd": "claim text says +$310 but engine totals (+74 vs -288) imply +$362; my ledger-exact repro gets +$361.91 \u2014 claim internally inconsistent, repro matches engine totals",
+  "skip_leg_p": "claim p(EV>=0)=0.034; my exact Poisson-binomial P(<=2 wins | q=p fair market) = 0.129 \u2014 skip leg NOT independently significant; fee-mechanical expectation only +$13.7 of the +$225",
+  "bootstrap": "claim 1h-block CI [+1.96,+18.65] p=0.016; my 1h-block (18 blocks) CI [-0.15,+19.09] p_le0=0.027 \u2014 marginally includes zero",
+  "stake_leg": "claim ~+2%; I get -$11.83 (slightly negative)",
+  "price_leg": "reproduced exactly: 12/26 cheaper, 0 richer, mean 11.1c, +5.14c/sh paired (claim 5.18)"
+ }
+}

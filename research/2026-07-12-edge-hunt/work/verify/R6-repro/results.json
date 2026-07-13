@@ -1,0 +1,52 @@
+{
+  "finding": "R6 fresh-window drought / weekly non-stationarity",
+  "verdict": "CONFIRMED",
+  "method": "Independent from-scratch implementation (repro.py, ledger.py) of the 12bps buffered contrarian fade + impulse-isolation gate (eff6>=0.10 trigger-inclusive, cnt12<=6 pre-trigger) on cb5m opens, frozen cost model, fill p=0.51; plus ledger recomputation from trades_unified.json and state_extract.json. 1h-block bootstrap (6000 reps) everywhere.",
+  "reproduction_exact": {
+    "gated_TEST": {"claim": 4.553, "repro": 4.553, "n": 787},
+    "gated_fresh_jul10_1505": {"claim": -2.75, "repro": -2.753, "n": 52, "ci90": [-12.33, 8.12], "p_le0": 0.66},
+    "gated_fresh_a3_jul10_1155": {"claim": -6.08, "repro": -6.087, "n": 60},
+    "ungated_fresh_a3": {"claim": -7.18, "repro": -7.184, "n": 79},
+    "ledger_impulse50_fresh_ps_c": {"claim": -7.8, "repro": -7.82, "n": 34, "wr": 0.4118},
+    "ledger_reversal_v2_fresh_ps_c": {"claim": -7.2, "repro": -7.21, "n": 43},
+    "ledger_impulse_v2_fresh_ps_c": {"repro": 3.55, "n": 26, "pnl": 74.25},
+    "measure_book_wr": {"claim": 0.429, "repro": 0.4286, "n_settled": 35},
+    "weekly_table": "matches weekly_stability.json to 0.01c on all 10 rows",
+    "posterior_arithmetic": "inverse-variance combine re-derived by hand: 0.75 (se 1.81) first-poll, 1.71 (se 1.85) as-operated -- exact"
+  },
+  "stress_results_fresh_gated": {
+    "drop_best_day_jul12": -5.53,
+    "drop_worst_day_jul13partial": -0.12,
+    "first_half": -2.75,
+    "second_half": -2.75,
+    "jitter_thr_11bp": -0.29,
+    "jitter_thr_13bp": -5.13,
+    "jitter_gateA_009": -1.81,
+    "jitter_gateA_011": -2.75,
+    "jitter_gateB_5": -0.67,
+    "jitter_gateB_7": -3.63,
+    "jitter_fill_50c": -1.75,
+    "jitter_fill_52c": -3.75,
+    "summary": "sign (non-positive) survives all 12 stresses; NO variant is fee-positive; but magnitude collapses to ~0 when the partial Jul 13 morning (n=14, -9.9c) is dropped or under the 11bp jitter -- the window supports 'no evidence of edge', not 'affirmative negative edge'"
+  },
+  "merge_agent_flag_resolution": {
+    "flag": "the drought is one bad launch day (Jul 10, -13.97c) plus noise; Jul 11-13 alone was -0.90c",
+    "resolution": "PARTLY REFUTED, PARTLY RIGHT. The -13.97c Jul 10 figure belongs to the UNGATED daily series (repro -13.98c, 4th-worst of 64 days); in the GATED series Jul 10 is only -4.27c (rank 12/64) -- the gate absorbed most of Jul 10. Excluding Jul 10 entirely leaves gated Jul 11-13 at -2.75c (n=42), IDENTICAL to the full fresh window; the -0.90c the merge agent quoted is the UNGATED Jul 11-13 number. So the drought is NOT a Jul 10 artifact. However the deeper point stands via a different day: the gated fresh negative is carried by the partial Jul 13 morning (n=14, -9.9c, sum -$1.385 of total -$1.43); without it the window is -0.12c, i.e. flat, and the 59.8h window has no power to distinguish 'edge gone' (-2.75) from 'edge intact' (+4.55): gap = 7.3c ~= 1.2 block-bootstrap SEs."
+  },
+  "independence_audit": {
+    "claim_language": "every live book corroborates",
+    "fact": "impulse50 (34 t0s) is a strict subset of reversal_v2's t0 set; 18/18 impulse50 trade-hours shared with reversal_v2 and with the measure book; candle fresh window covers the same 59.8h span. The four corroborations are ONE 2.5-day period read four ways with different fills/selection -- consistent measurement, zero additional statistical power. The merge agent was right on this point."
+  },
+  "minor_discrepancies": {
+    "weeks_fee_negative": "4/10 including the n=14 partial week (3/9 full weeks), not the claimed 5/10",
+    "weekly_sd": "3.26c over 9 full weeks vs claimed ~3.4c -- consistent",
+    "weekly_range_full_weeks": [-2.96, 6.68],
+    "test_concentration": "confirmed: weeks 06-22+06-29 contribute ~84% of TEST sum-EV; week 07-06 only +2.42c/sh"
+  },
+  "corrected_effect": "Fresh-window (Jul 10 15:05 - Jul 13, 59.8h) gated level -2.75c/share (n=52, CI90 [-12.3, +8.1], p(<=0)=0.66); robustly non-positive under 12 stresses (max -0.12c) but statistically indistinguishable from both zero and the TEST +4.55c. Weekly non-stationarity real: SD 3.3c, 3/9 full weeks fee-negative, TEST edge concentrated in 2 weeks. Posterior working central +0.75c first-poll / +1.71c as-operated (SE ~1.8) verified. Action items (no stake scale-up, keep 7d haircut, extend day-60 verdict) follow.",
+  "multiple_comparisons": "This module: 12 stress variants + 4 window reads, all reported, none selected as best-of. The original finding's fresh window was pre-declared (K=1) though two window starts exist (15:05 and 11:55); both reproduced and agree in sign.",
+  "files": {
+    "scripts": ["repro.py", "ledger.py"],
+    "outputs": ["repro_candles.json", "repro_ledger.json"]
+  }
+}

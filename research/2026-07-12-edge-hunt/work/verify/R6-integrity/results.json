@@ -1,0 +1,52 @@
+{
+  "finding": "R6 fresh-window drought / non-stationarity",
+  "verdict": "WEAKENED",
+  "replication": {
+    "all_headline_numbers_replicate_exactly_from_raw": true,
+    "gated_fresh_1505": {"n": 52, "q": 0.5, "ev_c": -2.75, "matches_gate_refresh": true},
+    "gated_fresh_1155": {"n": 60, "ev_c": -6.08, "matches_a3": true},
+    "impulse50_fresh_ledger": {"n": 34, "ev_c": -7.82, "matches": true},
+    "reversal_v2_fresh_ledger": {"n": 43, "ev_c": -7.21, "matches": true},
+    "measure_wr": {"n_settled": 35, "wr": 0.4286, "matches": true},
+    "weekly_table": "replicates; range -2.96..+6.68, SD 3.26c (claim said ~3.4)",
+    "posterior_arithmetic": "inverse-variance combine verified by hand: 0.75/1.81 and 1.71/1.85"
+  },
+  "integrity_checks_passed": {
+    "no_lookahead": "trigger uses r[i-1], gate uses opens <= o[i]; label uses o[i+1] only as outcome",
+    "pnl_vs_frozen_cost_model": "0 mismatches across all v3-era settled unhedged trades",
+    "ledger_vs_candle_resolution": "103/103 v3-era trades agree with Coinbase open-to-open labels",
+    "pm_proxy": "863 Polymarket resolutions overlap, 97.8% agreement, all disagreements <4bps",
+    "survivorship": "only 5 unsettled trades in fresh window (1 per engine, the snapshot-tail interval); non-biasing",
+    "duplicates": "7 dup (eng,slug) pairs ledger-wide, ALL in retired momentum engines with t0/slug 300s merge skew, 0 in fresh window / v3 engines",
+    "epoch_handling": "candle t in s, trade at in ms, t0 in s used consistently; cb5m fully contiguous 300s",
+    "settled_count_note": "ledger has 3565 settled (+8 open, 3 pending), brief said 3495; does not affect R6"
+  },
+  "weakening_evidence": {
+    "jul10_exclusion": {
+      "gated_jul10_only": {"n": 33, "ev_c": -4.26, "daily_rank_worst": "12 of 64"},
+      "ungated_jul10_only": {"n": 49, "ev_c": -13.97, "daily_rank_worst": "4 of 64 (merge agent said worst; it is 4th, and it is the UNGATED figure, not gated)"},
+      "gated_jul11_13": {"n": 42, "ev_c": -2.75, "ci90": [-13.17, 9.41], "p_le0": 0.65},
+      "ungated_jul11_13": {"n": 54, "ev_c": -0.9, "ci90": [-10.16, 8.54]},
+      "ledger_jul11_13": {"impulse50": -4.03, "reversal_v2": -1.89, "reversal": 1.09, "impulse_v2_as_operated": 7.54},
+      "read": "excluding Jul 10 the window is flat-to-mildly-negative with CI spanning [-13,+9]; it cannot distinguish 'edge dead' from 'edge intact at TEST +4.5c' - both are inside the CI. The -6 to -8c drought magnitude is roughly half one bad launch day."
+    },
+    "non_stationarity_test": {
+      "weekly_chi2_binomial": 9.82, "df": 8,
+      "block_perm_p": 0.2785,
+      "read": "weekly gated EV dispersion (SD 3.26c) is NOT distinguishable from binomial sampling noise plus intra-hour clustering (hour-block permutation p=0.28). 'Strongly non-stationary' is not supported; 3/9 full weeks negative (claim said 5/10; 4/10 only if the 14-trade partial week counts)."
+    },
+    "test_concentration": {
+      "TEST_gated": 4.56, "drop_best_week": 3.65, "drop_best_2_weeks": {"ev_c": 1.86, "n": 304},
+      "read": "TEST edge is NOT 'concentrated in 2-3 weeks' in the fragile sense: removing the two best weeks it remains fee-positive (+1.86c)."
+    },
+    "correlated_corroboration": "the 'every live book corroborates' framing is triple-counting: impulse50, reversal_v2, measure book and the candle series are the same ~50-80 intervals; 103/103 result-identical with candle labels. They constitute ONE read of 2.5 days, not three."
+  },
+  "what_survives": {
+    "point_estimates_real": "fresh window point estimates are genuinely negative as stated; no data error",
+    "posterior_working_central": "+0.75c first-poll / +1.71c as-operated (SE ~1.8-1.9) verified and remains the fair central estimate",
+    "action_posture": "no stake scale-up / keep haircut armed / extend verdict window is still the right conservative action - but justified by small-n uncertainty, not by demonstrated drought or regime change"
+  },
+  "corrected_effect": "Fresh-window gated level excluding Jul 10: -2.75c/share (n=42, CI90 [-13.2,+9.4]) - statistically uninformative vs both 0 and TEST +4.5c. Working posterior central ~+0.75 to +1.7c/share stands. Weekly dispersion consistent with sampling noise (p=0.28): no positive evidence of non-stationarity.",
+  "scripts": ["rederive.py", "extra_checks.py"],
+  "outputs": ["rederive.json", "extra_checks.json"]
+}

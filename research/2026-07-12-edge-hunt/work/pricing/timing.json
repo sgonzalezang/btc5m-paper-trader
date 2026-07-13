@@ -1,0 +1,135 @@
+{
+ "n_sample_triggers": 49,
+ "trigger_contra_p20_uncapped": {
+  "n": 49,
+  "mean_fill": 0.5346,
+  "wr": 0.5306,
+  "ev_c": -2.13,
+  "ci_c": [
+   -14.73,
+   11.1
+  ],
+  "p_le_0": 0.627
+ },
+ "trigger_contra_p20_cap53": {
+  "n": 22,
+  "mean_fill": 0.4991,
+  "wr": 0.4545,
+  "ev_c": -6.2,
+  "ci_c": [
+   -25.29,
+   12.29
+  ],
+  "p_le_0": 0.74225
+ },
+ "trigger_contra_p60_uncapped": {
+  "n": 49,
+  "mean_fill": 0.4749,
+  "wr": 0.5306,
+  "ev_c": 4.12,
+  "ci_c": [
+   -6.98,
+   16.22
+  ],
+  "p_le_0": 0.248
+ },
+ "trigger_contra_p60_cap53": {
+  "n": 28,
+  "mean_fill": 0.3282,
+  "wr": 0.3214,
+  "ev_c": -2.11,
+  "ci_c": [
+   -16.27,
+   14.56
+  ],
+  "p_le_0": 0.6175
+ },
+ "trigger_contra_p150_uncapped": {
+  "n": 49,
+  "mean_fill": 0.4744,
+  "wr": 0.5306,
+  "ev_c": 4.38,
+  "ci_c": [
+   -6.8,
+   16.3
+  ],
+  "p_le_0": 0.24075
+ },
+ "trigger_contra_p150_cap53": {
+  "n": 27,
+  "mean_fill": 0.2657,
+  "wr": 0.3333,
+  "ev_c": 5.54,
+  "ci_c": [
+   -10.83,
+   23.56
+  ],
+  "p_le_0": 0.2795
+ },
+ "winner_price_p20": {
+  "n": 216,
+  "mean": 0.5051,
+  "frac_ge_half": 0.5093
+ },
+ "winner_price_p60": {
+  "n": 216,
+  "mean": 0.5849,
+  "frac_ge_half": 0.7176
+ },
+ "winner_price_p150": {
+  "n": 216,
+  "mean": 0.6578,
+  "frac_ge_half": 0.7454
+ },
+ "winner_price_pLast": {
+  "n": 216,
+  "mean": 0.8052,
+  "frac_ge_half": 0.8519
+ },
+ "ledger_rev_by_entrysec": [
+  {
+   "sec": "[0,15)",
+   "n": 267,
+   "mean_entry": 0.4858,
+   "q": 0.4532,
+   "ci": [
+    0.3946,
+    0.5131
+   ],
+   "ev_c": -5.01
+  },
+  {
+   "sec": "[15,45)",
+   "n": 103,
+   "mean_entry": 0.4724,
+   "q": 0.4854,
+   "ci": [
+    0.3912,
+    0.5807
+   ],
+   "ev_c": -0.44
+  },
+  {
+   "sec": "[45,90)",
+   "n": 14,
+   "mean_entry": 0.4827,
+   "q": 0.4286,
+   "ci": [
+    0.2138,
+    0.6741
+   ],
+   "ev_c": -7.16
+  },
+  {
+   "sec": "[90,300)",
+   "n": 2,
+   "mean_entry": 0.53,
+   "q": 1.0,
+   "ci": [
+    0.3424,
+    1.0
+   ],
+   "ev_c": 45.26
+  }
+ ]
+}

@@ -1,0 +1,64 @@
+{
+  "dimension": "REGIME & TEMPORAL STRUCTURE",
+  "date": "2026-07-12",
+  "conventions": {
+    "series": "cb5m.json buffered open-to-open: r[i]=(o[i+1]-o[i])/o[i]; up[i]=o[i+1]>=o[i] (tie->Up); 18,045 contiguous intervals 2026-05-11 11:55 -> 2026-07-13 03:35 UTC",
+    "fade_trade": "trigger |r[i-1]|>=12bps, buy opposite side, fill p=0.51, EV/share = q - 0.527493 (frozen model)",
+    "split": "TRAIN t0 < 2026-06-26 00:00 UTC (13,105 ivls) / TEST >= (4,940 ivls); FRESH = t0 >= 2026-07-10 11:55 UTC (data no prior round saw; gate frozen 2026-07-10)",
+    "bootstrap": "1h-block (12-interval) bootstrap, 2000-4000 reps; p_le_0 = one-sided P(stat<=0)"
+  },
+  "multiplicity": {
+    "A1": "2 runs tests + 24 autocorr lags + 12 move-buckets + 4 direction cells = 42",
+    "A2": "12 tercile cells + 2 hi-vs-rest contrasts + 9 ledger cells = 23",
+    "A3": "4 arms x 3 windows + 6 increments = 18",
+    "A4": "5 flag families x 2 splits = 10",
+    "A5": "8 cells + 2 contrasts + 4 ledger cells = 14",
+    "total_approx": 107,
+    "note": "headline claims are flagged with their within-family K below"
+  },
+  "headline_findings": [
+    {
+      "id": "F1_fresh_window_edge_absent",
+      "claim": "In the 2.65 days AFTER the flagship gate was frozen (Jul 10 11:55 -> Jul 13 03:35 UTC, data unseen by any prior analysis), the contrarian fade edge was ABSENT: ungated wr 0.456 (n=79, EV -7.18c), live-gated (eff6>=0.10 & cnt12<=6) wr 0.467 (n=60, EV -6.08c, CI [-17.0,+7.3]).",
+      "corroboration": "Live paper ledger same window: impulse50 wr .412 (n=34, -7.8c/share net), reversal_v2 wr .419 (n=43, -7.2c/share), measurement book wr .429 (n=35) -- all below breakeven .4898 at their .473 avg entries. Jul 10 was the worst single day in the 63-day series (ungated -13.97c, n=49); Jul 11-13 alone: wr .519, EV -0.90c (n=54).",
+      "interpretation": "Cannot claim the edge is dead (CI wide), but the pooled TEST level (+3.2 to +4.6c) is entirely pre-Jul-10; nothing in the post-freeze window is currently paying fees.",
+      "artifacts": ["a3_results.json", "a3b_results.json"]
+    },
+    {
+      "id": "F2_edge_is_episodic",
+      "claim": "The fade edge is strongly episodic at weekly scale: weekly ungated EV swings from +6.3c (W20) to -3.6c (W23) to +5.4c (W27) to -2.8c (W29). 5 of 10 weeks are fee-negative. Any deployment must budget for multi-week droughts; a fixed 7d guard window will whipsaw.",
+      "artifacts": ["a3b_results.json"]
+    },
+    {
+      "id": "F3_rev20_test_only",
+      "claim": "Reversal rate rises monotonically with prior-|move| size on TEST: 12-20bps wr .5468 (EV +1.93c, n=662), >=20bps wr .5800 (EV +5.26c, n=431, block-boot CI [+1.15,+9.69], p_le_0=0.0047). But TRAIN >=20bps is .5208 (EV -0.67c, n=1300) -- fails fees. Best-of-6 buckets (K=6): corrected p ~ 0.028. Confirms prior round's decision to keep rev20 as diagnostic only; the TEST strength is period-driven, same pattern as the gate level.",
+      "artifacts": ["a1_results.json"]
+    },
+    {
+      "id": "F4_lag1_antipersistence",
+      "claim": "The 5m resolution series is genuinely anti-persistent: runs test z=+2.22 (p=.026) TRAIN, z=+4.16 (p=3e-5) TEST; lag-1 sign autocorr -0.0195 [-0.036,-0.003] TRAIN, -0.0593 [-0.086,-0.033] TEST. No other lag 2-12 is stable across splits (K=24). But unconditional lag-1 reversal is only 50.6-52.6% -- far below the 52.75% fee hurdle at 51c. Structure exists; only the conditioned (large-move) form has ever cleared fees.",
+      "artifacts": ["a1_results.json"]
+    },
+    {
+      "id": "F5_gate_increment_train_strong_test_weak",
+      "claim": "On the May11-Jun25 TRAIN window the live gate's increment over excluded triggers is +5.56c [1.75,9.24] p=0.0018 (n 2015 vs 993); on TEST it is +4.69c [-1.39,10.98] p=0.0625 (n 787 vs 306). Directionally stable, still short of the p<0.01 bar on TEST. The FRESH-window increment for the TRAIN-calibrated A=0.32 gate is +23.2c p=0.021 but n=45 and one of 3 gate arms (K=3) -- suggestive only. The day-60 paired shadow verdict remains the deciding experiment; nothing here overturns it.",
+      "artifacts": ["a3_results.json"]
+    },
+    {
+      "id": "F6_weekend",
+      "claim": "Weekends are structurally quieter: median |5m move| drops ~45% (6.5->3.9bps TRAIN, 7.2->3.6bps TEST) and trigger rate halves (.26->.13 TRAIN, .28->.11 TEST) -- robust in both splits. Weekend fade EV is directionally BETTER in both splits (+0.27 vs -0.74c TRAIN; +7.25 [0.41,14.29] vs +2.40c TEST) and in the live v3 ledger (weekend +0.63c/share wr .50 n=46 vs weekday -8.99c wr .37 n=57), but the weekend-minus-weekday increment is not significant (p=.33 TRAIN, p=.12 TEST). Do NOT stand down on weekends; expect ~55% fewer gated signals/day.",
+      "artifacts": ["a5_results.json"]
+    }
+  ],
+  "dead_ends": [
+    "Vol terciles (trailing-1h sum|r|, TRAIN-fit cutoffs) as a fade filter: tercile ordering flips TRAIN->TEST (TRAIN best=mid +2.58c, worst=low -5.66c; TEST low +4.01c, mid +5.26c, hi +1.95c); hi-vs-rest contrast negative both splits but CI spans 0 (-2.33c p=.88 TRAIN, -3.10c p=.85 TEST). Confirms prior round's DEAD verdict on vol level with fresh data.",
+    "latentfire eff12<=0.48 gate re-tested on 63d: increment -0.48c TRAIN / +0.09c TEST vs excluded -- adds nothing over ungated. Retirement stands.",
+    "Funding sign-flip (24h window, Deribit hourly, extended to Jul 13 via fresh GET): TRAIN -0.47c p=.61, TEST +4.46c p=.099 -- sign flip across splits, dead as a filter.",
+    "Funding |rate|>=TRAIN-p90: TRAIN says extreme funding HURTS the fade (-5.40c [-10.3,-0.5]) but TEST shows -0.66c [-6.4,+4.9] -- magnitude does not replicate; not deployable either direction.",
+    "OI 1h-change extremes (binance.vision, Jun10-Jul10 only): -3.82c TRAIN / -0.22c TEST, both CI span 0. Dead.",
+    "Premium-index sign flips/sign: untestable -- premium was negative ~99% of the era (TEST flip n=15); insufficient variation.",
+    "Sign autocorrelation lags 2-12: no lag stable across TRAIN/TEST (K=24); lag-1 is the only real structure and it is fee-dead unconditioned."
+  ],
+  "scripts": ["lib.py", "a1_resolution_series.py", "a2_vol_regime.py", "a3_eff_gate.py", "a3b_weekly_profile.py", "a4_funding_regime.py", "a5_weekend.py"],
+  "data_notes": "Fresh Deribit funding (public GET, 87 hourly rows Jul 9 15:00 -> Jul 13 03:00) merged at runtime from scratchpad/funding_fresh.json; binance fapi remains georestricted; OI/premium end Jul 9-10 as harvested."
+}

@@ -1,0 +1,151 @@
+{
+ "ungated_jul10_rank_worst": 4,
+ "ungated_n_days": 64,
+ "ungated_worst3": [
+  [
+   "06-14",
+   26,
+   -18.13
+  ],
+  [
+   "05-23",
+   39,
+   -16.85
+  ],
+  [
+   "05-24",
+   27,
+   -15.71
+  ]
+ ],
+ "weekly_chi2_binomial": {
+  "chi2": 9.82,
+  "df": 8
+ },
+ "weekly_heterogeneity_p_blockperm": 0.2785,
+ "null_chi2_median": 7.44,
+ "TEST_gated_ev_c": 4.56,
+ "TEST_ev_c_drop_best1_week": {
+  "ev_c": 3.65,
+  "n": 649
+ },
+ "TEST_ev_c_drop_best2_week": {
+  "ev_c": 1.86,
+  "n": 304
+ },
+ "dup_pairs": [
+  {
+   "eng": "capless",
+   "slug": "btc-updown-5m-1783461300",
+   "t0s": [
+    1783461000,
+    1783461300
+   ],
+   "srcs": [
+    "archive+research",
+    "archive+research"
+   ],
+   "pnls": [
+    46.32,
+    -51.26
+   ]
+  },
+  {
+   "eng": "loose",
+   "slug": "btc-updown-5m-1783461300",
+   "t0s": [
+    1783461000,
+    1783461300
+   ],
+   "srcs": [
+    "archive+research",
+    "archive+research"
+   ],
+   "pnls": [
+    46.32,
+    -51.26
+   ]
+  },
+  {
+   "eng": "band",
+   "slug": "btc-updown-5m-1783633800",
+   "t0s": [
+    1783633500,
+    1783633800
+   ],
+   "srcs": [
+    "live+research",
+    "live+research"
+   ],
+   "pnls": [
+    44.47,
+    25.69
+   ]
+  },
+  {
+   "eng": "fade",
+   "slug": "btc-updown-5m-1783633800",
+   "t0s": [
+    1783633500,
+    1783633800
+   ],
+   "srcs": [
+    "live+research",
+    "live+research"
+   ],
+   "pnls": [
+    -51.72,
+    -52.17
+   ]
+  },
+  {
+   "eng": "floor",
+   "slug": "btc-updown-5m-1783633800",
+   "t0s": [
+    1783633500,
+    1783633800
+   ],
+   "srcs": [
+    "live+research",
+    "live+research"
+   ],
+   "pnls": [
+    44.47,
+    25.69
+   ]
+  },
+  {
+   "eng": "loose",
+   "slug": "btc-updown-5m-1783633800",
+   "t0s": [
+    1783633500,
+    1783633800
+   ],
+   "srcs": [
+    "live+research",
+    "live+research"
+   ],
+   "pnls": [
+    44.47,
+    25.69
+   ]
+  },
+  {
+   "eng": "value",
+   "slug": "btc-updown-5m-1783633800",
+   "t0s": [
+    1783633500,
+    1783633800
+   ],
+   "srcs": [
+    "live+research",
+    "live+research"
+   ],
+   "pnls": [
+    44.47,
+    25.69
+   ]
+  }
+ ],
+ "dups_in_fresh_window": 0
+}

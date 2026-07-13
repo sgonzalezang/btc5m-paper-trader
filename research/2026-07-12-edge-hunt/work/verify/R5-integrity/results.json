@@ -1,0 +1,338 @@
+{
+ "A_integrity": {
+  "total": 3576,
+  "status": {
+   "settled": 3565,
+   "pending": 3,
+   "open": 8
+  },
+  "result": {
+   "win": 1919,
+   "loss": 1576,
+   "stopped": 70,
+   "None": 11
+  },
+  "dup_eng_t0_side": 0,
+  "dup_eng_t0": 0,
+  "cb1m_span_utc": [
+   "2026-06-26T11:56:00",
+   "2026-07-13T03:40:00"
+  ],
+  "trades_t0_span_utc": [
+   "2026-07-07T01:05:00",
+   "2026-07-13T03:40:00"
+  ],
+  "t0_mod300_nonzero": 0,
+  "at_ms_vs_t0_ok": 3576,
+  "entry_eq_ask_plus_1c": 2915,
+  "entry_gt_ask_1c": 661,
+  "mean_actual_slip_c": 1.115,
+  "res_crosscheck": {
+   "n_winloss": 3495,
+   "agree": 3397,
+   "disagree": 98,
+   "cb_tie": 0,
+   "no_candle": 0,
+   "agree_rate": 0.972
+  },
+  "result_vs_btcfields_mismatch": 269
+ },
+ "B_decomposition": {
+  "pooled_winloss": {
+   "n": 3495,
+   "shares": 318990.5,
+   "sel_at_fill_c": -1.06,
+   "sel_at_ask_c": 0.05,
+   "sel_at_mid_c": 0.55,
+   "fee_c": 1.68,
+   "slip_c": 1.11,
+   "halfspread_c": 0.5,
+   "net_c": -2.74,
+   "pnl_model": -8750.05,
+   "pnl_logged": -8828.87
+  },
+  "momentum_winloss": {
+   "n": 3105,
+   "shares": 278910.6,
+   "sel_at_fill_c": -1.02,
+   "sel_at_ask_c": 0.1,
+   "sel_at_mid_c": 0.6,
+   "fee_c": 1.68,
+   "slip_c": 1.12,
+   "halfspread_c": 0.5,
+   "net_c": -2.7,
+   "pnl_model": -7543.2,
+   "pnl_logged": -7622.2
+  }
+ },
+ "C_stopped_survivorship": {
+  "n_stopped": 70,
+  "n_recovered_from_candles": 70,
+  "stopped_would_have_won": 1,
+  "stopped_wr_hold_to_res": 0.0143,
+  "stopped_ledger_pnl": -3153.15,
+  "stopped_hold_to_res_model_pnl": -3519.44,
+  "pooled_incl_stopped": {
+   "n": 3565,
+   "shares": 325346.9,
+   "sel_at_fill_c": -2.08,
+   "sel_at_ask_c": -0.98,
+   "sel_at_mid_c": -0.48,
+   "fee_c": 1.68,
+   "slip_c": 1.11,
+   "halfspread_c": 0.5,
+   "net_c": -3.77,
+   "pnl_model": -12269.49,
+   "pnl_logged": -11982.02
+  },
+  "momentum_incl_stopped": {
+   "n": 3175,
+   "shares": 285267.0,
+   "sel_at_fill_c": -2.19,
+   "sel_at_ask_c": -1.07,
+   "sel_at_mid_c": -0.57,
+   "fee_c": 1.68,
+   "slip_c": 1.12,
+   "halfspread_c": 0.5,
+   "net_c": -3.88,
+   "pnl_model": -11062.64,
+   "pnl_logged": -10775.35
+  }
+ },
+ "D_selection_bootstrap": {
+  "pooled_winloss": {
+   "spread_0c": {
+    "sel_c": 0.05,
+    "ci95_c": [
+     -1.7,
+     1.86
+    ],
+    "p_le0": 0.494
+   },
+   "spread_1c": {
+    "sel_c": 0.55,
+    "ci95_c": [
+     -1.2,
+     2.36
+    ],
+    "p_le0": 0.275
+   },
+   "spread_2c": {
+    "sel_c": 1.05,
+    "ci95_c": [
+     -0.7,
+     2.86
+    ],
+    "p_le0": 0.1263
+   }
+  },
+  "pooled_incl_stopped": {
+   "spread_0c": {
+    "sel_c": -0.98,
+    "ci95_c": [
+     -2.69,
+     0.81
+    ],
+    "p_le0": 0.8728
+   },
+   "spread_1c": {
+    "sel_c": -0.48,
+    "ci95_c": [
+     -2.19,
+     1.31
+    ],
+    "p_le0": 0.7165
+   },
+   "spread_2c": {
+    "sel_c": 0.02,
+    "ci95_c": [
+     -1.69,
+     1.81
+    ],
+    "p_le0": 0.5025
+   }
+  },
+  "momentum_incl_stopped": {
+   "spread_0c": {
+    "sel_c": -1.07,
+    "ci95_c": [
+     -2.72,
+     0.69
+    ],
+    "p_le0": 0.8818
+   },
+   "spread_1c": {
+    "sel_c": -0.57,
+    "ci95_c": [
+     -2.22,
+     1.19
+    ],
+    "p_le0": 0.7448
+   },
+   "spread_2c": {
+    "sel_c": -0.07,
+    "ci95_c": [
+     -1.72,
+     1.69
+    ],
+    "p_le0": 0.539
+   }
+  }
+ },
+ "E_residual": {
+  "epoch_check_jun26": 1782432000,
+  "all_jun26plus_2bps": {
+   "n_full": 2839,
+   "full_cont": 0.721,
+   "full_ties_excl": 2,
+   "full_ci": [
+    0.7044,
+    0.7375
+   ],
+   "n_resid": 2836,
+   "resid_cont": 0.487,
+   "resid_ci": [
+    0.469,
+    0.5055
+   ]
+  },
+  "all_jun26plus_4bps": {
+   "n_full": 1597,
+   "full_cont": 0.7708,
+   "full_ties_excl": 2,
+   "full_ci": [
+    0.7514,
+    0.791
+   ],
+   "n_resid": 1597,
+   "resid_cont": 0.4884,
+   "resid_ci": [
+    0.4649,
+    0.5123
+   ]
+  },
+  "all_jun26plus_8bps": {
+   "n_full": 583,
+   "full_cont": 0.8027,
+   "full_ties_excl": 1,
+   "full_ci": [
+    0.7723,
+    0.8319
+   ],
+   "n_resid": 584,
+   "resid_cont": 0.4572,
+   "resid_ci": [
+    0.4155,
+    0.4983
+   ]
+  },
+  "jun26_jul10_2bps": {
+   "n_full": 2433,
+   "full_cont": 0.7185,
+   "full_ties_excl": 2,
+   "full_ci": [
+    0.7013,
+    0.7376
+   ],
+   "n_resid": 2431,
+   "resid_cont": 0.4862,
+   "resid_ci": [
+    0.4674,
+    0.5055
+   ]
+  },
+  "fresh_jul10_13_2bps": {
+   "n_full": 406,
+   "full_cont": 0.7365,
+   "full_ties_excl": 0,
+   "full_ci": [
+    0.6929,
+    0.7814
+   ],
+   "n_resid": 405,
+   "resid_cont": 0.4914,
+   "resid_ci": [
+    0.44,
+    0.5415
+   ]
+  },
+  "jun26_jul10_4bps": {
+   "n_full": 1425,
+   "full_cont": 0.7712,
+   "full_ties_excl": 2,
+   "full_ci": [
+    0.7498,
+    0.7927
+   ],
+   "n_resid": 1425,
+   "resid_cont": 0.4884,
+   "resid_ci": [
+    0.4636,
+    0.5131
+   ]
+  },
+  "fresh_jul10_13_4bps": {
+   "n_full": 172,
+   "full_cont": 0.7674,
+   "full_ties_excl": 0,
+   "full_ci": [
+    0.7126,
+    0.8289
+   ],
+   "n_resid": 172,
+   "resid_cont": 0.4884,
+   "resid_ci": [
+    0.4096,
+    0.5667
+   ]
+  }
+ },
+ "F_momentum_wr": {
+  "mom_dir_winloss_only": {
+   "n": 2446,
+   "wr": 0.5814,
+   "ci": [
+    0.5507,
+    0.6128
+   ]
+  },
+  "mom_dir_incl_recovered_stops": {
+   "n": 2504,
+   "wr": 0.5683,
+   "ci": [
+    0.5387,
+    0.5991
+   ]
+  },
+  "mom_dir_stops_as_loss_analyst": {
+   "n": 2504,
+   "wr": 0.5679,
+   "ci": [
+    0.5382,
+    0.5987
+   ]
+  },
+  "avg_entry": 0.5898,
+  "breakeven_q": 0.6068
+ },
+ "G_addendum": {
+  "coverage_gaps": "none: retired engines have continuous daily counts Jul7-10; value/fade start Jul8 (launch), no 600-cap rotation hole detected",
+  "stopped_recovery_robustness": "all 70 stopped trades resolved with |move|>=5bps on Coinbase (0 in tie-risk zone <4bps); 69/70 lost at resolution -> recovery is not proxy noise",
+  "hedged_distortion_usd": -86.48,
+  "corrected_settlements": "settledBy=polymarket(corrected) n=203, spread across Jul7-13, no cluster suspicion",
+  "verdict": "WEAKENED",
+  "summary": {
+   "confirmed": [
+    "accounting identity on 3,495 win/loss survivors reproduces exactly (fee 1.68c, slip 1.11c, halfspread 0.50c, net -2.74c/sh; model -8750 vs ledger -8829)",
+    "residual continuation re-derived from raw cb1m: 2bps full .7210 [.7044,.7375], residual .4870 [.4690,.5055] n=2836; 8bps residual .4572; fresh Jul10-13 .4914 [.4400,.5415] - replicates",
+    "momentum-direction wr 56.8% vs breakeven .6068 at avg entry .5898 (analyst stops-as-loss coding accidentally near-exact: 69/70 stops truly lost)",
+    "~3.3c gross hurdle and fill-price-improvement invariants stand; ties negligible (2); no dups; epochs clean; result vs Coinbase proxy agrees 97.2%"
+   ],
+   "refuted_or_weakened": [
+    "POSITIVE selection at mid (+0.55c) leg: (a) never significant - 1h-block bootstrap CI [-1.20,+2.36], p(sel<=0)=0.28; (b) flips sign to -0.48c/sh pooled (-0.57 momentum) when the 70 stop-loss trades are restored at candle-recovered hold-to-resolution outcomes (only 1/70 would have won); (c) selection at the decision-time ask is +0.05c survivors / -0.98c incl stops, i.e. all of the \"positive\" selection is the assumed half-spread itself",
+    "headline \"pooled -$8.8k\" is survivor-only: settled ledger incl stops = -$11,982 (stops -$3,153); hold-to-res model incl stops -$12,269",
+    "claim q*=.596 at 59c entry: correct q* at avg entry .5898 is .6068 (direction of conclusion unchanged)"
+   ]
+  }
+ }
+}

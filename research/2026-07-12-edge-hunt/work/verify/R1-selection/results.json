@@ -1,0 +1,186 @@
+{
+ "reproduction": {
+  "n_union": 34,
+  "n_common": 26,
+  "n_skips": 8,
+  "n_v2_only": 0,
+  "headline_delta_c": 10.55,
+  "claimed": 10.55,
+  "pnl_gap_usd": 361.91
+ },
+ "block_bootstrap_by_block_size": {
+  "1h": {
+   "nblocks": 18,
+   "ci90_c": [
+    3.43,
+    17.1
+   ],
+   "p": 0.0173
+  },
+  "2h": {
+   "nblocks": 14,
+   "ci90_c": [
+    2.55,
+    17.31
+   ],
+   "p": 0.0293
+  },
+  "3h": {
+   "nblocks": 11,
+   "ci90_c": [
+    1.66,
+    17.18
+   ],
+   "p": 0.0573
+  },
+  "6h": {
+   "nblocks": 10,
+   "ci90_c": [
+    3.89,
+    18.34
+   ],
+   "p": 0.0206
+  },
+  "12h": {
+   "nblocks": 6,
+   "ci90_c": [
+    3.3,
+    19.42
+   ],
+   "p": 0.0316
+  }
+ },
+ "signflip_perm_nonzero": {
+  "n_nonzero": 20,
+  "p_two_sided": 0.0155,
+  "caveat": "not a clean null for improvement pairs (positive by construction); shown as stress only"
+ },
+ "leave_one_out": {
+  "min_mean_c": 9.24,
+  "max_mean_c": 12.24,
+  "biggest_single_pair": {
+   "t0": 1783836600,
+   "kind": "skip",
+   "delta_c": 53.75
+  },
+  "mean_without_biggest_c": 9.24
+ },
+ "skip_leg_exact": {
+  "n": 8,
+  "wins": 2,
+  "mean_entry": 0.5125,
+  "qstar": 0.53,
+  "obs_ev_c": -28.0,
+  "p_exact_binom_vs_qstar": 0.1087,
+  "p_exact_binom_vs_half": 0.1445,
+  "claimed_p": 0.0337,
+  "verdict": "claimed 0.034 came from iid bootstrap of 8 EV values; exact binomial is 3x larger"
+ },
+ "luck_adjusted_decomposition": {
+  "mechanical_price_improvement_c": 3.92,
+  "skip_component_observed_c": 6.59,
+  "skip_component_null_q50_c": 0.71,
+  "skip_component_null_qrich_c": 1.06,
+  "headline_c": 10.55,
+  "skip_null_table": {
+   "q=0.500": {
+    "exp_c_per_signal": 0.71
+   },
+   "q=0.485": {
+    "exp_c_per_signal": 1.06
+   },
+   "q=0.480": {
+    "exp_c_per_signal": 1.17
+   },
+   "q=0.530": {
+    "exp_c_per_signal": -0.0
+   }
+  },
+  "q_rich_all_eras": {
+   "q": 0.4851,
+   "n": 235
+  },
+  "q_rich_v3": {
+   "q": 0.4803,
+   "n": 127
+  }
+ },
+ "rescued_fills_adverse_selection": {
+  "n": 12,
+  "wins": 6,
+  "mean_entry": 0.3992,
+  "qstar": 0.416,
+  "p_upper_vs_qstar": 0.378
+ },
+ "price_band_monotonicity_flat_arms_v3": {
+  "<40": {
+   "n": 21,
+   "wins": 8,
+   "wr": 0.381,
+   "ev_c": 1.13
+  },
+  "40-48": {
+   "n": 33,
+   "wins": 13,
+   "wr": 0.394,
+   "ev_c": -7.27
+  },
+  "48-53": {
+   "n": 98,
+   "wins": 45,
+   "wr": 0.459,
+   "ev_c": -6.71
+  },
+  "53-56": {
+   "n": 29,
+   "wins": 16,
+   "wr": 0.552,
+   "ev_c": -1.1
+  }
+ },
+ "split_stability": {
+  "time_halves_c": {
+   "H1_n8": 10.28,
+   "H2_n26": 10.63
+  },
+  "odd_even_alternation_c": {
+   "A_n17": 17.57,
+   "B_n17": 3.52
+  },
+  "daily_means_c": {
+   "07-10": {
+    "n": 3,
+    "mean": 17.58
+   },
+   "07-11": {
+    "n": 7,
+    "mean": -2.25
+   },
+   "07-12": {
+    "n": 9,
+    "mean": 20.03
+   },
+   "07-13": {
+    "n": 15,
+    "mean": 9.42
+   }
+  },
+  "note": "time split-half stable, but one of four days is negative and odd/even alternation spreads 3.5-17.6c; effective information ~2.5 days, no pre-registrable held-out split possible at n=34"
+ },
+ "multiplicity_accounting": {
+  "primary_contrast": "impulse_v2 vs impulse50 policy delta: legitimately pre-deployed A/B (impulse50 added to bot 2026-07-10 as flat-stake twin, bot line 142) and one of 2 pre-specified primaries in the misses module",
+  "bonferroni_2_primaries": "headline p 0.017(1h blocks)-0.057(3h blocks) -> 0.035-0.11 adjusted",
+  "three_analyst_replication": "NOT independent evidence: flagship/misses/micro all recount the identical 26-34 trades; treat as 1 test",
+  "cap_boundary_selection": "the 47c action threshold is qhat-derived IN-window (qlo 0.5057->0.5068 learned nightly on these same trades); boundaries 40/44/45/47/48/50/53/54/55/56 appear across the round (K>=8 candidate caps); 47c was never pre-registered",
+  "module_level_K": "flagship self-reports K~8, misses K~35, micro a7 ~8 more; headline survives because it was a primary, but every sub-leg p-value (skip 0.034, cap53-miss 0.013) is best-of-subscan"
+ },
+ "verdict": {
+  "headline_arithmetic": "CONFIRMED (+10.55c/share-signal reproduces exactly from raw ledger; $362 pnl gap; 0 v2-only t0s)",
+  "skip_leg_significance": "REFUTED as stated: claimed p(EV>=0)=0.034 came from iid bootstrap of n=8 EV values; exact binomial gives p=0.109 vs break-even q*=0.53 and p=0.145 vs q=0.5",
+  "variance_understatement": "mild: 1h blocks p=0.017, 3h blocks p=0.057, 12h p=0.032; not fatal but claimed p=0.016 is the most favorable block choice",
+  "r2_double_count": "partially confirmed: under R2 own pooled rich-fill q=0.4656 (n=436) the skip leg is worth +1.5c/signal, not the observed +6.6c; ~5.1c/signal of the headline is 2-of-8 binomial luck",
+  "cap47_boundary": "NOT supported: flat-arm v3 bands show no monotone toxicity at 48c (40-48c: -7.3c/sh n=33; 48-53c: -6.7c n=98; 53-56c: -1.1c n=29, wr .552); cap53-missed signals won 10/12 in the same round",
+  "honest_effect": "+4 to +6c/share-signal: +3.9c mechanical re-poll price improvement (+2.8c excluding the single 37.9c outlier pair) plus +1.0-1.5c expected skip avoidance under pooled rich-fill q",
+  "overall": "WEAKENED"
+ }
+}

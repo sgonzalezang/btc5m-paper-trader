@@ -1,0 +1,50 @@
+{
+  "finding": "R8 spec-deviation / integrity audit",
+  "verdict": "CONFIRMED",
+  "verification_method": "independent re-derivation from raw state_extract.json measure rows, raw bot/loop_metrics.jsonl, bot/btc5m_bot.py source, and FINAL-DESIGN.md text; no analyst intermediate files trusted",
+  "registered_spec_verified": {
+    "bucket_boundary": "FINAL-DESIGN.md line 289: bucket lo = p_eff < 0.50, hi = p_eff in [0.50, 0.53] -- p_eff, NOT cost",
+    "prior_mass": "FINAL-DESIGN.md line 292-293: qhat_b = (wins_b + 100)/(n_b + 200), per-bucket shrinkage n0=200 at MEAN 0.5; 'the two priors sum to the old pooled n0=400'",
+    "m2_seeding": "FINAL-DESIGN.md 5.3: guard windows seeded at launch with pre-launch ledger n=123 flagged seed=True, counting toward the >=120/>=250 minimums"
+  },
+  "bot_implementation_verified": {
+    "bucket_boundary": "btc5m_bot.py:564 and :633 bucket by cost < 0.50 (= p_eff < ~0.4825); fills with p_eff in [0.4825, 0.50) land in HI bucket",
+    "prior_mass": "btc5m_bot.py:155 IMP_PRIOR=400 per bucket; :634 qhat=(w + 400*seed)/(n + 400). TWO deviations: mass 400 vs 200 AND prior center = seed (.5057/.5068) vs registered 0.5. Code comment line 152 cites 'prior mass 400 (FINAL-DESIGN v3 MF2/MF3)' -- a misreading of the design's pooled-sum-400 remark as a per-bucket value",
+    "m2_seeding": "default_impulse() (:156-158) sets measure=[]; no seeding code exists anywhere; raw loop_metrics.jsonl 07-10 15:05:41 launch line shows measured=0 (design required 123)"
+  },
+  "qhat_replication": {
+    "state": {"qlo": 0.5068, "qhi": 0.503, "lastNightly_due": 1783901400, "due_utc": "2026-07-13T00:10:00Z"},
+    "reproduced": "settled rows with t0+600 <= due (n=20: lo 7/4w, hi 13/5w) give qlo=0.5068 qhi=0.5030 -- EXACT 4dp match; the strict t0+300 cutoff includes the 00:05 UTC row (closes 00:10:00) and gives qhi=0.5017, confirming the analyst's one-lagged-settlement-record explanation; raw loop_metrics 07-13 00:10:01 line independently shows settled=20",
+    "design_formula_contrast_on_all_35_settled": {"qlo": 0.4954, "qhi": 0.4932, "note": "p_eff buckets (lo n=16 w=7, hi n=19 w=8), (w+100)/(n+200) -- matches analyst's numbers exactly"},
+    "direction": "deviation is currently ANTI-conservative: bot qlo .5068 vs registered-formula .4954 (~1.1c inflated) while raw win rates run below break-even (lo 6/14, hi 9/21); sized cost threshold is cost < .5068 vs .4954 under the registered formula"
+  },
+  "restart_flapping_raw": {
+    "loop_metrics_lines": 14,
+    "jul10_stale_state_nightlies": "10 lines / 7 unique timestamps between 15:01:42 and 17:30:14 UTC with measured=300, qlo=0.4175, benched=True (momentum-era pre-launch state); fresh-state launch line 15:05:41 measured=0 sits IN BETWEEN stale runs, and duplicate identical-second lines (15:02:27, 15:03:12, 17:30:14) indicate two writers racing",
+    "correction_to_claim": "claim said '5 times'; raw log shows 7-10 -- worse, not better"
+  },
+  "bench_counterfactual": {
+    "current_benched": false,
+    "skips": {"f_nonpos": 21},
+    "benched_skips": 0,
+    "note": "$0 counterfactual confirmed in the surviving ledger; small unknowable residual for signals seen only by the stale-benched twin process during Jul 10 15:07-17:30"
+  },
+  "guard_reachability_sharpening": {
+    "observed_signal_rate_per_day": 14.6,
+    "steady_state_counts": {"trailing_7d": 102, "trailing_10d": 146, "trailing_15d": 220},
+    "thresholds": {"n7_min": 120, "n10_min": 100, "n15_min": 250},
+    "conclusion": "at the observed live gated-signal rate the haircut/bench tiers can NEVER reach min-n (7d ~102 < 120; 15d ~220 < 250) -- the original 'cannot fire before day 7-8' was optimistic; without M2 seeding or higher signal flow the guards are structurally inert, leaving only the $250 breaker and Phase-1 kill"
+  },
+  "new_related_integrity_wrinkle": {
+    "orphan_fills": "12 of 27 live impulse_v2 trades (44%) have NO sized measurement row: _measure_record dedupes per t0 (btc5m_bot.py:581), so the first cap-compliant eval (rich quote, cost .5075-.5474, skip=f_nonpos) is the permanent measurement record even when a re-poll seconds later filled at cost .16-.49",
+    "consequences": "qhat_lo is deprived of 12 actual lo-bucket fills; measurement book says sized=False/skip=f_nonpos for intervals that WERE traded; Phase-0 fill-price anchors drawn from the measurement book miss 44% of actual fill prices; sized book and measurement book diverge in cost basis",
+    "day14_60_impact": "conservative direction (measurement book carries richer costs than actually paid) but it means the pre-registered kill test evaluates a cost basis the strategy does not pay"
+  },
+  "merge_agent_question": {
+    "registered_as_claimed": true,
+    "mid_experiment_fix_corrupts_verdicts": false,
+    "reasoning": "FINAL-DESIGN 7 Phase 1 (day-14) and Phase 2 (day-60) verdicts are computed on measurement-book raw net/share and block-bootstrap CIs; they never consume qhat. qhat only shapes the SIZED book (which fills happen) and the bank trajectory, which are not verdict inputs. Fixing the prior mass therefore cannot corrupt the pre-registered verdicts; it only breaks continuity of the 8(c) 'qhat trajectory matches the formula' integrity assert, which needs a dated changelog entry. Leaving the deviation in place is the worse option: it is anti-conservative today (qhat pinned ~1.1c above the registered formula on the same data) and halves learning speed indefinitely"
+  },
+  "corrected_effect": "0c direct on measured edge. Sizing-side: registered formula on current data would set qlo=.4954 (vs .5068), removing sized entries in the cost band (.4954, .5068) -- several of the 15 sized rows sit at cost .4975. Learning ~2x slower (mass 400 vs 200). Guards structurally inert at 14.6 signals/day (stronger than claimed). Restart flapping 7-10 stale nightly re-runs (worse than the claimed 5).",
+  "multiple_comparisons": "none -- deterministic code/design/state reconciliation, no hypothesis search"
+}

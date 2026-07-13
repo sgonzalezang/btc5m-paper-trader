@@ -1,0 +1,540 @@
+{
+ "dimension": "polymarket pricing & book calibration",
+ "date": "2026-07-12",
+ "data_notes": {
+  "resolution_map": "1,078 actual PM resolutions (pm_res_3d + ledger polymarket settles), Jul 7-13; 8 conflicts resolved toward ledger",
+  "pm_res_3d_offbyone": "7 of 741 large-move rows (>=4bp) in pm_res_3d match the NEXT interval's Coinbase sign (clusters Jul7 21:00-21:45, Jul9 21:35-40) -> ~0.8% off-by-one harvest contamination; pm_prices_sample is clean (215/216 agree with resolution map, 0 suspects)",
+  "signals_log": "logs only FILLED signals (emissions==fills 1:1) -> NOT a de-censoring source; unique value = bid/spread per fill",
+  "proxy_agreement_actual": {
+   "overall": "97.4% (n=1078)",
+   "ge4bp": "99.1% (734/741, NOT 100%)",
+   "1-4bp": "98.8-98.9%",
+   "lt1bp": "76.3% (58/76)"
+  }
+ },
+ "F1_ge50_fills_fee_dead": {
+  "claim": "Trigger-family (12bps reversal/impulse engines) fills at effective entry >= 0.50 are fee-dead in every era",
+  "pooled": {
+   "n": 216,
+   "wr": 0.4491,
+   "mean_entry": 0.5238,
+   "ev_c": -9.22,
+   "ci_c": [
+    -20.07,
+    1.83
+   ],
+   "p_le_0": 0.94975,
+   "blocks": 48
+  },
+  "wilson_q_ci": [
+   0.383,
+   0.516
+  ],
+  "breakeven_at_mean_fill_0.524": 0.5412,
+  "era_stability": {
+   "pre_v3": {
+    "n": 113,
+    "wr": 0.4513,
+    "mean_entry": 0.5263,
+    "ev_c": -9.24,
+    "ci_c": [
+     -25.82,
+     6.89
+    ],
+    "p_le_0": 0.8695,
+    "blocks": 28
+   },
+   "v3": {
+    "n": 103,
+    "wr": 0.4466,
+    "mean_entry": 0.521,
+    "ev_c": -9.19,
+    "ci_c": [
+     -22.87,
+     5.37
+    ],
+    "p_le_0": 0.897,
+    "blocks": 20
+   }
+  },
+  "marginal_53_55_band_reversal55cap": {
+   "n": 30,
+   "q": 0.433,
+   "wilson_ci": [
+    0.274,
+    0.608
+   ],
+   "mean_entry": 0.5452,
+   "ev_c": -12.92
+  },
+  "lt50_comparison": {
+   "n": 170,
+   "wr": 0.4824,
+   "mean_entry": 0.4297,
+   "ev_c": 3.57,
+   "ci_c": [
+    -8.62,
+    14.81
+   ],
+   "p_le_0": 0.26525,
+   "blocks": 40
+  },
+  "diff_lt50_minus_ge50": {
+   "diff": 0.1279,
+   "lo95": -0.0456,
+   "hi95": 0.2869,
+   "p_le_0": 0.071,
+   "n_a": 170,
+   "n_b": 216,
+   "blocks": 56
+  },
+  "multiplicity": "bucket boundary 0.50 fixed by prior design (MF2), not fit here; 2 primary contrasts"
+ },
+ "F2_contradiction_resolved": {
+  "claim": "verify-regime 'expensive fills win more' does NOT replicate; price is informative only ABOVE the buyable cap",
+  "within_fills_reversal_family": {
+   "label": "reversal family (12bps trigger)",
+   "lo": {
+    "n": 170,
+    "w": 82,
+    "q": 0.4824,
+    "mean_p": 0.4297
+   },
+   "hi": {
+    "n": 216,
+    "w": 97,
+    "q": 0.4491,
+    "mean_p": 0.5238
+   },
+   "two_prop_z": -0.651,
+   "p": 0.5151,
+   "block_boot_qhi_minus_qlo": {
+    "diff": -0.033278867102396525,
+    "lo95": -0.19567972667658567,
+    "hi95": 0.14049948882722357,
+    "p_le_0": 0.66,
+    "n_a": 216,
+    "n_b": 170,
+    "blocks": 56
+   }
+  },
+  "within_fills_reversal_family_dedup": {
+   "label": "rev family dedup",
+   "lo": {
+    "n": 48,
+    "w": 25,
+    "q": 0.5208,
+    "mean_p": 0.4351
+   },
+   "hi": {
+    "n": 83,
+    "w": 38,
+    "q": 0.4578,
+    "mean_p": 0.5263
+   },
+   "two_prop_z": -0.695,
+   "p": 0.4868,
+   "block_boot_qhi_minus_qlo": {
+    "diff": -0.06300200803212858,
+    "lo95": -0.23953488372093024,
+    "hi95": 0.12152209492635024,
+    "p_le_0": 0.75825,
+    "n_a": 83,
+    "n_b": 48,
+    "blocks": 56
+   }
+  },
+  "all_contrarian": {
+   "label": "contrarian all eras",
+   "lo": {
+    "n": 538,
+    "w": 239,
+    "q": 0.4442,
+    "mean_p": 0.4327
+   },
+   "hi": {
+    "n": 357,
+    "w": 172,
+    "q": 0.4818,
+    "mean_p": 0.5286
+   },
+   "two_prop_z": 1.104,
+   "p": 0.2696,
+   "block_boot_qhi_minus_qlo": {
+    "diff": 0.03755479887122137,
+    "lo95": -0.05237708248679401,
+    "hi95": 0.12960617824742054,
+    "p_le_0": 0.216,
+    "n_a": 357,
+    "n_b": 538,
+    "blocks": 70
+   }
+  },
+  "decensored_fill_split_livewindow": {
+   "label": "PM res, t0>=Jul9 02:35",
+   "filled": {
+    "n": 120,
+    "w": 56,
+    "q": 0.4667,
+    "ci": [
+     0.3798,
+     0.5556
+    ]
+   },
+   "unfilled": {
+    "n": 96,
+    "w": 55,
+    "q": 0.5729,
+    "ci": [
+     0.473,
+     0.6672
+    ]
+   },
+   "z": -1.552,
+   "p": 0.1205
+  },
+  "cap_rejected_misses": {
+   "n_t0": 13,
+   "n_resolved": 13,
+   "w": 12,
+   "q": 0.9231,
+   "ci": [
+    0.6669,
+    0.9863
+   ],
+   "note": "misses ring-buffer covers Jul10 16:40-Jul13 only"
+  },
+  "cap_rejected_binomial_p_vs_half": 0.0017,
+  "interpretation": "unfilled/cap-rejected trigger signals win more (q .573 vs .467, p=.12; explicit cap-rejects 12/13) but at asks above breakeven (53-55c band EV -12.9c); within the buyable region q is flat-to-declining in price"
+ },
+ "F3_book_calibration": {
+  "global_at_20s": {
+   "mean": -0.013263888888888882,
+   "lo95": -0.08259433962264148,
+   "hi95": 0.05662844036697249,
+   "p_le_0": 0.6305,
+   "n": 216,
+   "blocks": 73
+  },
+  "global_at_60s": {
+   "mean": -0.0015046296296296387,
+   "lo95": -0.05577981651376147,
+   "hi95": 0.05350000000000002,
+   "p_le_0": 0.5155,
+   "n": 216,
+   "blocks": 73
+  },
+  "cheap_side_blind_ev_60s": {
+   "mean": -0.08803094097222221,
+   "lo95": -0.14896188188073392,
+   "hi95": -0.023698678066037756,
+   "p_le_0": 0.9965,
+   "n": 216,
+   "blocks": 73
+  },
+  "fav_side_blind_ev_60s_cap65": {
+   "mean": 0.0888788355855856,
+   "lo95": -0.006053247727272712,
+   "hi95": 0.180197953125,
+   "p_le_0": 0.03525,
+   "n": 111,
+   "blocks": 63
+  },
+  "momentum_ledger_refutation": {
+   "fills_60_66c": {
+    "bucket": "[0.6,0.66)",
+    "n": 1227,
+    "mean_p": 0.629,
+    "q": 0.6324,
+    "ci": [
+     0.6051,
+     0.659
+    ],
+    "ev_c_per_share": -1.29,
+    "qstar": 0.6453
+   },
+   "fills_55_60c": {
+    "bucket": "[0.55,0.6)",
+    "n": 614,
+    "mean_p": 0.5742,
+    "q": 0.5179,
+    "ci": [
+     0.4784,
+     0.5572
+    ],
+    "ev_c_per_share": -7.34,
+    "qstar": 0.5914
+   }
+  },
+  "multiplicity": "9 blind-EV cells tested (3 snapshots x {cheap,fav,fav-cap65}); nominal p .035 for fav-60s-cap65 fails K=9 correction and the 2,595-fill ledger test"
+ },
+ "F4_entry_timing": {
+  "sample_triggers": 49,
+  "contrarian_cost_by_second_uncapped": {
+   "trigger_contra_p20_uncapped": {
+    "n": 49,
+    "mean_fill": 0.5346,
+    "wr": 0.5306,
+    "ev_c": -2.13,
+    "ci_c": [
+     -14.73,
+     11.1
+    ],
+    "p_le_0": 0.627
+   },
+   "trigger_contra_p60_uncapped": {
+    "n": 49,
+    "mean_fill": 0.4749,
+    "wr": 0.5306,
+    "ev_c": 4.12,
+    "ci_c": [
+     -6.98,
+     16.22
+    ],
+    "p_le_0": 0.248
+   },
+   "trigger_contra_p150_uncapped": {
+    "n": 49,
+    "mean_fill": 0.4744,
+    "wr": 0.5306,
+    "ev_c": 4.38,
+    "ci_c": [
+     -6.8,
+     16.3
+    ],
+    "p_le_0": 0.24075
+   }
+  },
+  "executable_cap53": {
+   "trigger_contra_p20_cap53": {
+    "n": 22,
+    "mean_fill": 0.4991,
+    "wr": 0.4545,
+    "ev_c": -6.2,
+    "ci_c": [
+     -25.29,
+     12.29
+    ],
+    "p_le_0": 0.74225
+   },
+   "trigger_contra_p60_cap53": {
+    "n": 28,
+    "mean_fill": 0.3282,
+    "wr": 0.3214,
+    "ev_c": -2.11,
+    "ci_c": [
+     -16.27,
+     14.56
+    ],
+    "p_le_0": 0.6175
+   },
+   "trigger_contra_p150_cap53": {
+    "n": 27,
+    "mean_fill": 0.2657,
+    "wr": 0.3333,
+    "ev_c": 5.54,
+    "ci_c": [
+     -10.83,
+     23.56
+    ],
+    "p_le_0": 0.2795
+   }
+  },
+  "book_information_speed_winner_price": {
+   "winner_price_p20": {
+    "n": 216,
+    "mean": 0.5051,
+    "frac_ge_half": 0.5093
+   },
+   "winner_price_p60": {
+    "n": 216,
+    "mean": 0.5849,
+    "frac_ge_half": 0.7176
+   },
+   "winner_price_p150": {
+    "n": 216,
+    "mean": 0.6578,
+    "frac_ge_half": 0.7454
+   },
+   "winner_price_pLast": {
+    "n": 216,
+    "mean": 0.8052,
+    "frac_ge_half": 0.8519
+   }
+  },
+  "ledger_by_entrysec": [
+   {
+    "sec": "[0,15)",
+    "n": 267,
+    "mean_entry": 0.4858,
+    "q": 0.4532,
+    "ci": [
+     0.3946,
+     0.5131
+    ],
+    "ev_c": -5.01
+   },
+   {
+    "sec": "[15,45)",
+    "n": 103,
+    "mean_entry": 0.4724,
+    "q": 0.4854,
+    "ci": [
+     0.3912,
+     0.5807
+    ],
+    "ev_c": -0.44
+   },
+   {
+    "sec": "[45,90)",
+    "n": 14,
+    "mean_entry": 0.4827,
+    "q": 0.4286,
+    "ci": [
+     0.2138,
+     0.6741
+    ],
+    "ev_c": -7.16
+   },
+   {
+    "sec": "[90,300)",
+    "n": 2,
+    "mean_entry": 0.53,
+    "q": 1.0,
+    "ci": [
+     0.3424,
+     1.0
+    ],
+    "ev_c": 45.26
+   }
+  ],
+  "verdict": "no deployable better entry second; late cheap availability is adverse selection (capped late wr .32-.33)"
+ },
+ "F5_ties_and_spread": {
+  "neartie_freq": {
+   "train": {
+    "n": 13105,
+    "exact_tie": 0.00069,
+    "lt_1bp": 0.10004,
+    "lt_2bp": 0.20504
+   },
+   "test": {
+    "n": 4941,
+    "exact_tie": 0.0002,
+    "lt_1bp": 0.10666,
+    "lt_2bp": 0.21635
+   }
+  },
+  "neartie_predictable_from_trailvol_TEST": {
+   "Q1": {
+    "n": 1085,
+    "p_neartie": 0.3438
+   },
+   "Q2": {
+    "n": 1328,
+    "p_neartie": 0.241
+   },
+   "Q3": {
+    "n": 1542,
+    "p_neartie": 0.1783
+   },
+   "Q4": {
+    "n": 986,
+    "p_neartie": 0.1024
+   }
+  },
+  "neartie_given_trigger": {
+   "n": 4103,
+   "p": 0.13039
+  },
+  "coin_flip_clears_fees_at_fill_mix": "q*=.4898 at share-wtd fill .4724 < 0.50 -> near-ties are NOT a fee burn at current fills",
+  "up_rate_by_move": {
+   "0-1bp": {
+    "n": 76,
+    "up": 34,
+    "p_up": 0.4474,
+    "ci": [
+     0.3408,
+     0.559
+    ]
+   },
+   "1-2bp": {
+    "n": 91,
+    "up": 44,
+    "p_up": 0.4835,
+    "ci": [
+     0.3836,
+     0.5848
+    ]
+   },
+   "2-4bp": {
+    "n": 170,
+    "up": 91,
+    "p_up": 0.5353,
+    "ci": [
+     0.4604,
+     0.6087
+    ]
+   },
+   ">=4bp": {
+    "n": 741,
+    "up": 366,
+    "p_up": 0.4939,
+    "ci": [
+     0.4581,
+     0.5299
+    ]
+   },
+   "ALL": {
+    "n": 1078,
+    "up": 535,
+    "p_up": 0.4963,
+    "ci": [
+     0.4665,
+     0.5261
+    ]
+   }
+  },
+  "spread_overall": {
+   "n": 1622,
+   "p50": 0.01,
+   "p90": 0.01,
+   "p95": 0.02,
+   "mean": 0.011,
+   "frac_1c": 0.9365
+  },
+  "spread_by_hour_effective_cost_above_mid_c": {
+   "0": 1.54,
+   "1": 1.56,
+   "2": 1.53,
+   "3": 1.53,
+   "4": 1.5,
+   "5": 1.5,
+   "6": 1.51,
+   "7": 1.6,
+   "8": 1.52,
+   "9": 1.56,
+   "10": 1.56,
+   "11": 1.57,
+   "12": 1.51,
+   "13": 1.62,
+   "14": 1.64,
+   "15": 1.55,
+   "16": 1.54,
+   "17": 1.51,
+   "18": 1.59,
+   "19": 1.61,
+   "20": 1.5,
+   "21": 1.5,
+   "22": 1.5,
+   "23": 1.5
+  },
+  "trigger_family_spread": {
+   "n": 113,
+   "p50": 0.01,
+   "p95": 0.01,
+   "mean": 0.0103,
+   "frac_1c": 0.973
+  }
+ }
+}

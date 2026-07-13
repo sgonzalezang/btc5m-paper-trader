@@ -1,0 +1,85 @@
+{
+ "ties_train": {
+  "n": 13105,
+  "exact_tie": 0.00069,
+  "lt_1bp": 0.10004,
+  "lt_2bp": 0.20504
+ },
+ "ties_test": {
+  "n": 4941,
+  "exact_tie": 0.0002,
+  "lt_1bp": 0.10666,
+  "lt_2bp": 0.21635
+ },
+ "resmap_n": 1078,
+ "resmap_conflicts": 8,
+ "proxy_agreement": {
+  "0-1bp": {
+   "agree": 58,
+   "n": 76,
+   "rate": 0.7632
+  },
+  "1-2bp": {
+   "agree": 90,
+   "n": 91,
+   "rate": 0.989
+  },
+  "2-4bp": {
+   "agree": 168,
+   "n": 170,
+   "rate": 0.9882
+  },
+  ">=4bp": {
+   "agree": 734,
+   "n": 741,
+   "rate": 0.9906
+  }
+ },
+ "large_move_disagreements_matching_next_interval": 7,
+ "train_vol_quartile_cuts_bp": [
+  4.921,
+  7.14,
+  11.036
+ ],
+ "neartie_by_trailvol_TRAIN": {
+  "Q1": {
+   "n": 3273,
+   "p_neartie": 0.3208
+  },
+  "Q2": {
+   "n": 3273,
+   "p_neartie": 0.2368
+  },
+  "Q3": {
+   "n": 3273,
+   "p_neartie": 0.1589
+  },
+  "Q4": {
+   "n": 3274,
+   "p_neartie": 0.1035
+  }
+ },
+ "neartie_by_trailvol_TEST": {
+  "Q1": {
+   "n": 1085,
+   "p_neartie": 0.3438
+  },
+  "Q2": {
+   "n": 1328,
+   "p_neartie": 0.241
+  },
+  "Q3": {
+   "n": 1542,
+   "p_neartie": 0.1783
+  },
+  "Q4": {
+   "n": 986,
+   "p_neartie": 0.1024
+  }
+ },
+ "neartie_given_trigger": {
+  "n": 4103,
+  "p": 0.13039
+ },
+ "neartie_unconditional": 0.20813
+}

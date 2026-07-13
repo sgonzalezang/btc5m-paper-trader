@@ -1,0 +1,135 @@
+{
+ "crossmatch": {
+  "n_measure": 36,
+  "n_ledger_impulse_v2": 27,
+  "dup_ledger_intervals": {},
+  "dup_measure_t0": 0,
+  "counts": {
+   "sized_first_poll": 15,
+   "rich_first_poll_entered_later": 12,
+   "never_entered": 9,
+   "anomaly": 0
+  },
+  "skips_total": 21,
+  "side_mismatches": [],
+  "entered_later_not_cheaper": [],
+  "entered_later_not_later_sec": [],
+  "sized_cost_mismatches": [],
+  "ledger_trades_with_no_measure_record": []
+ },
+ "first_poll_book": {
+  "n": 35,
+  "wins": 15,
+  "wr": 0.4286,
+  "ev_ps_c": -6.23,
+  "ci90": [
+   -19.73,
+   7.6
+  ]
+ },
+ "class_sized_first_poll_at_first_poll_cost": {
+  "n": 14,
+  "wins": 6,
+  "wr": 0.4286,
+  "ev_ps_c": -0.61,
+  "ci90": [
+   -21.96,
+   20.59
+  ]
+ },
+ "class_rich_first_poll_entered_later_at_first_poll_cost": {
+  "n": 12,
+  "wins": 6,
+  "wr": 0.5,
+  "ev_ps_c": -2.75,
+  "ci90": [
+   -27.83,
+   22.34
+  ]
+ },
+ "class_never_entered_at_first_poll_cost": {
+  "n": 9,
+  "wins": 3,
+  "wr": 0.3333,
+  "ev_ps_c": -19.64,
+  "ci90": [
+   -41.75,
+   2.58
+  ]
+ },
+ "class_reentered_at_realized_cost": {
+  "n": 12,
+  "wins": 6,
+  "wr": 0.5,
+  "ev_ps_c": 8.44,
+  "ci90": [
+   -15.68,
+   32.32
+  ]
+ },
+ "reentered_price_improvement_c": {
+  "n": 12,
+  "mean_c": 11.19,
+  "min_c": 3.01,
+  "max_c": 38.75
+ },
+ "operated_book_same_signals": {
+  "n": 26,
+  "wins": 12,
+  "wr": 0.4615,
+  "ev_ps_c": 3.57,
+  "ci90": [
+   -12.19,
+   19.22
+  ]
+ },
+ "gap_c_recomputed": 9.8,
+ "operated_ledger_pnl_check": {
+  "n": 26,
+  "total_pnl": 74.25,
+  "stake_wtd_ps_c": 3.49,
+  "eq_wtd_ps_c": 3.55
+ },
+ "flagship_full_ledger": {
+  "n": 26,
+  "total_pnl": 74.25
+ },
+ "gap_decomposition_c": {
+  "price_improvement_component": 5.16,
+  "composition_component_dropping_never_entered": 4.64,
+  "sum_check": 9.8
+ },
+ "gap_permutation": {
+  "observed_c": 9.8,
+  "perm_mean_c": 6.5,
+  "perm_ci90": [
+   -1.73,
+   13.65
+  ],
+  "frac_perm_gap_positive": 0.8995,
+  "p_gap_ge_observed": 0.3918
+ },
+ "verdict": {
+  "finding": "R4 kill-metric semantics (first-poll measurement book vs operated arm)",
+  "verdict": "CONFIRMED",
+  "deterministic_core": "exact reproduction: 36 records -> 15 sized / 12 rich-first-poll-entered-later / 9 never-entered; 27 ledger impulse_v2 trades map 1:1 by t0, zero anomalies, zero side mismatches, one trade per interval (dup guard in risk_ok makes a second trigger impossible), all 12 re-entries strictly later (entrySec > first-poll sec) and strictly cheaper (mean 11.19c/share cost improvement).",
+  "numbers_reproduced": {
+   "first_poll_book_ps_c": -6.23,
+   "operated_same_signals_ps_c": 3.57,
+   "gap_c": 9.8,
+   "reentered_realized_ps_c": 8.44,
+   "never_entered_first_poll_ps_c": -19.64,
+   "ledger_total_pnl": 74.25
+  },
+  "merge_agent_flaw_resolution": {
+   "same_signal": "YES \u2014 contrarian side is fixed per interval by the prior interval's move; all 12 sides match; ledger has exactly one impulse_v2 trade per t0; these are refills of the same signal at a later in-window poll, not second triggers.",
+   "deliberate_design": "LARGELY YES \u2014 FINAL-DESIGN.md MF6 pre-registers the measurement book as first-fillable-poll recording ('matches the CONFIRMED fast-entry regime') and Phase-1 kill + guard tiers + qhat are all pre-registered on that book; the ~43% sized fraction (composition divergence) was explicitly anticipated in section 4.3. What was NOT anticipated: post-skip re-poll price improvement (the 5.2c deterministic component), which biases the kill input below the operated arm beyond the anticipated composition effect. Bot faithfully implements the design; therefore this is an AMENDMENT REQUEST to a pre-registered protocol, not an implementation bug. R4's wording 'misclassifies ... as skips' overstates: sized flag means 'sized at first fillable poll' per its registered definition."
+  },
+  "corrections": [
+   "Gap decomposition: only 5.16c/share of the 9.8c is deterministic (price improvement on the 12 re-entries); 4.64c is composition (dropping the 9 never-entered) and outcome-dependent. Under outcome permutation the expected structural gap is ~6.5c (90% of permutations positive); observed 9.8c is unremarkable vs that null (p=0.39). Honest structural effect: ~5-6.5c, still >2x the 2c kill bar, so 'kill can fire on a positive policy' stands.",
+   "Their CI90 for the -6.23c book ([-15.35,+3.33]) is understated; iid bootstrap gives [-19.73,+7.60]. Does not change any conclusion (straddles 0 either way; n=35 << 200 so kill not evaluable).",
+   "STRENGTHENING: the nightly guard tiers (haircut 7d<-2c n>=120; bench 7d<-4c n>=120 / 15d<-3c n>=250, bot _impulse_nightly netps()) read the SAME first-poll book and hit their n-minimums BEFORE day-14; the structural bias reaches the guards first. qhat also buckets by first-poll cost, so re-entered fills train the wrong price bucket."
+  ],
+  "selection_audit": "No fitted parameters, no grid, no TRAIN/TEST split applicable \u2014 this is a live instrumentation audit. Class boundaries (entered vs not) are natural, not searched. The finding was 1 of ~13 aspects the flagship agent audited (K~13), but the core claims are deterministic counts immune to Bonferroni; the noisy EV point estimates carry wide CIs already reported. No look-ahead: all quantities computed from decision-time records and settled outcomes."
+ }
+}

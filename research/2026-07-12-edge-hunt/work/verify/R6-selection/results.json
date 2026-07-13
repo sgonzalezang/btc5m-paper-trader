@@ -1,0 +1,377 @@
+{
+ "T1_day_decomposition": {
+  "fresh_full": {
+   "n": 52,
+   "q": 0.5,
+   "ev_c": -2.753,
+   "p_boot_le0": 0.6653,
+   "ci90_c": [
+    -12.753,
+    7.712
+   ]
+  },
+  "per_day": {
+   "2026-07-10": {
+    "n": 10,
+    "wins": 5,
+    "ev_c": -2.75
+   },
+   "2026-07-11": {
+    "n": 12,
+    "wins": 6,
+    "ev_c": -2.75
+   },
+   "2026-07-12": {
+    "n": 16,
+    "wins": 9,
+    "ev_c": 3.5
+   },
+   "2026-07-13": {
+    "n": 14,
+    "wins": 6,
+    "ev_c": -9.9
+   }
+  },
+  "fresh_excl_jul10": {
+   "n": 42,
+   "q": 0.5,
+   "ev_c": -2.753,
+   "p_boot_le0": 0.6575,
+   "ci90_c": [
+    -13.729,
+    9.011
+   ]
+  },
+  "fresh_a3_start_full": {
+   "n": 60,
+   "q": 0.4667,
+   "ev_c": -6.087,
+   "p_boot_le0": 0.831,
+   "ci90_c": [
+    -15.574,
+    4.822
+   ]
+  }
+ },
+ "T2_daily_rank": {
+  "n_days_ge5": 64,
+  "jul10_full_day": {
+   "day": "2026-07-10",
+   "n": 33,
+   "ev_c": -4.27
+  },
+  "jul10_post_1505_only": {
+   "n": 10,
+   "ev_c": -2.75
+  },
+  "worst5_days": [
+   {
+    "day": "2026-06-14",
+    "n": 23,
+    "ev_c": -22.32
+   },
+   {
+    "day": "2026-06-29",
+    "n": 47,
+    "ev_c": -18.71
+   },
+   {
+    "day": "2026-05-23",
+    "n": 30,
+    "ev_c": -16.09
+   },
+   {
+    "day": "2026-05-24",
+    "n": 27,
+    "ev_c": -15.72
+   },
+   {
+    "day": "2026-07-13",
+    "n": 14,
+    "ev_c": -9.9
+   }
+  ],
+  "jul10_rank_from_worst": 12
+ },
+ "T3_placebo_windows": {
+  "window_trade_count": 52,
+  "obs_fresh_ev_c": -2.75,
+  "n_placebo_windows": 2593,
+  "frac_placebo_le_obs": 0.3101,
+  "placebo_p5_c": -10.45,
+  "placebo_p50_c": 3.02,
+  "placebo_p95_c": 14.55,
+  "note": "fraction of same-size historical windows with EV <= fresh window's; high fraction => drought unremarkable",
+  "TEST_only": {
+   "n": 578,
+   "frac_le_obs": 0.1799,
+   "p5_c": -6.6
+  }
+ },
+ "T4_weekly_heterogeneity": {
+  "weeks_used": 9,
+  "weekly_ev_c": {
+   "0": [
+    212,
+    6.68
+   ],
+   "1": [
+    241,
+    -2.96
+   ],
+   "2": [
+    216,
+    2.8
+   ],
+   "3": [
+    427,
+    -0.29
+   ],
+   "4": [
+    370,
+    -0.86
+   ],
+   "5": [
+    314,
+    5.85
+   ],
+   "6": [
+    373,
+    2.74
+   ],
+   "7": [
+    345,
+    5.22
+   ],
+   "8": [
+    290,
+    2.42
+   ]
+  },
+  "sd_obs_c": 3.26,
+  "perm_sd_mean_c": 2.73,
+  "perm_sd_p95_c": 3.94,
+  "p_perm_sd_ge_obs": 0.228,
+  "note": "null = stationary edge with hour-block dependence; low p => real week-to-week drift"
+ },
+ "T5_live_ledger_daily": {
+  "impulse50": {
+   "2026-07-10": {
+    "n": 3,
+    "ps_c": -47.05
+   },
+   "2026-07-11": {
+    "n": 7,
+    "ps_c": -8.08
+   },
+   "2026-07-12": {
+    "n": 9,
+    "ps_c": 4.7
+   },
+   "2026-07-13": {
+    "n": 15,
+    "ps_c": -7.37
+   },
+   "ALL": {
+    "n": 34,
+    "ps_c": -7.82
+   },
+   "EXCL_JUL10": {
+    "n": 31,
+    "ps_c": -4.03
+   }
+  },
+  "reversal_v2": {
+   "2026-07-10": {
+    "n": 7,
+    "ps_c": -34.58
+   },
+   "2026-07-11": {
+    "n": 8,
+    "ps_c": -13.57
+   },
+   "2026-07-12": {
+    "n": 10,
+    "ps_c": 0.17
+   },
+   "2026-07-13": {
+    "n": 18,
+    "ps_c": 2.17
+   },
+   "ALL": {
+    "n": 43,
+    "ps_c": -7.21
+   },
+   "EXCL_JUL10": {
+    "n": 36,
+    "ps_c": -1.89
+   }
+  },
+  "impulse_v2": {
+   "2026-07-10": {
+    "n": 2,
+    "ps_c": -44.24
+   },
+   "2026-07-11": {
+    "n": 6,
+    "ps_c": -12.07
+   },
+   "2026-07-12": {
+    "n": 6,
+    "ps_c": 37.08
+   },
+   "2026-07-13": {
+    "n": 12,
+    "ps_c": 2.57
+   },
+   "ALL": {
+    "n": 26,
+    "ps_c": 3.55
+   },
+   "EXCL_JUL10": {
+    "n": 24,
+    "ps_c": 7.54
+   }
+  }
+ },
+ "T2b_merge_agent_numbers_located": {
+  "quoted_minus13_97": "UNGATED a3 series, Jul 10 full day (n=49): -13.97c. Rank 4th worst of 64 days, not 1st (worse: Jun 14 -18.13, May 23 -16.85, May 24 -15.71). GATED series Jul 10 was only -4.26c, rank 12/64.",
+  "quoted_minus0_90": "UNGATED Jul 11-13 pooled (n=54): -0.90c. GATED Jul 11-13 (n=42): -2.75c.",
+  "a3_construction_daily": {
+   "a3_gated_jul10_13": {
+    "2026-07-10": [
+     33,
+     -4.26
+    ],
+    "2026-07-11": [
+     12,
+     -2.75
+    ],
+    "2026-07-12": [
+     16,
+     3.5
+    ],
+    "2026-07-13": [
+     14,
+     -9.89
+    ]
+   },
+   "a3_gated_worst3": [
+    [
+     "2026-06-14",
+     23,
+     -22.31
+    ],
+    [
+     "2026-06-29",
+     47,
+     -18.71
+    ],
+    [
+     "2026-05-23",
+     30,
+     -16.08
+    ]
+   ],
+   "a3_gated_jul11_13_pooled": {
+    "n": 42,
+    "ev_c": -2.75
+   },
+   "a3_gated_fresh": {
+    "n": 60,
+    "ev_c": -6.08
+   },
+   "a3_gated_fresh_excl_jul10": {
+    "n": 42,
+    "ev_c": -2.75
+   },
+   "a3_ungated_jul10_13": {
+    "2026-07-10": [
+     49,
+     -13.97
+    ],
+    "2026-07-11": [
+     13,
+     -6.6
+    ],
+    "2026-07-12": [
+     19,
+     5.15
+    ],
+    "2026-07-13": [
+     22,
+     -2.75
+    ]
+   },
+   "a3_ungated_worst3": [
+    [
+     "2026-06-14",
+     26,
+     -18.13
+    ],
+    [
+     "2026-05-23",
+     39,
+     -16.85
+    ],
+    [
+     "2026-05-24",
+     27,
+     -15.71
+    ]
+   ],
+   "a3_ungated_jul11_13_pooled": {
+    "n": 54,
+    "ev_c": -0.9
+   },
+   "a3_ungated_fresh": {
+    "n": 79,
+    "ev_c": -7.18
+   },
+   "a3_ungated_fresh_excl_jul10": {
+    "n": 54,
+    "ev_c": -0.9
+   }
+  }
+ },
+ "VERDICT": {
+  "verdict": "WEAKENED",
+  "replication": "All quoted numbers replicate exactly (gated fresh -2.75c n=52 / -6.08c n=60; weekly table; live books -7.8/-7.2c; posterior 0.75/1.71 arithmetic verified).",
+  "jul10_exclusion": {
+   "candle_gated_fresh_excl_jul10": {
+    "n": 42,
+    "ev_c": -2.75,
+    "ci90": [
+     -13.7,
+     9.0
+    ]
+   },
+   "live_impulse50_excl_jul10": {
+    "n": 31,
+    "ps_c": -4.03
+   },
+   "live_reversal_v2_excl_jul10": {
+    "n": 36,
+    "ps_c": -1.89
+   },
+   "live_impulse_v2_excl_jul10": {
+    "n": 24,
+    "ps_c": 7.54
+   },
+   "read": "Live-book negativity IS Jul-10-dominated (Jul 10 daily: -47/-35/-44c). Candle gated read is not (excl-Jul10 unchanged at -2.75c) but its most negative day is the n=14 partial Jul 13 (-9.9c)."
+  },
+  "placebo_selection_correction": {
+   "frac_same_size_windows_le_fresh_all": 0.31,
+   "frac_TEST_era_only": 0.18,
+   "read": "A 52-trade window at -2.75c is unremarkable: 18-31 pct of same-size historical windows were at least as bad. Drought not distinguishable from noise."
+  },
+  "weekly_nonstationarity_test": {
+   "sd_obs_c": 3.26,
+   "perm_null_mean_c": 2.73,
+   "perm_p": 0.228,
+   "read": "Weekly EV dispersion consistent with a STATIONARY edge + sampling noise. Strongly non-stationary is not supported."
+  },
+  "independence": "The 3 live books + candle read share the same t0s/coin flips in the same 2.5 days - one dataset read four ways, not independent corroboration. The impulse_train_A032_B6 variant on FRESH was +2.81c (non-corroborating, unquoted). Effective K across window starts (11:55/15:05) x constructions x gated/ungated x 4 books is ~8-10, and the claim quotes the most negative reads.",
+  "what_survives": "The ACTION items (no stake scale-up, keep 7d haircut armed, extend to day-60 verdict) are cheap and decision-theoretically sound at this n; posterior working central +0.75c first-poll / +1.71c as-operated (SE ~1.8-1.9) is verified arithmetic and remains the honest estimate. What does NOT survive: drought as an established regime fact, and weekly-level strong non-stationarity."
+ }
+}

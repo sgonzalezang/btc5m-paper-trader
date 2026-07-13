@@ -1,0 +1,593 @@
+{
+ "note": "independent repro of R2; own code, frozen cost model, gas included per-share",
+ "C1_pooled_50_53_incl": {
+  "n": 531,
+  "wins": 255,
+  "q": 0.4802,
+  "p_mean": 0.5141,
+  "qstar": 0.5316,
+  "ev_c": -5.14,
+  "wilson_q": [
+   0.438,
+   0.5227
+  ],
+  "boot": {
+   "n": 531,
+   "nblocks": 89,
+   "mean_c": -5.14,
+   "lo": -9.73,
+   "hi": -0.69,
+   "p_ge0": 0.013
+  },
+  "dedup": {
+   "n": 317,
+   "wins": 162,
+   "q": 0.511,
+   "p_mean": 0.5142,
+   "qstar": 0.5317,
+   "ev_c": -2.07,
+   "wilson_q": [
+    0.4562,
+    0.5656
+   ],
+   "boot": {
+    "n": 317,
+    "nblocks": 89,
+    "mean_c": -2.07,
+    "lo": -5.35,
+    "hi": 1.07,
+    "p_ge0": 0.092
+   }
+  }
+ },
+ "C1_stress_50_53_incl": {
+  "per_day_ev_total_c": {
+   "07-07": -148.7,
+   "07-08": -538.3,
+   "07-09": -164.3,
+   "07-10": -976.2,
+   "07-11": -498.5,
+   "07-12": -478.0,
+   "07-13": 73.7
+  },
+  "drop_best_day": {
+   "dropped": "07-10",
+   "n": 413,
+   "nblocks": 71,
+   "mean_c": -4.25,
+   "lo": -9.9,
+   "hi": 0.89,
+   "p_ge0": 0.0514
+  },
+  "first_half": {
+   "n": 265,
+   "nblocks": 51,
+   "mean_c": -2.27,
+   "lo": -8.54,
+   "hi": 3.48,
+   "p_ge0": 0.2186
+  },
+  "second_half": {
+   "n": 266,
+   "nblocks": 39,
+   "mean_c": -8.0,
+   "lo": -14.9,
+   "hi": -1.11,
+   "p_ge0": 0.0118
+  },
+  "random_halves_frac_negative": 0.995
+ },
+ "C1_stress_dedup_50_53_incl": {
+  "per_day_ev_total_c": {
+   "07-07": -57.3,
+   "07-08": -272.8,
+   "07-09": 77.4,
+   "07-10": -197.0,
+   "07-11": -165.0,
+   "07-12": -119.5,
+   "07-13": 77.0
+  },
+  "drop_best_day": {
+   "dropped": "07-08",
+   "n": 263,
+   "nblocks": 70,
+   "mean_c": -1.46,
+   "lo": -4.72,
+   "hi": 1.91,
+   "p_ge0": 0.189
+  },
+  "first_half": {
+   "n": 158,
+   "nblocks": 50,
+   "mean_c": -0.02,
+   "lo": -5.56,
+   "hi": 5.53,
+   "p_ge0": 0.4954
+  },
+  "second_half": {
+   "n": 159,
+   "nblocks": 40,
+   "mean_c": -4.11,
+   "lo": -7.92,
+   "hi": -0.73,
+   "p_ge0": 0.0078
+  },
+  "random_halves_frac_negative": 0.766
+ },
+ "C1_jitter": {
+  "0.49-0.52": {
+   "n": 514,
+   "ev_c": -4.01,
+   "lo": -8.89,
+   "hi": 0.62,
+   "p_ge0": 0.0435
+  },
+  "0.49-0.53": {
+   "n": 618,
+   "ev_c": -3.64,
+   "lo": -7.81,
+   "hi": 0.33,
+   "p_ge0": 0.0355
+  },
+  "0.49-0.54": {
+   "n": 735,
+   "ev_c": -5.66,
+   "lo": -9.47,
+   "hi": -1.86,
+   "p_ge0": 0.0005
+  },
+  "0.50-0.52": {
+   "n": 427,
+   "ev_c": -5.95,
+   "lo": -11.9,
+   "hi": -0.48,
+   "p_ge0": 0.0155
+  },
+  "0.50-0.53": {
+   "n": 531,
+   "ev_c": -5.14,
+   "lo": -9.7,
+   "hi": -0.77,
+   "p_ge0": 0.008
+  },
+  "0.50-0.54": {
+   "n": 648,
+   "ev_c": -7.16,
+   "lo": -11.71,
+   "hi": -2.52,
+   "p_ge0": 0.0
+  },
+  "0.51-0.52": {
+   "n": 299,
+   "ev_c": -8.74,
+   "lo": -15.78,
+   "hi": -2.75,
+   "p_ge0": 0.002
+  },
+  "0.51-0.53": {
+   "n": 403,
+   "ev_c": -6.95,
+   "lo": -12.83,
+   "hi": -1.58,
+   "p_ge0": 0.0055
+  },
+  "0.51-0.54": {
+   "n": 520,
+   "ev_c": -9.06,
+   "lo": -14.27,
+   "hi": -3.98,
+   "p_ge0": 0.0
+  }
+ },
+ "C2_family_ge50": {
+  "n": 220,
+  "wins": 101,
+  "q": 0.4591,
+  "p_mean": 0.5241,
+  "qstar": 0.5416,
+  "ev_c": -8.25,
+  "wilson_q": [
+   0.3945,
+   0.5251
+  ],
+  "boot": {
+   "n": 220,
+   "nblocks": 48,
+   "mean_c": -8.25,
+   "lo": -18.82,
+   "hi": 2.62,
+   "p_ge0": 0.0704
+  },
+  "dedup": {
+   "n": 85,
+   "wins": 40,
+   "q": 0.4706,
+   "p_mean": 0.5267,
+   "qstar": 0.5441,
+   "ev_c": -7.36,
+   "wilson_q": [
+    0.3681,
+    0.5757
+   ],
+   "boot": {
+    "n": 85,
+    "nblocks": 48,
+    "mean_c": -7.36,
+    "lo": -18.63,
+    "hi": 4.29,
+    "p_ge0": 0.112
+   }
+  }
+ },
+ "C2_family_lt50": {
+  "n": 170,
+  "wins": 82,
+  "q": 0.4824,
+  "p_mean": 0.4297,
+  "qstar": 0.4469,
+  "ev_c": 3.57,
+  "wilson_q": [
+   0.4085,
+   0.557
+  ],
+  "boot": {
+   "n": 170,
+   "nblocks": 40,
+   "mean_c": 3.57,
+   "lo": -9.09,
+   "hi": 14.78,
+   "p_ge0": 0.7112
+  }
+ },
+ "C2_era": {
+  "pre_v3_ge50": {
+   "n": 113,
+   "wins": 51,
+   "q": 0.4513,
+   "p_mean": 0.5263,
+   "qstar": 0.5438,
+   "ev_c": -9.25,
+   "wilson_q": [
+    0.3627,
+    0.5432
+   ],
+   "boot": {
+    "n": 113,
+    "nblocks": 28,
+    "mean_c": -9.25,
+    "lo": -25.53,
+    "hi": 6.83,
+    "p_ge0": 0.1402
+   }
+  },
+  "v3_ge50": {
+   "n": 107,
+   "wins": 50,
+   "q": 0.4673,
+   "p_mean": 0.5218,
+   "qstar": 0.5393,
+   "ev_c": -7.2,
+   "wilson_q": [
+    0.3755,
+    0.5613
+   ],
+   "boot": {
+    "n": 107,
+    "nblocks": 20,
+    "mean_c": -7.2,
+    "lo": -21.84,
+    "hi": 7.75,
+    "p_ge0": 0.1718
+   }
+  },
+  "pre_v3_ge50_dedup": {
+   "n": 51,
+   "wins": 23,
+   "q": 0.451,
+   "p_mean": 0.5266,
+   "qstar": 0.544,
+   "ev_c": -9.31,
+   "wilson_q": [
+    0.3227,
+    0.5862
+   ]
+  },
+  "v3_ge50_dedup": {
+   "n": 34,
+   "wins": 17,
+   "q": 0.5,
+   "p_mean": 0.5268,
+   "qstar": 0.5443,
+   "ev_c": -4.43,
+   "wilson_q": [
+    0.3407,
+    0.6593
+   ]
+  }
+ },
+ "C2_stress": {
+  "per_day_ev_total_c": {
+   "07-09": -45.7,
+   "07-10": -1007.8,
+   "07-11": -546.8,
+   "07-12": -413.0,
+   "07-13": 197.7
+  },
+  "drop_best_day": {
+   "dropped": "07-10",
+   "n": 154,
+   "nblocks": 33,
+   "mean_c": -5.24,
+   "lo": -17.91,
+   "hi": 7.68,
+   "p_ge0": 0.2108
+  },
+  "first_half": {
+   "n": 110,
+   "nblocks": 27,
+   "mean_c": -8.0,
+   "lo": -24.53,
+   "hi": 8.77,
+   "p_ge0": 0.1776
+  },
+  "second_half": {
+   "n": 110,
+   "nblocks": 21,
+   "mean_c": -8.51,
+   "lo": -22.96,
+   "hi": 6.42,
+   "p_ge0": 0.1202
+  },
+  "random_halves_frac_negative": 0.992
+ },
+ "C2_stress_dedup": {
+  "per_day_ev_total_c": {
+   "07-09": -23.8,
+   "07-10": -425.6,
+   "07-11": -134.4,
+   "07-12": -87.0,
+   "07-13": 45.5
+  },
+  "drop_best_day": {
+   "dropped": "07-10",
+   "n": 59,
+   "nblocks": 33,
+   "mean_c": -3.38,
+   "lo": -16.47,
+   "hi": 9.82,
+   "p_ge0": 0.306
+  },
+  "first_half": {
+   "n": 42,
+   "nblocks": 24,
+   "mean_c": -1.9,
+   "lo": -18.18,
+   "hi": 13.11,
+   "p_ge0": 0.4008
+  },
+  "second_half": {
+   "n": 43,
+   "nblocks": 24,
+   "mean_c": -12.68,
+   "lo": -27.87,
+   "hi": 3.26,
+   "p_ge0": 0.0582
+  },
+  "random_halves_frac_negative": 0.894
+ },
+ "C2_jitter": {
+  ">=0.49": {
+   "n": 238,
+   "ev_c": -6.85,
+   "lo": -17.36,
+   "hi": 3.27,
+   "p_ge0": 0.0995,
+   "wilson_q": [
+    0.4081,
+    0.534
+   ],
+   "qstar": 0.5391
+  },
+  ">=0.50": {
+   "n": 220,
+   "ev_c": -8.25,
+   "lo": -18.39,
+   "hi": 2.92,
+   "p_ge0": 0.071,
+   "wilson_q": [
+    0.3945,
+    0.5251
+   ],
+   "qstar": 0.5416
+  },
+  ">=0.51": {
+   "n": 178,
+   "ev_c": -8.09,
+   "lo": -21.74,
+   "hi": 4.87,
+   "p_ge0": 0.1075,
+   "wilson_q": [
+    0.3945,
+    0.5395
+   ],
+   "qstar": 0.5472
+  }
+ },
+ "C2_lt50_minus_ge50": {
+  "obs_diff_c": 11.82,
+  "p_diff_le0": 0.089,
+  "lo": -6.08,
+  "hi": 28.85
+ },
+ "C3_fisher_15_35_vs_10_12": 0.01643,
+ "C3_capmiss_candle_check": {
+  "n": 12,
+  "agree": 12,
+  "disagree": [],
+  "missing": [],
+  "rows": [
+   {
+    "t0": 1783709700,
+    "side": "up",
+    "claimed": true,
+    "candle_win": true,
+    "move_bps": 8.3,
+    "agree": true
+   },
+   {
+    "t0": 1783719600,
+    "side": "down",
+    "claimed": true,
+    "candle_win": true,
+    "move_bps": -2.2,
+    "agree": true
+   },
+   {
+    "t0": 1783724700,
+    "side": "up",
+    "claimed": true,
+    "candle_win": true,
+    "move_bps": 3.2,
+    "agree": true
+   },
+   {
+    "t0": 1783798200,
+    "side": "up",
+    "claimed": false,
+    "candle_win": false,
+    "move_bps": -2.4,
+    "agree": true
+   },
+   {
+    "t0": 1783819200,
+    "side": "down",
+    "claimed": true,
+    "candle_win": true,
+    "move_bps": -5.1,
+    "agree": true
+   },
+   {
+    "t0": 1783836300,
+    "side": "up",
+    "claimed": false,
+    "candle_win": false,
+    "move_bps": -13.3,
+    "agree": true
+   },
+   {
+    "t0": 1783872900,
+    "side": "up",
+    "claimed": true,
+    "candle_win": true,
+    "move_bps": 4.7,
+    "agree": true
+   },
+   {
+    "t0": 1783878900,
+    "side": "up",
+    "claimed": true,
+    "candle_win": true,
+    "move_bps": 2.7,
+    "agree": true
+   },
+   {
+    "t0": 1783895100,
+    "side": "down",
+    "claimed": true,
+    "candle_win": true,
+    "move_bps": -1.0,
+    "agree": true
+   },
+   {
+    "t0": 1783909500,
+    "side": "up",
+    "claimed": true,
+    "candle_win": true,
+    "move_bps": 14.4,
+    "agree": true
+   },
+   {
+    "t0": 1783913400,
+    "side": "down",
+    "claimed": true,
+    "candle_win": true,
+    "move_bps": -47.5,
+    "agree": true
+   },
+   {
+    "t0": 1783913700,
+    "side": "up",
+    "claimed": true,
+    "candle_win": true,
+    "move_bps": 16.7,
+    "agree": true
+   }
+  ]
+ },
+ "ADDENDUM_halfopen_exact_repro": {
+  "pooled_50_53_halfopen": {
+   "n": 436,
+   "q": 0.4656,
+   "p_mean": 0.5107,
+   "qstar": 0.5282,
+   "ev_c": -6.26,
+   "boot_ci": [
+    -11.99,
+    -0.99
+   ],
+   "p_ge0": 0.01,
+   "matches_claim": "exact (claim p=.0115, seed noise)"
+  },
+  "dedup_t0_side": {
+   "n": 259,
+   "q": 0.5019,
+   "ev_c": -2.63,
+   "boot_ci": [
+    -6.48,
+    1.09
+   ],
+   "p_ge0": 0.0892,
+   "note": "436 trades cover only 259 unique (t0,side); dedup q=.502 => market ~calibrated here, deficit is mostly fees+slip; trade-weighted -6.26c is inflated ~2.4x by engine pile-ons on losing intervals"
+  },
+  "drop_best_day_0710": {
+   "n": 343,
+   "ev_c": -5.02,
+   "boot_ci": [
+    -11.78,
+    0.95
+   ],
+   "p_ge0": 0.0464
+  },
+  "v3_era_only_cleanOOS": {
+   "n": 59,
+   "ev_c": -18.63,
+   "boot_ci": [
+    -40.15,
+    2.85
+   ],
+   "p_ge0": 0.0452,
+   "dedup": {
+    "n": 16,
+    "q": 0.375,
+    "ev_c": -15.02,
+    "p_ge0": 0.0862
+   },
+   "note": "trades AFTER the Jul-10 pre-registration of the [0.50,0.53] hi bucket; clean out-of-sample, same sign"
+  }
+ },
+ "PRESPECIFICATION_AUDIT": {
+  "verdict": "GENUINELY PRE-SPECIFIED",
+  "evidence": [
+   "2026-07-10-edge-hunt/FINAL-DESIGN.md ~line 87: 'pm-matched sample says fillable q .4516 vs unfillable .7692. This unresolved contradiction is why sizing is bucketed (4.2) and why the cap verdict (7) exists.'",
+   "FINAL-DESIGN.md 4.2 (~lines 289-310): hi bucket = p_eff in [0.50,0.53] pre-registered as structural sizing zone; 'the entire hi bucket is unsized at launch'; pre-registered bucket-divergence alarm feeding the day-60 cap verdict",
+   "FINAL-DESIGN.md 7 (~line 517): 'Cap verdict (day 60). Cap-skipped q vs filled q (resolutions), cap55_shadow paired delta'"
+  ],
+  "multiplicity": "Worst-of-13 calibration buckets would Sidak-adjust p=.010 to ~.12, BUT the [0.50,0.53] zone and the fillable-vs-capmissed contrast were both registered on Jul 10 before the live Jul 10-13 data existed; the v3-era-only cut (n=59, -18.6c, p=.045) is the clean OOS test and agrees. For the pre-Jul-10 portion of the pooled ledger the zone choice is partly retrospective (the bucket split was itself derived from analysis of that era's ledger).",
+  "caveats": [
+   "Trigger-family >=50c Wilson CI 'entirely below breakeven' holds only trade-weighted (n=220, [.395,.525] vs q*=.5416); interval-dedup n=85 gives [.368,.576] which INCLUDES breakeven",
+   "Direct lt50-vs-ge50 family contrast: +11.8c, block-boot p=.089 (matches merge agent's p~.07) - the increment over the lo bucket is not separately significant; cap-down rests on fee arithmetic + absence of any positive evidence in 50-53c, not a proven q discontinuity",
+   "C3 Fisher p=.01643 reproduced exactly; all 12 cap-missed outcomes verified 12/12 against Coinbase 1m candles"
+  ]
+ },
+ "VERDICT": "CONFIRMED (sign + fee-deadness robust to all stresses; magnitude corrected: interval-level ~ -2.6c/sh pooled, not -6.3c)"
+}

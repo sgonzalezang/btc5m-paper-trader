@@ -1,0 +1,281 @@
+{
+ "identity": {
+  "n": 3495,
+  "shares": 318990.5,
+  "q_sw": 0.5353,
+  "p_fill_sw": 0.5458,
+  "ask_sw": 0.5348,
+  "fee_c": 1.68,
+  "slip_c": 1.11,
+  "sel_at_fill_c": -1.06,
+  "sel_at_ask_c": 0.05,
+  "sel_at_mid_assumed_c": 0.55,
+  "net_c": -2.74,
+  "identity_check_c": 0.0
+ },
+ "momentum_dir_wr": {
+  "n": 2446,
+  "wr": 0.5814,
+  "ci": [
+   0.55085,
+   0.61259
+  ],
+  "avg_entry": 0.5899,
+  "qstar_at_avg_entry": 0.6068
+ },
+ "real_spread_check": {
+  "n_matched": 1588,
+  "frac_of_ledger": 0.454,
+  "spread_dist": {
+   "0.01": 1491,
+   "0.02": 65,
+   "0.03": 20,
+   "0.04": 9,
+   "0.05": 2,
+   "0.06": 1
+  },
+  "frac_spread_1c": 0.9389,
+  "q_sw": 0.5568,
+  "ask_trade_sw": 0.5652,
+  "ask_log_sw": 0.5652,
+  "mid_real_sw": 0.5598,
+  "mid_assumed_sw": 0.5602,
+  "sel_at_real_mid_c": -0.29,
+  "sel_at_real_mid_ci_c": [
+   -3.74,
+   3.26
+  ],
+  "sel_at_real_mid_p_le0": 0.5627,
+  "sel_at_log_ask_c": -0.84,
+  "sel_at_log_ask_ci_c": [
+   -4.36,
+   2.68
+  ],
+  "sel_at_log_ask_p_le0": 0.682
+ },
+ "pooled_selection_significance": {
+  "sel_at_mid_c": 0.55,
+  "sel_at_mid_ci_c": [
+   -1.14,
+   2.34
+  ],
+  "sel_at_mid_p_le0": 0.2697,
+  "sel_at_ask_c": 0.05,
+  "sel_at_ask_ci_c": [
+   -1.62,
+   1.75
+  ],
+  "sel_at_ask_p_le0": 0.4688,
+  "spread_sensitivity_c": {
+   "0c_spread(mid=ask)": 0.05,
+   "1c_spread(mid=ask-0.5c)": 0.55,
+   "2c_spread(mid=ask-1c)": 1.05
+  }
+ },
+ "hedge_stoploss_sensitivity": {
+  "n_hedged": 71,
+  "n_unhedged": 3424,
+  "ledger_minus_holdmodel_total": -78.82,
+  "ledger_minus_holdmodel_hedged_only": -86.48,
+  "dev_as_c_per_share_of_pool": -0.025,
+  "unhedged_only": {
+   "q_sw": 0.5266,
+   "sel_at_mid_c": -0.25,
+   "sel_at_ask_c": -0.75,
+   "net_c": -3.54
+  }
+ },
+ "residual_continuation": {
+  "2bps": {
+   "full_window": {
+    "n_full": 2841,
+    "full": 0.7209,
+    "n_resid": 2836,
+    "resid": 0.487,
+    "resid_ci": [
+     0.4681,
+     0.50506
+    ]
+   },
+   "pre_trading": {
+    "n_full": 1870,
+    "full": 0.7225,
+    "n_resid": 1867,
+    "resid": 0.4837,
+    "resid_ci": [
+     0.46024,
+     0.50547
+    ]
+   },
+   "trading_week": {
+    "n_full": 971,
+    "full": 0.7178,
+    "n_resid": 969,
+    "resid": 0.4933,
+    "resid_ci": [
+     0.46357,
+     0.52292
+    ]
+   },
+   "fresh_jul10_13": {
+    "n_full": 308,
+    "full": 0.7565,
+    "n_resid": 307,
+    "resid": 0.5114,
+    "resid_ci": [
+     0.4557,
+     0.56631
+    ]
+   },
+   "full_window_ties_as_half": {
+    "n": 2841,
+    "resid": 0.487
+   }
+  },
+  "4bps": {
+   "full_window": {
+    "n_full": 1599,
+    "full": 0.7705,
+    "n_resid": 1597,
+    "resid": 0.4884,
+    "resid_ci": [
+     0.4665,
+     0.51226
+    ]
+   },
+   "pre_trading": {
+    "n_full": 1080,
+    "full": 0.7741,
+    "n_resid": 1079,
+    "resid": 0.494,
+    "resid_ci": [
+     0.46529,
+     0.52279
+    ]
+   },
+   "trading_week": {
+    "n_full": 519,
+    "full": 0.763,
+    "n_resid": 518,
+    "resid": 0.4768,
+    "resid_ci": [
+     0.43787,
+     0.51346
+    ]
+   },
+   "fresh_jul10_13": {
+    "n_full": 123,
+    "full": 0.7886,
+    "n_resid": 123,
+    "resid": 0.5285,
+    "resid_ci": [
+     0.43165,
+     0.62963
+    ]
+   },
+   "full_window_ties_as_half": {
+    "n": 1599,
+    "resid": 0.4884
+   }
+  },
+  "8bps": {
+   "full_window": {
+    "n_full": 584,
+    "full": 0.8031,
+    "n_resid": 584,
+    "resid": 0.4572,
+    "resid_ci": [
+     0.41472,
+     0.49912
+    ]
+   },
+   "pre_trading": {
+    "n_full": 409,
+    "full": 0.8093,
+    "n_resid": 409,
+    "resid": 0.4743,
+    "resid_ci": [
+     0.42175,
+     0.5275
+    ]
+   },
+   "trading_week": {
+    "n_full": 175,
+    "full": 0.7886,
+    "n_resid": 175,
+    "resid": 0.4171,
+    "resid_ci": [
+     0.35119,
+     0.48315
+    ]
+   },
+   "fresh_jul10_13": {
+    "n_full": 37,
+    "full": 0.8378,
+    "n_resid": 37,
+    "resid": 0.5135,
+    "resid_ci": [
+     0.33333,
+     0.675
+    ]
+   },
+   "full_window_ties_as_half": {
+    "n": 584,
+    "resid": 0.4572
+   }
+  }
+ },
+ "residual_multiplicity": {
+  "K_thresholds": 3,
+  "deviation_claim": "8bps residual 45.7% < 50%",
+  "z_vs_half": -1.99,
+  "p_two_sided": 0.0468,
+  "p_bonferroni_K3": 0.1405,
+  "note": "the 2bps headline (48.7%) is a NULL claim; CI includes 0.5 so no selection issue"
+ },
+ "stopped_survivorship": {
+  "n_stopped": 70,
+  "n_stopped_imputable": 70,
+  "stopped_hold_to_res_wr": 0.0143,
+  "stopped_avg_ask": 0.5516,
+  "stopped_ledger_pnl": -3153.15,
+  "hedged_n": 71,
+  "hedged_q_sw": 0.9845,
+  "hedged_ask_sw": 0.5735,
+  "augmented_pool": {
+   "n": 3565,
+   "q_sw": 0.5251,
+   "ask_sw": 0.5348,
+   "sel_at_ask_c": -0.98,
+   "sel_at_mid_c": -0.48,
+   "sel_at_mid_ci95_c": [
+    -2.16,
+    1.26
+   ],
+   "sel_at_mid_p_le0": 0.686,
+   "fee_c": 1.68,
+   "slip_c": 1.11,
+   "net_c": -3.77
+  },
+  "full_ledger_pnl_incl_stopped": -11982.02
+ },
+ "verdict": {
+  "overall": "WEAKENED",
+  "confirmed": [
+   "Decomposition arithmetic reproduces exactly (net -2.74c = fee -1.68 + slip -1.11 + halfspread -0.50 + sel_at_mid +0.55 on the 3,495 pool); identity check 0.00c",
+   "mid = ask - 0.5c is empirically sound: 1,588/3,495 trades matched to real decision-time books in signals.log; spread = 1c in 93.9%",
+   "Residual 4-min continuation after >=2bps first-minute drift = 48.7% CI [.468,.505]; stable on pre-trading (48.4%), trading-week (49.3%) and fresh Jul10-13 (51.1%) sub-windows; tie handling immaterial. Zero-residual-information mechanism CONFIRMED",
+   "~3.3c gross cost hurdle invariant CONFIRMED (fee 1.68 + slip 1.11 + halfspread 0.50; ~3.35c at 50c fills)",
+   "Hedge counterfactual deviation tiny: ledger vs hold-to-res model -$79 on $8.8k (0.025c/sh)"
+  ],
+  "refuted_or_weakened": [
+   "POSITIVE gross selection at mid (+0.55c/sh) REFUTED as stated: (a) not significant even at face value (1h-block bootstrap CI [-1.14,+2.34], p_le0=0.27); (b) sign is a survivorship artifact -- the 3,495 pool excludes 70 result=stopped trades (hold-to-res wr 0.014, imputed from cb1m, 70/70 imputable) while keeping 71 hedge-flagged trades conditioned on winning (q_sw 0.984). Restoring stopped trades: sel_at_mid = -0.48c/sh CI [-2.16,+1.26], sel_at_ask = -0.98c/sh, net -3.77c/sh, n=3,565",
+   "On the real-book matched subset (n=1,588) selection at actual mid = -0.29c CI [-3.74,+3.26] -- also ~zero, not positive",
+   "The 8bps reversal flavor (45.7%) does NOT survive Bonferroni over the K=3 thresholds searched (raw p=0.047, corrected p=0.14) and flips to 51.4% on fresh Jul10-13 (n=37). Drop it",
+   "Headline \"-$8.8k pooled\" understates: full settled ledger incl. stopped-trade salvage = -$11,982",
+   "\"won 56.8%\" mixes scopes: 58.1% on decided trades (n=2,446); 56.8% only if stopped counted as losses (n=2,504). Either way below q*=0.607 at avg fill 0.59"
+  ],
+  "multiplicity_note": "R5 headline claims are aggregates/nulls (no cherry-picked cells); only positive-flavored sub-claims (sel_at_mid>0, 8bps reversal) were selection-fragile and both fail; K=3 declared and honest",
+  "train_test_note": "Residual analysis cannot reach the May TRAIN window (cb1m starts Jun 26) but is stable across three within-window splits incl. data the engines never saw; no post-TEST parameter choices found"
+ }
+}

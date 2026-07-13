@@ -1,0 +1,95 @@
+{
+  "dimension": "execution microstructure",
+  "date": "2026-07-12",
+  "data": {
+    "trades_settled": 3495,
+    "trades_used_with_result": 3494,
+    "signals_log_lines": 1622,
+    "measure_book_settled": 35,
+    "misses_unique": 80
+  },
+  "multiple_comparisons_note": "~110 descriptive cells across A1-A7; headline tests per finding stated inline. A6 shape scan pre-registered K=8 splits; A5 miss counterfactuals tested 7 reason groups.",
+  "cost_model": "EV/share = q - p - 0.07*p*(1-p), p = fill = ask + 1c slip; gas $0.004/trade (~0.004c/share at 100sh, ignored in per-share numbers)",
+  "findings": {
+    "F1_slip_spread_robustness": {
+      "artifact": "a3_spread_slip.json",
+      "spread_distribution": {
+        "signals_log_all": {"n": 1622, "p50": 0.01, "p95": 0.02, "frac_le_1c": 0.9365},
+        "signals_log_rev_family": {"n": 113, "p50": 0.01, "p95": 0.01, "frac_le_1c": 0.9735},
+        "measure_book_gated": {"n": 33, "p50": 0.01, "p95": 0.01, "frac_le_1c": 0.9697}
+      },
+      "slip_sensitivity": {
+        "method": "q backed out so EV=+1.5c/+3.0c at slip=1c on each fill mix, then EV recomputed vs slip; sensitivity ~1.006c EV per 1c slip (price + d(fee)/dp)",
+        "measure_book_mix_ask_mean_0.4645": {"+1.5c dies at slip": "2.50c", "+3.0c dies at slip": "4.00c", "EV at 2c slip": "+0.50c / +2.00c"},
+        "live_flagship_mix_ask_mean_0.3992": {"+1.5c dies at slip": "2.48c", "+3.0c dies at slip": "3.97c"}
+      },
+      "limit_at_mid": {
+        "frontier": "at spread p50=1c, limit-at-mid saves 1.5c vs taker if filled; ties taker (+1.5c) at fill prob 0.5 with ZERO adverse selection; at fill prob 0.8 tolerates only a 1.1c conditional-q drop",
+        "adverse_selection_evidence": "Polymarket Up-token price moves |p60-p20| median 14c (n=216, pm_prices_sample.json) inside the entry window - resting orders fill preferentially when price crosses them, so conditional-q drop is plausibly large; do NOT switch to maker without a live shadow maker book"
+      },
+      "verdict": "ask+1c taker model is conservative vs measured spreads (fill-at-ask already crosses a 1c-median spread; the +1c slip is buffer). Low-end central estimate has only ~1.5c of slip headroom - fill-conformance alarm (|dp50|>1.5c) is exactly the right tripwire."
+    },
+    "F2_kelly_skip_validated_live": {
+      "artifact": "a7_refine.json",
+      "live_paired": {
+        "construction": "impulse50 (flat $50, same signals) traded 8 t0s the flagship skipped (f_nonpos / caps)",
+        "result": "wr 2/8 = 0.25, mean entry 0.5125, realized EV -28.0c/share, 95% block-boot CI [-52.6, +8.5], p(EV>=0)=0.034",
+        "flagship_shared_fills_for_contrast": "n=26, EV -1.61c/share"
+      },
+      "measure_book": {
+        "skipped_f_nonpos": {"n": 21, "q": 0.4286, "mean_cost": 0.5284, "net_EV": "-9.99c/share", "p_ge0_iid_boot": 0.1398},
+        "sized": {"n": 14, "q": 0.4286, "mean_cost": 0.4346, "net_EV": "-0.61c/share"}
+      },
+      "mechanism": "identical win rate in both cost halves of the gated book (q=.4286 both) - the skip earns its keep purely by refusing cost>qhat fills, exactly the launch geometry FINAL-DESIGN 4.3 predicted",
+      "caveats": "n small (8 live / 21 measure, partially overlapping); one week of data; effect size huge so direction is what matters",
+      "verdict": "bucketed-qhat f_nonpos skip is confirmed value-adding on data it never saw; impulse50 flat-sizing arm is strictly dominated and should stay a $0 control"
+    },
+    "F3_speed_is_not_alpha": {
+      "artifact": "a1_entrysec.json + a7_refine.json",
+      "pooled_bins_evps_c": {"00-15s": [-4.39, 385], "15-30s": [-3.42, 1742], "30-45s": [1.65, 453], "45s+": [-3.47, 814]},
+      "winners_vs_losers_entrySec_p50_rev_family": "11s vs 10s (old era 9s vs 10s) - the prior 'winners p50=9s' is the entry distribution, not a speed edge",
+      "price_stratified_fast_lt15_vs_slow_rev_family": {"diff": "-4.45c/share (fast WORSE)", "perm_p": 0.751, "n_fast": 269, "n_slow": 121},
+      "era_split": {"old_era_diff": "+4.96c p=0.36", "v3_era_diff": "-12.93c p=0.93 (sign flip)"},
+      "corr_entrySec_entryprice": {"rev": -0.097, "mom": 0.12},
+      "power_note": "CI on the stratified contrast is roughly +/-8c/share - a speed effect above ~8c is excluded, small ones are not",
+      "verdict": "no measurable EV in entry speed after controlling price/engine/era; keep revWinMin for fill-quality reasons only; zero case for latency spend"
+    },
+    "F4_cap_miss_counterfactual_confounded": {
+      "artifact": "a5_guards_misses.json + a7_refine.json",
+      "raw": "cap-blocked (Rev<=53c/55c) near-misses resolved FOR the wanted side 11/13 unique t0 (q=.846, binom p=.011 vs 0.5, p=.048 vs q*(54c)=.5874, 7 reason groups tested)",
+      "confound": "12 of 13 were ALSO outside the 45s entry window ('Near open' short) - ask was high because the interval had already moved; only n=1 clean within-window cap miss. Miss records store neither ask nor eval timestamp, so fee-clearing at the true price is unverifiable (breakeven price for q=.846 is ~83c, but Wilson 95% lower bound q=.57 puts breakeven at ~55c).",
+      "guard_block_counts": {"Near open": 76, "Rev<=53c": 35, "Isolated": 16, "thin book": 8, "Rev<=55c": 8, "wide spread": 8, "stale quote": 1},
+      "other_guards": "late-only misses q_cf=.548 (n=31 unique) ~ breakeven at 51c; Isolated-gate-blocked q_cf=.50 (n=8); wide-spread-blocked 0/8 (guard saved money)",
+      "verdict": "directionally interesting, not deployable; the cheap fix is instrumentation: log ask + eval-time in miss records, and let the pre-registered cap55_shadow / day-60 cap verdict decide"
+    }
+  },
+  "dead_ends": {
+    "D1_passcount_margin": {
+      "artifact": "a2_passcount.json",
+      "result": "win rate is strongly monotone in margin (0.503/0.591/0.694 for margin 0/1/2+) but entry price rises faster (0.506/0.611/0.627); EV: -1.96/-3.66/+5.03c (margin-2 n=49, CI [-13.7,+22.1]). need+1 counterfactual per retired engine all fee-negative: loose -2.71c, floor -2.86c, band -3.59c, value -3.47c (all p_diff_le0 > 0.6 vs margin==0).",
+      "mechanism": "the book already prices signal strength; margin buys win rate at fair-or-worse odds",
+      "caveat": "as-fired subset approximates a true need+1 engine (which could fire later at other prices)"
+    },
+    "D2_pretrigger_1m_shape": {
+      "artifact": "a6_shape.json",
+      "result": "K=8 pre-registered splits (spike/monotone/late/early/eff5). TRAIN (candle sim Jun26-Jul7, n=717, base q .587): best |z|=1.76 and its sign disagrees with TEST. Ledger TEST (n=133 unique t0): best split eff5>=0.8 +14.98c p=0.042 - best-of-8 with NO TRAIN support = noise by the program's own bar.",
+      "verdict": "trigger shape does not separate winners from losers at the same entry price"
+    },
+    "D3_partial_fills": {
+      "artifact": "a4_fillfrac.json",
+      "result": "fillFrac<1 on 3 of 3,481 trades (0.09%); stake<reqStake on 3. No sample to test 'thin book = informed book'.",
+      "verdict": "non-event under $50-class stakes; revisit only if stakes scale 10x"
+    },
+    "D4_limit_at_mid": {
+      "artifact": "a3_spread_slip.json",
+      "result": "quantified frontier only - beats taker iff fill prob > ~0.5 with near-zero adverse selection; PM mid moves 14c median within the entry window, so adverse selection is likely disqualifying. Untestable without a maker shadow book.",
+      "verdict": "not a research finding; would require live maker instrumentation"
+    },
+    "D5_pooled_30_45s_bin": {
+      "artifact": "a1_entrysec.json",
+      "result": "+1.65c CI [-2.55,+6.03] - momentum-era composition artifact, gone within families",
+      "verdict": "noise"
+    }
+  },
+  "scripts": ["common.py", "a1_entrysec.py", "a2_passcount.py", "a3_spread_slip.py", "a4_fillfrac.py", "a5_guards_misses.py", "a6_shape.py", "a7_refine.py"]
+}

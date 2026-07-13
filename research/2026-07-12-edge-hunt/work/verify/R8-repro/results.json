@@ -1,0 +1,303 @@
+{
+ "A_nightly_replication": [
+  {
+   "tick": "07-11 00:10:04",
+   "logged": [
+    0.5032,
+    0.5068
+   ],
+   "replicated": [
+    0.5032,
+    0.5068
+   ],
+   "settled_used": 4,
+   "logged_settled": 4,
+   "lag_needed_s": 0,
+   "match": true,
+   "buckets": {
+    "lo": [
+     2,
+     0
+    ],
+    "hi": [
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "tick": "07-12 00:10:02",
+   "logged": [
+    0.5032,
+    0.5055
+   ],
+   "replicated": [
+    0.5032,
+    0.5055
+   ],
+   "settled_used": 11,
+   "logged_settled": 11,
+   "lag_needed_s": 0,
+   "match": true,
+   "buckets": {
+    "lo": [
+     4,
+     1
+    ],
+    "hi": [
+     7,
+     3
+    ]
+   }
+  },
+  {
+   "tick": "07-13 00:10:01",
+   "logged": [
+    0.5068,
+    0.503
+   ],
+   "replicated": [
+    0.5068,
+    0.503
+   ],
+   "settled_used": 20,
+   "logged_settled": 20,
+   "lag_needed_s": 120,
+   "match": true,
+   "buckets": {
+    "lo": [
+     7,
+     4
+    ],
+    "hi": [
+     13,
+     5
+    ]
+   }
+  }
+ ],
+ "A_state_matches_last_nightly": true,
+ "B_boundary": {
+  "n_settled": 35,
+  "code_boundary": "cost<0.50 (== p_eff < 0.4825)",
+  "registered_boundary": "p_eff<0.50 (== cost < 0.5175)",
+  "misbucketed_rows": 2,
+  "misbucketed_costs": [
+   0.5075,
+   0.5075
+  ],
+  "note": "rows with p_eff in [0.4825, 0.50) land in HI bucket under code, LO under design"
+ },
+ "C_formula_variants_on_all_settled": {
+  "code_asis_mass400_seedmean_costbucket": [
+   [
+    0.5031,
+    14,
+    6
+   ],
+   [
+    0.5029,
+    21,
+    9
+   ]
+  ],
+  "fix_mass200_seedmean_costbucket": [
+   [
+    0.5007,
+    14,
+    6
+   ],
+   [
+    0.4994,
+    21,
+    9
+   ]
+  ],
+  "design_literal_mass200_mean0.5_peffbucket": [
+   [
+    0.4954,
+    16,
+    7
+   ],
+   [
+    0.4932,
+    19,
+    8
+   ]
+  ],
+  "design_mass200_seedmean_peffbucket": [
+   [
+    0.5006
+   ],
+   [
+    0.4994
+   ]
+  ]
+ },
+ "C_learning_speed": {
+  "qlo_mass400": 0.5031,
+  "qlo_mass200": 0.5007,
+  "move_from_seed_mass400_c": -0.26,
+  "move_from_seed_mass200_c": -0.5,
+  "ratio": 1.92
+ },
+ "C_sizing_decision_flips": {
+  "n_rows": 36,
+  "code_vs_mass200fix": 0,
+  "code_vs_design_literal": 3,
+  "flipped_costs_vs_design": [
+   0.4975,
+   0.4975,
+   0.4975
+  ]
+ },
+ "D_seed_ledger": {
+  "n": 123,
+  "design_says_n": 123,
+  "span": [
+   "07-09 02:35:01",
+   "07-10 14:35:14"
+  ],
+  "netps_c": 2.75
+ },
+ "D_seeded_guard_counterfactual": [
+  {
+   "tick": "07-11 00:10:04",
+   "n7": [
+    1.92,
+    127
+   ],
+   "n15": [
+    null,
+    127
+   ],
+   "would_bench": false,
+   "would_haircut_registered": false,
+   "would_haircut_codeformula": false
+  },
+  {
+   "tick": "07-12 00:10:02",
+   "n7": [
+    1.4,
+    134
+   ],
+   "n15": [
+    null,
+    134
+   ],
+   "would_bench": false,
+   "would_haircut_registered": false,
+   "would_haircut_codeformula": false
+  },
+  {
+   "tick": "07-13 00:10:01",
+   "n7": [
+    1.22,
+    144
+   ],
+   "n15": [
+    null,
+    144
+   ],
+   "would_bench": false,
+   "would_haircut_registered": false,
+   "would_haircut_codeformula": false
+  }
+ ],
+ "D_at_launch": {
+  "n7_c": 2.75,
+  "n7_count": 123,
+  "would_haircut": false,
+  "would_bench": false
+ },
+ "E_bench": {
+  "benched_now": false,
+  "benched_at_real_nightlies": [
+   false,
+   false,
+   false
+  ],
+  "note": "benched never true at any genuine v3 nightly; direct bench cost in live era = $0"
+ },
+ "F_flapping": {
+  "total_lm_lines": 14,
+  "genuine_nightlies": 3,
+  "stale_prelaunch_nightly_runs": 10,
+  "distinct_stale_timestamps": 7,
+  "stale_span": [
+   "07-10 15:01:42",
+   "07-10 17:30:14"
+  ],
+  "stale_qlo": [
+   0.4175
+  ],
+  "reset_line_then_stale_again": true,
+  "note": "stale lines show pre-launch measure book (300 rows, qlo .4175, benched) re-run after the 15:05 reset line -> state flapped across restarts"
+ },
+ "stress": {
+  "drop_best_day": {
+   "dropped_day": "2026-07-12",
+   "code": [
+    0.5068,
+    0.503
+   ],
+   "design": [
+    0.5048,
+    0.4906
+   ],
+   "gap_c": 0.2,
+   "sign_survives": true
+  },
+  "first_half": {
+   "code": [
+    0.5044,
+    0.5042
+   ],
+   "design": [
+    0.5,
+    0.4929
+   ],
+   "gap_c": 0.44,
+   "sign_survives": true
+  },
+  "second_half": {
+   "code": [
+    0.5044,
+    0.5054
+   ],
+   "design": [
+    0.4952,
+    0.5
+   ],
+   "gap_c": 0.92,
+   "sign_survives": true
+  },
+  "boundary_jitter": {
+   "cost<0.49": {
+    "n_lo": 12,
+    "qlo": 0.5031,
+    "membership_changes_vs_0.50": 2
+   },
+   "cost<0.5": {
+    "n_lo": 14,
+    "qlo": 0.5031,
+    "membership_changes_vs_0.50": null
+   },
+   "cost<0.51": {
+    "n_lo": 16,
+    "qlo": 0.5031,
+    "membership_changes_vs_0.50": 2
+   }
+  },
+  "bootstrap_gap_qlo_c": {
+   "n_days": 4,
+   "B": 4000,
+   "mean": 0.756,
+   "ci95": [
+    -0.6,
+    2.08
+   ],
+   "frac_positive": 0.827
+  }
+ }
+}

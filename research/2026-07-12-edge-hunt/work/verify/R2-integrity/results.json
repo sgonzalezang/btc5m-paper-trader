@@ -1,0 +1,46 @@
+{
+  "finding": "R2: 48-53c/50-53c trigger-family fill zone is fee-dead; cap buyable region below ~0.50",
+  "verdict": "CONFIRMED",
+  "rederived_from_raw": {
+    "pooled_50_53": {
+      "n": 436, "wins": 203, "q": 0.4656, "p_mean": 0.5107, "qstar": 0.5282,
+      "ev_c": -6.26, "my_block_boot_ci_c": [-11.96, -0.96], "my_p_ev_ge0": 0.0103,
+      "claimed": {"ev_c": -6.26, "ci": [-12.1, -1.0], "p": 0.0115},
+      "note": "exact reproduction from trades_unified.json with independent code and independent 1h-block bootstrap (6000 reps, seed 99)"
+    },
+    "trigger_family_ge50": {
+      "mine_n": 220, "theirs_n": 216,
+      "reconciliation": "they additionally require settledBy startswith 'polymarket'; my extra 4 are feed-provisional settles - same story either way",
+      "q": 0.4591, "ev_c": -8.25, "wilson_q_ci": [0.3945, 0.5251], "breakeven_at_mean_fill": 0.5416,
+      "era_split_mine": {"pre_v3": {"n": 122, "ev_c": -10.08}, "v3": {"n": 98, "ev_c": -5.97}},
+      "note": "Wilson CI upper bound .5251 < breakeven .5416 reproduced; era-stable negative"
+    },
+    "live_replication": {
+      "cheap": {"n": 35, "wins": 15}, "expensive": {"n": 12, "wins": 10},
+      "fisher_onesided_p": 0.01643,
+      "windowed_to_expensive_timespan": {"cheap_n": 32, "cheap_wins": 14, "p": 0.02016}
+    }
+  },
+  "integrity_checks": {
+    "duplicates_t0_eng_side": 0,
+    "epoch_units": "at(ms)/1000 - t0(s) in [0,320] for all 3576; entrySec consistent within 10s for all",
+    "entry_field": "entry = ask + 0.01 verified on all rows (slip field stored in cents)",
+    "settledBy_in_zone": {"polymarket": 386, "polymarket_corrected": 50, "proxy": 0},
+    "outcome_vs_coinbase_candle": "398/436 zone results agree with open(t0) vs open(t0+300) proxy; all 38 disagreements are actual-Polymarket settles (known ~97% proxy agreement), no candle gaps, no ties in zone",
+    "survivorship": "81 excluded trades = 8 open + 3 pending + 70 result='stopped' (stop-loss exits, all negative pnl, 11 in zone with entries .50-.52); excluding these realized LOSSES makes the zone look BETTER, i.e., bias runs AGAINST the finding, conservative",
+    "tie_handling": "dropping all <1bp-|move| trades (n=36) makes zone EV MORE negative (-7.04c, n=400); 3 exact-tie opens settled by PM, 1 win among them",
+    "ledger_rotation": "no duplicate keys across _src merges; per-day zone coverage continuous Jul 7-13"
+  },
+  "prespecification_check": {
+    "verified": true,
+    "evidence": "2026-07-10-edge-hunt/FINAL-DESIGN.md section 4.2 (MF2) fixes bucket hi = p_eff in [0.50,0.53] and declares 'the entire hi bucket is unsized at launch'; a bucket-divergence alarm and day-60 cap verdict are pre-registered; line 87 records the pm-matched 'fillable q .4516 vs unfillable .7692' direction as an open dispute BEFORE this round's data",
+    "consequence": "the 50-53c zone is the pre-registered disputed bucket, not a this-round scan winner; the worst-of-K=13 multiplicity attack does not apply to the bucket choice. Neighboring buckets 50-55 and 55-60 are also independently significantly negative (pooled EV CIs entirely <0), so 50-53 is not an isolated cell"
+  },
+  "weaknesses_found": [
+    "DEDUP ESTIMAND: the 436 zone trades collapse to 259 unique (t0,side) signals (59 intervals traded both sides); dedup q=.5019, EV -2.62c/sh, my block-boot CI [-6.77,+1.25], p(>=0)=.091. The -6.26c per-trade figure up-weights intervals where multiple (mostly retired momentum) engines piled on. A single go-forward engine trading each unique signal once at ~51c is point-negative but NOT independently significant. Trigger-family ge50 dedup: n=85, -7.25c, CI [-18.74,+3.76], p=.099. The per-trade block bootstrap is still valid for its own estimand (same-hour engine pile-ons stay inside blocks).",
+    "REPLICATION GROUP IMPURITY: 11 of 12 'expensive cap-missed' records in misses_btc also failed the 'Near open' guard (bot line 685: early = left >= revWinMin), i.e., the snapshot was taken AFTER the 45s entry window closed. They are not clean 'signal fillable-in-window but ask>cap' cases; the pure cap-only subset is n=1. The 15/35-vs-10/12 Fisher p=.016 reproduces exactly and survives restricting to the same time span (p=.020), but it should be read as suggestive corroboration of the genuinely pre-specified direction, not independent confirmation.",
+    "BOUNDARY PLACEMENT: the direct lt50-vs-ge50 trigger-family contrast is p=.071 (analyst's own number, reproduced in spirit: my rev_lt50 EV +3.57c CI includes 0). 'Cap below ~0.50' rests on the pre-registered bucket edge plus every >=50c estimand failing to clear fees, not on a significant cheap-vs-expensive contrast."
+  ],
+  "per_engine_zone_check": "every engine that traded the zone has negative EV (loose -2.9c n=106, value -12.6c n=62, reversal -11.4c n=41, reversal2 -11.8c n=39, impulse50 -21.7c n=13, reversal_v2 -15.0c n=16, latentfire -23.9c n=7); not a single-engine artifact",
+  "bottom_line": "Headline statistics reproduce exactly from raw data; no lookahead (all inputs are realized fills and settlements); survivorship and tie handling bias AGAINST the claim if anything; bucket genuinely pre-specified in the prior round. The action (revEntryMax 0.4999 on flat arms, keep hi bucket unsized) is asymmetric: it requires the zone to PROVE it clears q*=.5282-.5474, and no estimand (per-trade, dedup, per-engine, per-era) comes anywhere near clearing. Honest effect: -6.3c/sh per-trade pooled (significant); -2.6c/sh per-unique-signal (p=.09, not independently significant); trigger-family >=50c -7 to -9c/sh era-stable with Wilson q CI below breakeven."
+}

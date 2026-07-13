@@ -1,0 +1,166 @@
+{
+  "generated": "2026-07-13",
+  "task": "merge & rank 37 findings from 8 analysts; dedupe, kill flawed, rank top 8 for adversarial verification",
+  "method": "read primary artifacts (autopsy/flagship/misses/micro/pricing/inverse/regime/alphasweep results files) and cross-checked every headline number quoted in the findings against the JSON; merged findings that measure the same underlying effect; ranked by statistical strength x economic size (c/share after frozen cost model x realistic frequency) x actionability",
+  "dedup_map": {
+    "R1_sizer_is_the_edge": ["flagship:SIZING verdict", "misses:f_nonpos de-facto 48c rule", "micro:a7 skip confirmed", "autopsy:live 2/8 corroboration (folded)"],
+    "R2_toxic_48_53c_zone": ["autopsy:hi bucket toxic", "pricing:ev_buckets ge50 fee-dead", "misses:adverse fill selection replication", "misses:dead-end 48-53c first-poll band"],
+    "R3_drift_leader_stale_ask": ["autopsy:q5 drift cell (sole new positive)"],
+    "R4_kill_metric_semantics": ["flagship:kill-metric tension"],
+    "R5_costs_not_direction": ["autopsy:q1 decomposition", "inverse:attribution", "inverse:residual head-start", "pricing:calib 20s-fair (context)", "autopsy:calibration no-bucket-clears (context)"],
+    "R6_fresh_window_drought": ["regime:post-freeze window", "alphasweep:weekly stability + fresh slice", "flagship:posterior"],
+    "R7_gate_increment_null_retention": ["flagship:gate verdict + retention band", "regime:gate increment", "alphasweep:gate reproduction", "misses:dead-end gate on live fills"],
+    "R8_spec_deviations": ["flagship:state autopsy spec deviations", "misses:bench audit (premise stale, $0)"]
+  },
+  "ranked": [
+    {
+      "id": "R1",
+      "rank": 1,
+      "title": "The quarter-Kelly f>0 rule is the flagship's entire live edge, and most of it is an emergent wait-for-cheap/limit-price behavior; freeze it as an explicit <=47c first-fill cap",
+      "sources": ["flagship", "misses", "micro"],
+      "artifacts": [
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/flagship/results.json (sizing_verdict, sizing_mechanics)",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/misses/results.json (headline.policy_delta_sizer_vs_takefirst, paired_sizing)",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/micro/a7_refine.json"
+      ],
+      "claim": "Three analysts independently decomposed impulse_v2 (+$74, +3.57c/sh) vs its flat-$50 twin impulse50 (-$236 to -$288) on the identical signal stream: total policy delta +10.55c/share-signal (n=34 t0s, block-boot CI [+1.96,+18.65], p=0.016). Decomposition: 8 Kelly-skips the flat twin took went 2/8 = -24.5 to -28c/share (p(EV>=0)=0.034); 12 re-polled fills averaged 11.1c cheaper with identical outcomes (paired component +5.18c/share, CI [+2.75,+7.45] / [+3.11,+7.10]); variable stake size contributed only ~2% ($6 of $310). The f>0 check applied per-poll is functionally a limit order at ~48.9c effective cost; nothing structural prevents nightly qhat learning its way above ~0.51 and silently re-opening 48-53c first fills (qhat cap 0.56 > cost(0.53)=0.5474).",
+      "effect_size": "+10.55c/share-signal policy total vs take-first (~+5.2c mechanical fill improvement + skip avoidance of a -24 to -28c/share subset); ~13 gated signals/day",
+      "evidence": "Ledger-exact paired accounting (26 common t0s all same outcome, 0 pairs richer, max pnl-model deviation $0.005); two pre-specified primaries; independent replication by 3 analysts on the same data",
+      "actionability": "Add a hard first-fill ask cap (~47c, cost<0.505) to ENGINE_CFG independent of learned qhat; allow 48-53c only via refill-on-improvement; retire impulse50 flat staking as anything but a $0 control",
+      "verify_focus": "The three 'independent' confirmations are the same 26-34 trades over 2.5 days counted three ways: the price-improvement leg is partly mechanical (conditioned on improvement having occurred, identical outcomes by construction) and the skip leg is n=7-8; check whether a 1h-block bootstrap on 15-18 blocks of near-duplicate pairs understates variance and whether the whole delta is just the R2 toxic-zone effect double-counted on tiny n"
+    },
+    {
+      "id": "R2",
+      "rank": 2,
+      "title": "Trigger-family fills at 48-53c (and pooled 50-53c) are fee-dead in every era: cap the buyable region below ~0.50",
+      "sources": ["autopsy", "pricing", "misses"],
+      "artifacts": [
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/autopsy/results.json (q2_calibration, q2_block_bootstrap)",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/pricing/ev_buckets.json",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/misses/results.json (early_book_lean_replication, cap_bands_per_t0)"
+      ],
+      "claim": "Pooled 50-53c fills: q=.4656 vs q*=.5282, EV -6.26c/share, block-boot CI [-12.1,-1.0], p=0.0115 (n=436). Trigger-family >=50c: q Wilson 95% CI [.383,.516] entirely below breakeven .5412, EV -9.2c/share, stable pre-v3 (-9.24, n=113) and v3 (-9.19, n=103). Live replication of the prior round's pre-specified adverse-selection direction: fillable <=53c signals won 42.9% (15/35) vs 83.3% (10/12) cap-missed, Fisher one-sided p=0.016. The 48-53c first-poll band is negative in every view (-6.1 to -11.7c/share).",
+      "effect_size": "-6.3c/share pooled 50-53c (n=436); -9.2c/share trigger-family >=50c (n=216); avoided by moving revEntryMax to <0.50 on flat-staked arms",
+      "evidence": "Three analysts, three constructions (calibration vs q*, era-split Wilson bound, pre-specified live replication with Fisher p=0.016); autopsy zone was the pre-existing hi-bucket dispute, not a fresh scan winner",
+      "actionability": "Drop revEntryMax to 0.4999 on reversal_v2/impulse50; keep impulse_v2 hi qhat bucket unsized; pre-registers day-60 cap verdict direction toward CAP-DOWN",
+      "verify_focus": "Overlap with R1 (largely the same live trades) plus bucket-selection: 50-53c is the worst of K=13 calibration buckets, the direct lt50-vs-ge50 contrast is only p=0.071, and the 'pre-existing dispute' framing must be checked against the prior round's record - if it was not genuinely pre-specified, the significance dies under the full-scan multiplicity"
+    },
+    {
+      "id": "R3",
+      "rank": 3,
+      "title": "Drift-leader stale-ask capture: buying the side already >=4bps ahead when the ask+slip sits in [0.60,0.65) cleared fees by +14c/share (the only NEW positive edge this round)",
+      "sources": ["autopsy"],
+      "artifacts": [
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/autopsy/results.json (q5_drift, drift_drill, SUMMARY)"
+      ],
+      "claim": "On deduplicated intervals Jul 7-10, decision-time signed drift >=4bps with ask+slip in [0.60,0.65) realized q=0.817 vs q*=0.644: EV +14.0c/share, 1h-block-boot CI [+6.0,+22.2], p_le0=0.0005 (n=71, 43 blocks); survives x8 Bonferroni for its K=8 scan and stays <0.05 at the autopsy-wide ~x40. Candle continuation of a >=4bps lead at 60s is stable across three eras (.775/.764/.777); PM snapshots price the lead fairly (~.72-.78) on average, so the realized edge is capture of lagging asks, not market bias. 70/71 fills Polymarket-settled; positive all 4 days.",
+      "effect_size": "+14.0c/share after fees (banded, n=71); +6.9c/share unbanded (n=85, p=0.06); ~15-20 candidate fills/day at ledger rates",
+      "evidence": "Block bootstrap p=0.0005 with explicit multiplicity accounting; mechanism triangulated against independent candle continuation and PM snapshot pricing",
+      "actionability": "New $0-stake measurement engine leader_v1 (drift>=4bps, ask+slip in [0.60,0.65), depth/spread guards, hold to close); promote only after live fill-realism conformance",
+      "verify_focus": "Fill-model lookahead where quote staleness lives: if the bot's BTC feed (btcEntry) was fresher than the polled ask at the same decision moment, the 'cheap' 60-65c ask is an artifact a real taker order would never capture (it would be gone or adversely re-priced on arrival); also reconcile with the momentum ledger's pooled 60-66c fills at -1.29c/share (n=1,227) and the 4-day, retired-era-only sample"
+    },
+    {
+      "id": "R4",
+      "rank": 4,
+      "title": "Phase-1 kill-metric semantics bug: the measurement book records first-poll costs the sizer deliberately refuses, diverging 9.8c/share from the operated arm - the kill could fire on a positive policy",
+      "sources": ["flagship"],
+      "artifacts": [
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/flagship/results.json (measurement_book, kill_metric_tension)"
+      ],
+      "claim": "The measurement book (every gated cap-compliant signal at FIRST fillable poll) runs -6.23c/share (15/35, CI90 [-15.35,+3.33]) while the operated flagship runs +3.57c/share on the same signal stream. Cause: 12 of 21 'f_nonpos skip' records were actually entered later in-window ~11c cheaper (6/12, +8.44c/share realized); true never-entered signals went 3/9 (-19.6c at first-poll cost). measure.sized has first-poll semantics; naive reads misclassify 12 of 27 flagship entries as skips. The pre-registered day-14 kill (<= -2c on >=200 fills) reads this book.",
+      "effect_size": "9.8c/share divergence between the kill input and the operated book; kill not yet evaluable (n=35 << 200) but the semantics must be fixed before day 14",
+      "evidence": "Deterministic cross-match of all 36 measurement records to the flagship ledger by t0; semantics confirmed in bot code (_measure_record dedupe ~line 581, per-poll _impulse_stake ~line 732)",
+      "actionability": "Amend the measurement record to also store best in-window fillable price (or realized fill) and evaluate the Phase-1 kill on that; keep the first-poll column as the availability/fill-conformance series",
+      "verify_focus": "The t0-join reclassification: confirm each of the 12 'rich-first-poll-entered-later' records really maps to a flagship refill of the SAME signal (not a second trigger in the same interval), and check the design text - if the design deliberately defined the kill on first-poll fills as the honest 'would-be-fill' book, the 'bug' is an amendment request, not a defect"
+    },
+    {
+      "id": "R5",
+      "rank": 5,
+      "title": "The historical -$8.8k is transaction-cost structure, not bad direction; the momentum trigger was a pure mechanical head start with zero residual information (design invariant + ~3.3c gross hurdle)",
+      "sources": ["autopsy", "inverse"],
+      "artifacts": [
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/autopsy/results.json (q1_decomposition)",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/inverse/attribution.json",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/inverse/residual_decomposition.json"
+      ],
+      "claim": "Accounting identity on 3,495 settled trades: fees -1.68c/sh + slip -1.10c/sh + half-spread -0.50c/sh vs POSITIVE gross selection at mid +0.55c/sh => net -2.74c/sh. Momentum engines won 56.8% directionally (CI excludes .5) but paid 59c where q* = .596. Mechanism: conditional on a >=2bps first-minute drift the interval closes with it 72.1%, but the REMAINING 4 minutes continue only 48.7% (CI [.469,.506], n=2,836; 45.7% at >=8bps) - the entire 72% is the already-realized move, replicating on fresh Jul 10-13 data. Corollary hurdle: a candidate signal needs ~3.3c gross at 50c-class fills; slip alone was 40% of the loss.",
+      "effect_size": "cost stack -3.28c/share vs selection +0.55c/share (pooled); residual continuation 48.7% vs 50.0 null; hurdle ~3.3c gross/share",
+      "evidence": "Deterministic accounting reconciling to <0.5c on 3,420 unhedged trades; look-ahead-safe residual construction with 1h-block bootstrap; two analysts converge from independent constructions",
+      "actionability": "Program invariants: reject engines whose qhat derives from already-realized movement; every engine's realized q must clear q*(its own fill mix); fill-price improvement work is worth more than most signal work",
+      "verify_focus": "The 'positive selection at mid' leg rests on mid = ask - 0.5c and hold-to-resolution counterfactuals for 68 stop-loss and 71 hedged trades; if the true pre-trade mid was lower (quotes already moved by the signal's own trigger), gross selection could be zero or negative and the 'signals were right' half of the story evaporates"
+    },
+    {
+      "id": "R6",
+      "rank": 6,
+      "title": "Fresh-window drought: the deployed contrarian edge was absent Jul 10-13 and the level is strongly non-stationary week to week - do not scale stake off pooled TEST estimates",
+      "sources": ["regime", "alphasweep", "flagship"],
+      "artifacts": [
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/regime/a3_results.json",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/alphasweep/gate_refresh.json",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/alphasweep/weekly_stability.json",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/flagship/results.json (posterior)"
+      ],
+      "claim": "On the post-freeze slice no prior analysis saw (Jul 10 -> Jul 13): gated signal q=.500, EV -2.75c/share (n=52) / -6.08c on the regime construction (n=60); ungated -5.61 to -7.18c; corroborated by every live book (impulse50 -7.8c, reversal_v2 -7.2c, measure book wr .429). Weekly gated EV over 10 weeks ranges -3.0 to +6.7c/share (SD ~3.4c; 5 of 10 weeks fee-negative); the TEST +4.5c level is concentrated in 2-3 weeks. Posterior gated-level after live data: +0.75c/share (first-poll fills) / +1.71c as-operated, SE ~1.9c - nothing killed, nothing proven.",
+      "effect_size": "-2.75 to -7.2c/share gated in the fresh window (CI90 ~[-13,+8], not distinguishable from 0 or from +1.5-3c); working central for Kelly arithmetic drops to ~+1.7c/share",
+      "evidence": "Three analysts, same window, independent constructions (candle series, live ledger, inverse-variance posterior); single pre-declared window, K=1",
+      "actionability": "Risk posture: treat as drought, keep 7d<-2c haircut armed, use +1.7c/share as working central, plan for the day-60 verdicts to need extension; no parameter change",
+      "verify_focus": "The three corroborations are the SAME 2.5 days read three times, and Jul 10 (the worst day of the 63-day series, -13.97c) sits inside every window - recompute excluding Jul 10 (Jul 11-13 alone was -0.90c, near-flat) to check whether 'drought' is one bad launch day plus noise"
+    },
+    {
+      "id": "R7",
+      "rank": 7,
+      "title": "Gate increment is null-to-negative on live fills and the gate now rejects only ~25% of signals - retention 0.73-0.77 is OUTSIDE the pre-registered Phase-0 conformance band [0.40,0.70], so the day-60 gate verdict will be underpowered",
+      "sources": ["flagship", "regime", "alphasweep", "misses"],
+      "artifacts": [
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/flagship/results.json (gate_verdict, gate_retention_conformance, gate_rejected_verification)",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/regime/a3_results.json",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/alphasweep/gate_refresh.json"
+      ],
+      "claim": "Within reversal_v2's own ungated book, gate-passed fills ran -7.79c/share (n=34) vs -5.21c gate-rejected (n=7): live increment -2.57c, permutation p=0.79; misses' independent split agrees (-7.25 vs -7.10c). Candle-side: TEST increment +4.69c p=0.0625, TRAIN +5.56c p=0.0018 - level real (+4.55c TEST, p=0.0035, reproduced from scratch), increment never significant on TEST or live. Retention 0.766 live / 0.726 last-21d vs designed 0.5-0.6 (band [0.40,0.70]) - a regime shift (fewer cascades), all 7 live rejections verified genuine.",
+      "effect_size": "live increment -2.57c/share (p=0.79); TEST increment +4.69c (p=0.0625); at ~25% rejection mass the day-60 increment CI will straddle 0",
+      "evidence": "Four analysts converge; gate-rejected rows independently recomputed from cb5m (7/7 verified); retention from 1,389 candle signals",
+      "actionability": "Log the retention-band violation as the pre-registered Phase-0 conformance flag; plan the day-60 verdict extension now; no gate parameter change (pre-registration holds)",
+      "verify_focus": "Retention is candle-recomputed with the bot's trigger-inclusive eff6 / pre-trigger cnt12 conventions - a convention mismatch between bot feed and Coinbase candles could move retention back inside the band; verify against the bot's own gate decisions (not candles) before flagging conformance"
+    },
+    {
+      "id": "R8",
+      "rank": 8,
+      "title": "The live bot deviates from the pre-registered qhat spec in three verified ways (bucket boundary cost<0.50, prior mass 400 vs 200, guard seeding never implemented); bench premise was stale - bench cost $0",
+      "sources": ["flagship", "misses"],
+      "artifacts": [
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/flagship/results.json (qhat_reconciliation, measurement_book)",
+        "/Users/sgonzalez/btc5m-paper-trader/research/2026-07-12-edge-hunt/work/misses/results.json (bench_audit)"
+      ],
+      "claim": "Exact closed-form replication of _impulse_nightly reproduces state qlo=0.5068 to 4dp and qhi=0.503 modulo one lagged-settlement boundary record - no qhat bug - but three spec deviations vs FINAL-DESIGN 4.2/5.3/M2: (1) bucket boundary cost<0.50 => 48-53c fills land in the HI bucket, not the registered p_eff<0.50; (2) prior mass 400/bucket at ledger seeds vs registered (w+100)/(n+200) => learning ~2x slower (design formula would give qlo=.4954 vs state .5068); (3) M2 guard seeding from the pre-launch n=123 ledger never implemented, so bench/haircut cannot fire before ~day 7-8. Bench audit: benched=false, $0 counterfactual cost, but Jul 10 restarts re-ran the nightly on stale pre-launch state 5 times, flapping benched/haircut.",
+      "effect_size": "0c direct; ~2x slower qhat learning delays every expansion/contraction decision; restart flapping is a real ops hazard for future bank epochs",
+      "evidence": "Deterministic code-vs-design comparison (btc5m_bot.py lines ~563-564, 627-661 vs FINAL-DESIGN 4.2/5.3); exhaustive skip-reason and loop_metrics reconciliation for the bench audit",
+      "actionability": "Fix prior mass to (w+100)/(n+200); document cost<0.50 boundary as an accepted amendment or fix it; implement M2 guard seeding or pre-register guards-inert-until-day-8; guard nightly_tick against measurement rows predating the current bank epoch",
+      "verify_focus": "Whether FINAL-DESIGN actually registered mass-200 and p_eff-bucketing as claimed (read the design text directly), and whether changing the prior mass mid-experiment corrupts the pre-registered day-14/day-60 verdicts worse than leaving the deviation documented"
+    }
+  ],
+  "dropped": [
+    "autopsy: 'Calibration curve: no unconditional price bucket clears fees' - merged as negative-control context into R2/R5; adopt directly, nothing to verify beyond R2",
+    "autopsy: 'Cheapness is NOT the edge; drift dominates price' - informational; deployable subsets all statistically zero (rev-family CI [-14.3,+18.6], skip rule n=16); partially in tension with pricing's within-family flat-q read; downgrade to log-sdrift instrumentation note",
+    "pricing: 'Price-informativeness contradiction resolved' - same territory as the autopsy drift/price finding, both medium-confidence and mutually tension-laden; net actionable content (keep 4.2 sizing, don't raise cap) already covered by R2",
+    "inverse: 'Momentum $10k loss was price+fee' - merged into R5 (attribution leg)",
+    "inverse: 'Inversion of every retired engine is dead' - clean negative, adopt; no verification value",
+    "inverse: 'fade+loose two-sided book' - deterministic, true, but the architecture is retired; roster rule adopted without verification",
+    "inverse: 'No conditional rescue survives K=234' - clean negative with proper Bonferroni, adopt",
+    "regime: 'Reversal >=20bps tail clears fees only on TEST' - TRAIN fails fees (-0.67c), explicitly non-promotable; keep as nightly diagnostic only",
+    "regime: 'Anti-persistent lag-1' - real structure, fee-dead unconditioned; context for qhat priors only",
+    "regime: 'Weekend structure' - activity halving robust (ops expectation setting) but performance increment unproven (p=.12-.33); no trade action",
+    "regime: 'Impulse-gate increment TRAIN-strong/TEST-short' - merged into R7",
+    "micro: 'Slip headroom / spread p50=1c' + pricing: 'Frozen +1c slip is ~1c pessimistic' - deterministic and useful (breakeven slip 2.5-4.0c) but deployable-as is 'no change'; folded into R1/R3 verification context",
+    "micro: 'Entry speed carries no EV' - well-executed null; frees roadmap money, nothing to verify",
+    "micro: 'Cap-blocked near-misses 11/13 confounded' - self-declared low confidence, Bonferroni-adjusted p~0.34, 12/13 co-blocked late, asks unrecorded; instrumentation-only (adopt the ask+timestamp logging line)",
+    "misses: '55c shadow monetized 7 of 12 cap-missed at +29.9c/share' - low confidence, n=7, emerged from a 7-category scan (adj p~0.09), band EV p=0.82; folds into the pre-registered day-60 cap verdict; opposes R2 direction and loses on n and multiplicity",
+    "misses: 'Coverage funnel: 23% of gate-passes unobserved' - high-confidence ops finding (downtime windows, boundary logging) but deterministic joins with no edge claim to attack; forward to ops list as-is",
+    "misses: bench audit - merged into R8",
+    "flagship: 'Posterior view +0.75/+1.71c' - merged into R6 as the working-central input",
+    "alphasweep: 'Fresh alpha sweep K=204 all dead' - exemplary negative with full multiplicity accounting; adopt, close those families",
+    "alphasweep: 'Independent reproduction of gated LEVEL' - merged into R7 (level-real leg)",
+    "pricing: 'PM book calibrated at 20s; mid-interval longshots overpriced' - negative rule already implied by R5 mechanism; favorite-side cell refuted by its own author; adopt the never-buy-cheap-side-mid-interval rule",
+    "pricing: 'pm_res_3d off-by-one rows' - data hygiene, verified per-row, adopt directly into the nightly monitor; no adversarial question outstanding"
+  ],
+  "kill_notes": "No finding was killed for cost-model violation or facial lookahead; all 37 used the frozen model and decision-time features. The kills were multiplicity/power kills already self-declared by the analysts (near-misses 11/13, 55c band, weekend increment, >=20bps TEST-only) - these were dropped rather than ranked."
+}
