@@ -58,12 +58,19 @@ thesis reappearing: the overshoot snaps back, and you buy the snap-back cheap.
   the leader book. The true opposite ask has its own spread — at these prices a 1–2¢ error
   moves the P&L materially.
 
-**Pre-registered validation plan (before acting):** instrument it as a $0-stake measurement,
-same rigor as leader50 — on a run-up, ALSO poll the OPPOSITE side's real book and log a
-would-be fade fill at its actual ask (not the parity estimate). Only after n ≥ 30 fade
-signals with a positive full-signal P&L at REAL opposite prices does it graduate to a staked
-paper book (re-verified). Until then it is a logged counterfactual, no stake, no orders.
-Tracked now (parity estimate) in the `fade_the_runup` block of track_leader_sides.py.
+**INSTRUMENTED 2026-07-13 as `fade50`** (owner: "add both as the same shadow models — run
+ups and run downs"). fade50 is a staked $50 paper engine that buys the OPPOSITE side of every
+leader_v1 signal at the **real opposite-side book** (polled at re-poll time — fixes the parity
+estimate), tagged **fadeUp** (faded an up-move → bought down) vs **fadeDown** (faded a
+down-move → bought up) and by whether the leader ran. Both directions of the question are now
+measured with true fills; see the `fade50_live` block in track_leader_sides.py and the Fade $50
+card/line on the site.
+
+**Pre-registered gate (unchanged):** evaluate at **n ≥ 30 fade50 fills per direction** or
+2026-07-27. A direction graduates to consideration only with a positive full-signal P&L at
+real prices AND win% above its break-even (≈40% at ~37¢ entries; recompute from actual avg
+entry). Do not read the tiny early sample as an edge — the parity-estimate +$168 on n=7 was a
+hypothesis, and fade50 exists to test it honestly. Stays paper / NEVER_ORDERABLE throughout.
 
 ## Pre-registered decision rule (set 2026-07-13, before more data — do not move)
 
