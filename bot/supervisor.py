@@ -155,10 +155,21 @@ class Sup:
         envf = os.path.join(HERE, "signal.env")
         if os.path.exists(envf):
             for raw in open(envf):
-                s = raw.strip().lstrip("export ").strip()
+                s = raw.strip()
+                if s.startswith("export "): s = s[7:].strip()   # exact prefix (lstrip('export ') would eat leading e/x/p/o/r/t)
                 if s and not s.startswith("#") and "=" in s:
                     k, v = s.split("=", 1); env[k.strip()] = v.strip()
-        logf = open(os.path.join(HERE, "bot.log"), "a")
+        logpath = os.path.join(HERE, "bot.log")
+        # Windows PowerShell 5.1 `Get-Content` (no -Encoding) assumes ANSI, so a
+        # UTF-8 log shows mojibake. Prepend a UTF-8 BOM so it renders clean; a
+        # pre-existing BOM-less log is archived once.
+        if os.name == "nt":
+            has = os.path.exists(logpath) and os.path.getsize(logpath) >= 3 and open(logpath, "rb").read(3) == b"\xef\xbb\xbf"
+            if os.path.exists(logpath) and os.path.getsize(logpath) > 0 and not has:
+                os.replace(logpath, logpath + ".pre-bom.old")
+            if not os.path.exists(logpath) or os.path.getsize(logpath) == 0:
+                with open(logpath, "wb") as f: f.write(b"\xef\xbb\xbf")
+        logf = open(logpath, "a")
         self.proc = subprocess.Popen(self.bot_cmd(), cwd=HERE, env=env,
                                      stdout=logf, stderr=subprocess.STDOUT)
         log(f"started bot (pid {self.proc.pid})")
@@ -190,6 +201,19 @@ class Sup:
         while True:
             try:
                 changed = self.update_code()
+                # SELF-UPDATE: if code changed (bot AND/OR this supervisor), relaunch
+                # the whole supervisor so supervisor.py changes take effect too — the
+                # Task's restart-on-failure / LaunchAgent KeepAlive respawns us on the
+                # new code. Guarded by a compile check so a broken supervisor.py can't
+                # crash-loop (the bot code already passed --selftest in update_code).
+                if changed:
+                    mepath = os.path.join(HERE, "supervisor.py")
+                    chk = subprocess.run([self.py, "-c", f"compile(open(r'{mepath}','rb').read(), 'sup', 'exec')"],
+                                         capture_output=True, text=True)
+                    if chk.returncode == 0:
+                        log("code changed — stopping bot and exiting to reload the supervisor on new code")
+                        self.stop(); sys.exit(3)
+                    log(f"new supervisor.py won't compile — NOT self-reloading: {chk.stderr.strip()[:200]}")
                 want = self.flag()
                 mine = (want == me)
                 if not mine and not self.other_host_alive():
@@ -198,13 +222,15 @@ class Sup:
                 if mine:
                     if not self.running():
                         self.start()
-                    elif changed:
+                    elif changed:   # code changed but supervisor didn't self-reload (compile failed) -> cycle the bot
                         log("code changed — restarting bot on new version")
                         self.stop(); self.start()
                 else:
                     if self.running():
                         log(f"flag -> '{want}', not me — standing down")
                         self.stop()
+            except SystemExit:
+                raise
             except Exception as e:
                 log(f"loop error: {e}")
             time.sleep(self.a.poll)
