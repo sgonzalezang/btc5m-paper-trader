@@ -78,6 +78,19 @@ def analyze(s):
         pnl_if_chased_ask2=round(sum(p or 0 for p in ran_chase), 2),
         n_chaseable=sum(1 for p in ran_chase if p is not None),
     )
+    # HYPOTHESIS (owner 2026-07-13): on a run-up, FLIP and buy the OPPOSITE side (fade the
+    # overshoot). Opposite wins iff the leader lost. Opposite ask ESTIMATED as 1 - leader_bid2
+    # (binary parity — we only polled the leader book, so the true opposite ask could differ
+    # ~1-2c; real validation needs polling the opposite book, not yet instrumented).
+    fade = [(r, pnl_at((1 - r["bid2"]) if r.get("bid2") is not None else None, r["win"] == 0)) for r in ran]
+    fade_priced = [(r, p) for r, p in fade if p is not None]
+    fade_stats = dict(
+        n=len(ran), opp_wins=sum(1 for r in ran if r["win"] == 0),
+        opp_winPct=(round(100 * sum(1 for r in ran if r["win"] == 0) / len(ran), 1) if ran else None),
+        pnl_fade_at_parity=round(sum(p for _, p in fade_priced), 2),
+        n_priced=len(fade_priced),
+        caveat="in-sample, tiny n, opposite ask estimated as 1-bid2 (not polled) — hypothesis only",
+    )
 
     res = dict(
         asOf=s.get("heartbeatIso"),
@@ -86,6 +99,7 @@ def analyze(s):
         by_bet_side={sd: grp([r for r in orc if r["side"] == sd]) for sd in ("up", "down")},
         by_outcome={od: grp([r for r in orc if outcome(r) == od]) for od in ("up", "down")},
         ran_quotes=ran_stats,
+        fade_the_runup=fade_stats,
         signals=[dict(t0=r["t0"], bet=r["side"], filled=r.get("l50"),
                       won=bool(r["win"]), pnl=round(realized(r), 2)) for r in sorted(orc, key=lambda x: x["t0"])],
     )
@@ -119,6 +133,11 @@ def fmt(res):
     L.append(f"  n={rq['n']}  winners {rq['wins']}/{rq['n']} ({rq['winPct']}%)  "
              f"P&L if chased at the ran-up ask {rq['pnl_if_chased_ask2']:+.2f} "
              f"(pre-run price {rq['pnl_at_prerun_ask1']:+.2f})  -> low win% = a reversal warning, not momentum")
+    fs = res["fade_the_runup"]
+    L.append(f"  HYPOTHESIS — FLIP to the opposite side on a run-up (fade the overshoot):")
+    L.append(f"    opposite won {fs['opp_wins']}/{fs['n']} ({fs['opp_winPct']}%)  "
+             f"P&L at ~1-bid2 parity {fs['pnl_fade_at_parity']:+.2f} on n={fs['n_priced']}  "
+             f"[{fs['caveat']}]")
     L.append("")
     L.append("signals:")
     for x in res["signals"]:

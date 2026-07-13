@@ -44,6 +44,27 @@ rule is a feature: it screens out leader50's worst signals, which is why the act
 Tracked in the same script (`ran_quotes` block); revisit if the chase P&L turns positive
 over a much larger n, which would contradict the reversion mechanic.
 
+## Promising sub-hypothesis: FADE the run-up (buy the opposite side)
+
+Owner asked 2026-07-13: on a run-up, instead of chasing the leader, take the OPPOSITE side?
+First n=7: opposite won **4/7 (57%)**, and the return is **+$168** (sensitivity +$123 to
++$183) — positive despite the middling win rate because the opposite side is CHEAP (~37¢)
+when the leader ran to ~65¢, so break-even is only ~40%. This is the program's reversion
+thesis reappearing: the overshoot snaps back, and you buy the snap-back cheap.
+
+**This is the most promising thread in the leader family so far — but it is NOT validated:**
+- n=7, in-sample, hypothesis-generated-from-the-data. One or two trades swing it.
+- The opposite-side price is ESTIMATED as `1 − leader_bid2` (binary parity); we only polled
+  the leader book. The true opposite ask has its own spread — at these prices a 1–2¢ error
+  moves the P&L materially.
+
+**Pre-registered validation plan (before acting):** instrument it as a $0-stake measurement,
+same rigor as leader50 — on a run-up, ALSO poll the OPPOSITE side's real book and log a
+would-be fade fill at its actual ask (not the parity estimate). Only after n ≥ 30 fade
+signals with a positive full-signal P&L at REAL opposite prices does it graduate to a staked
+paper book (re-verified). Until then it is a logged counterfactual, no stake, no orders.
+Tracked now (parity estimate) in the `fade_the_runup` block of track_leader_sides.py.
+
 ## Pre-registered decision rule (set 2026-07-13, before more data — do not move)
 
 - **Primary metric:** full-signal P&L and win% **per bet side** (incl. would-be). Do NOT

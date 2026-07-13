@@ -1,0 +1,213 @@
+{
+ "asOf": "2026-07-13T15:08:44.262935+00:00",
+ "n_oracle": 22,
+ "continuation_rate": 59.1,
+ "by_bet_side": {
+  "up": {
+   "n": 11,
+   "wins": 6,
+   "winPct": 54.5,
+   "pnl_incl_wouldbe": -70.03,
+   "pnl_actual_fills": -30.13,
+   "n_filled": 7
+  },
+  "down": {
+   "n": 11,
+   "wins": 7,
+   "winPct": 63.6,
+   "pnl_incl_wouldbe": -9.09,
+   "pnl_actual_fills": 65.51,
+   "n_filled": 7
+  }
+ },
+ "by_outcome": {
+  "up": {
+   "n": 10,
+   "wins": 6,
+   "winPct": 60.0,
+   "pnl_incl_wouldbe": -18.53,
+   "pnl_actual_fills": 21.52,
+   "n_filled": 6
+  },
+  "down": {
+   "n": 12,
+   "wins": 7,
+   "winPct": 58.3,
+   "pnl_incl_wouldbe": -60.59,
+   "pnl_actual_fills": 13.86,
+   "n_filled": 8
+  }
+ },
+ "ran_quotes": {
+  "n": 7,
+  "wins": 3,
+  "winPct": 42.9,
+  "pnl_at_prerun_ask1": -114.5,
+  "pnl_if_chased_ask2": -127.49,
+  "n_chaseable": 7
+ },
+ "fade_the_runup": {
+  "n": 7,
+  "opp_wins": 4,
+  "opp_winPct": 57.1,
+  "pnl_fade_at_parity": 168.34,
+  "n_priced": 7,
+  "caveat": "in-sample, tiny n, opposite ask estimated as 1-bid2 (not polled) \u2014 hypothesis only"
+ },
+ "signals": [
+  {
+   "t0": 1783942500,
+   "bet": "down",
+   "filled": null,
+   "won": true,
+   "pnl": 0.0
+  },
+  {
+   "t0": 1783944000,
+   "bet": "down",
+   "filled": "fill",
+   "won": true,
+   "pnl": 40.98
+  },
+  {
+   "t0": 1783944600,
+   "bet": "up",
+   "filled": "ran",
+   "won": false,
+   "pnl": -51.26
+  },
+  {
+   "t0": 1783944900,
+   "bet": "up",
+   "filled": "fill",
+   "won": true,
+   "pnl": 36.21
+  },
+  {
+   "t0": 1783945800,
+   "bet": "up",
+   "filled": "fill",
+   "won": false,
+   "pnl": -51.51
+  },
+  {
+   "t0": 1783946100,
+   "bet": "down",
+   "filled": "fill",
+   "won": true,
+   "pnl": 31.93
+  },
+  {
+   "t0": 1783946700,
+   "bet": "up",
+   "filled": "fill",
+   "won": true,
+   "pnl": 28.07
+  },
+  {
+   "t0": 1783949100,
+   "bet": "down",
+   "filled": "ran",
+   "won": true,
+   "pnl": 28.07
+  },
+  {
+   "t0": 1783949700,
+   "bet": "up",
+   "filled": "ran",
+   "won": false,
+   "pnl": -51.26
+  },
+  {
+   "t0": 1783950300,
+   "bet": "up",
+   "filled": "fill",
+   "won": false,
+   "pnl": -51.37
+  },
+  {
+   "t0": 1783950600,
+   "bet": "down",
+   "filled": "fill",
+   "won": true,
+   "pnl": 29.85
+  },
+  {
+   "t0": 1783950900,
+   "bet": "up",
+   "filled": "fill",
+   "won": true,
+   "pnl": 30.6
+  },
+  {
+   "t0": 1783951200,
+   "bet": "up",
+   "filled": "fill",
+   "won": false,
+   "pnl": -51.44
+  },
+  {
+   "t0": 1783951500,
+   "bet": "down",
+   "filled": "fill",
+   "won": false,
+   "pnl": -51.3
+  },
+  {
+   "t0": 1783952100,
+   "bet": "down",
+   "filled": "fill",
+   "won": false,
+   "pnl": -51.37
+  },
+  {
+   "t0": 1783952400,
+   "bet": "down",
+   "filled": "fill",
+   "won": true,
+   "pnl": 24.56
+  },
+  {
+   "t0": 1783952700,
+   "bet": "up",
+   "filled": "ran",
+   "won": true,
+   "pnl": 29.31
+  },
+  {
+   "t0": 1783953000,
+   "bet": "up",
+   "filled": "fill",
+   "won": true,
+   "pnl": 29.31
+  },
+  {
+   "t0": 1783953300,
+   "bet": "down",
+   "filled": "ran",
+   "won": false,
+   "pnl": -51.37
+  },
+  {
+   "t0": 1783953600,
+   "bet": "down",
+   "filled": "fill",
+   "won": true,
+   "pnl": 40.86
+  },
+  {
+   "t0": 1783953900,
+   "bet": "down",
+   "filled": "ran",
+   "won": false,
+   "pnl": -51.3
+  },
+  {
+   "t0": 1783954500,
+   "bet": "up",
+   "filled": "ran",
+   "won": true,
+   "pnl": 33.31
+  }
+ ]
+}
