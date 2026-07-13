@@ -31,6 +31,7 @@ import argparse, json, os, subprocess, sys, time, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
+GIT = "git"   # overridden by --git-bin (Windows SYSTEM shell needs the full path)
 
 
 def log(msg):
@@ -44,7 +45,7 @@ def log(msg):
 
 
 def git(*a, cwd=REPO, ok=(0,)):
-    r = subprocess.run(("git",) + a, cwd=cwd, capture_output=True, text=True)
+    r = subprocess.run((GIT,) + a, cwd=cwd, capture_output=True, text=True)
     if r.returncode not in ok:
         raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
     return r.stdout.strip()
@@ -149,6 +150,7 @@ class Sup:
     def start(self):
         if self.running(): return
         env = dict(os.environ)
+        env["PYTHONUTF8"] = "1"; env["PYTHONIOENCODING"] = "utf-8"   # clean/greppable bot.log on Windows
         # load signal.env for the HMAC secret / webhook if present (Mac side)
         envf = os.path.join(HERE, "signal.env")
         if os.path.exists(envf):
@@ -218,8 +220,11 @@ def main():
     ap.add_argument("--poll", type=int, default=30, help="seconds between cycles")
     ap.add_argument("--dead-after", type=int, default=420, help="seconds without a published heartbeat before the flagged host is presumed dead")
     ap.add_argument("--state-url", default="https://raw.githubusercontent.com/sgonzalezang/btc5m-paper-trader/data/state.json")
+    ap.add_argument("--git-bin", default="git", help="git executable (Windows SYSTEM shell needs the full path, e.g. 'C:\\Program Files\\Git\\cmd\\git.exe')")
     ap.add_argument("--once", action="store_true", help="run a single decision cycle and exit (for testing)")
     args = ap.parse_args()
+    global GIT
+    GIT = args.git_bin
     sup = Sup(args)
     if args.once:
         sup.update_code()
