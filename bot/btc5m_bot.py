@@ -1991,6 +1991,48 @@ def load_state(path, args):
     try:
         with open(path) as f: return sanitize(json.load(f).get("btc"), args)
     except Exception: return default_state(args)
+
+def _raw_state_url(repo_dir, branch):
+    """Build the raw GitHub URL of the published state.json for this repo+branch,
+    from the git 'origin' remote. Returns None if it can't be derived."""
+    try:
+        import re
+        r = subprocess.run(("git", "remote", "get-url", "origin"), cwd=repo_dir, capture_output=True, text=True)
+        m = re.search(r"github\.com[:/]([^/]+)/([^/.]+)", r.stdout.strip())
+        if not m: return None
+        return f"https://raw.githubusercontent.com/{m.group(1)}/{m.group(2)}/{branch}/state.json"
+    except Exception:
+        return None
+
+def maybe_sync_state(state_path, url):
+    """Startup safety for running the bot on ALTERNATING machines (Mac <-> server).
+    The running machine publishes its ledger to the data branch every few minutes,
+    so the data branch always holds the latest. On startup, if that published
+    ledger is NEWER than THIS machine's local state.json, adopt it — so whichever
+    box you start continues the latest ledger (within the publish lag) instead of
+    resurrecting a stale one and forking. Newer-wins by heartbeat; the fetched
+    state is validated and the local file is backed up first. Best-effort: any
+    failure just keeps the local state. (It never overwrites a newer local ledger,
+    so the currently-primary machine restarting is unaffected.)"""
+    if not url: return
+    try:
+        local_hb = 0
+        if os.path.exists(state_path):
+            with open(state_path) as f: local_hb = (json.load(f) or {}).get("heartbeat", 0) or 0
+        remote = try_json(url)
+        if not (isinstance(remote, dict) and isinstance(remote.get("btc"), dict) and remote.get("heartbeat")):
+            print("[sync] no valid published ledger to compare — keeping local state", flush=True); return
+        if remote["heartbeat"] > local_hb:
+            if os.path.exists(state_path):
+                with open(state_path) as f: bak = f.read()
+                with open(state_path + ".bak-presync", "w") as f: f.write(bak)
+            with open(state_path, "w") as f: json.dump(remote, f, separators=(",", ":"))
+            gap = (remote["heartbeat"] - local_hb) / 1000.0
+            print(f"[sync] adopted the newer published ledger ({gap:.0f}s ahead of local) — local backed up to .bak-presync", flush=True)
+        else:
+            print(f"[sync] local ledger is current (>= published) — keeping it", flush=True)
+    except Exception as e:
+        print(f"[sync] skipped: {e}", flush=True)
 def snapshot(bot):
     """Full state.json: config + ledgers + rolled-up summary + heartbeat + recent log."""
     st = bot.st
@@ -2895,12 +2937,17 @@ def main():
     ap.add_argument("--signal-engines", default="", help="engines whose ENTER signals are emitted for the live "
                     "execution bridge (comma-separated, e.g. 'band'); empty = bridge OFF. See SIGNAL-BRIDGE.md")
     ap.add_argument("--signal-file", default="", help="atomic JSON file each signal is written to (optional)")
+    ap.add_argument("--sync-on-start", action="store_true",
+                    help="on startup, adopt the published (data-branch) ledger if it is NEWER than local — for handing the paper bot between machines")
+    ap.add_argument("--sync-url", default="", help="override the raw state.json URL used by --sync-on-start")
     args = ap.parse_args()
     FEE_RATE, GAS_USD = args.fee_rate, args.gas
     args.loose_must = [] if args.loose_must.strip().lower() == "none" else \
                       [k for k in GUARD_KEYS if k in [x.strip() for x in args.loose_must.split(",")]]
     if args.selftest: sys.exit(selftest())
 
+    if args.sync_on_start:
+        maybe_sync_state(args.state, args.sync_url or _raw_state_url(args.repo_dir, args.branch))
     st = load_state(args.state, args)
     st["profile"] = args.profile
     st["asset"] = args.asset if args.asset else st["asset"]
