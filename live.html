@@ -96,6 +96,7 @@
   .eqreversal{fill:none;stroke:#26c6da;stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqimpulse{fill:none;stroke:#ff8f2b;stroke-width:2.8;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqimp50{fill:none;stroke:#ffd166;stroke-width:2;stroke-dasharray:6 3;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+  .eqleader50{fill:none;stroke:#c07bff;stroke-width:2;stroke-dasharray:2 3;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqrevv2{fill:none;stroke:#7bd88f;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqreversal2{fill:none;stroke:#facc15;stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqlatentfire{fill:none;stroke:#ff5252;stroke-width:2.6;vector-effect:non-scaling-stroke;stroke-linejoin:round}
@@ -107,7 +108,7 @@
   .eqmeta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--mut);margin-top:4px;flex-wrap:wrap}
   .eqnow.pos{color:var(--up);font-weight:700}.eqnow.neg{color:var(--dn);font-weight:700}
   .eqlegend{font-size:11px;color:var(--mut);font-weight:400}
-  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-v{color:#8f7bff}.lg-c{color:#3fb6a8}.lg-va{color:#8bc34a}.lg-f{color:#e0559a}.lg-rv{color:#26c6da}.lg-rv2{color:#facc15}.lg-lf{color:#ff5252}.lg-s{color:var(--btc)}.lg-imp{color:#ff8f2b}.lg-i50{color:#ffd166}.lg-rvv2{color:#7bd88f}
+  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-v{color:#8f7bff}.lg-c{color:#3fb6a8}.lg-va{color:#8bc34a}.lg-f{color:#e0559a}.lg-rv{color:#26c6da}.lg-rv2{color:#facc15}.lg-lf{color:#ff5252}.lg-s{color:var(--btc)}.lg-imp{color:#ff8f2b}.lg-i50{color:#ffd166}.lg-l50{color:#c07bff}.lg-rvv2{color:#7bd88f}
   .gd{white-space:nowrap}
   .gd i{display:inline-block;font-style:normal;font-size:9px;width:13px;height:13px;line-height:13px;text-align:center;border-radius:3px;margin:0 1px;font-weight:700;cursor:default}
   .gd .g1{background:#173527;color:var(--up)}.gd .g0{background:#3a231c;color:var(--dn)}
@@ -275,7 +276,7 @@ function leaderPanel(st){
     return `<div><span class="mut">${iv}</span> ${side} <span class="mut">drift ${r.drift}bps · +${r.sec}s ·</span> ask ${(r.ask1*100).toFixed(0)}c ${a2} ${res}</div>`;
   }).join('');
   return '<h3 class="sec">Leader v1 — 👻 $0-stake shadow <span style="font-weight:400;color:var(--mut)">(fill-conformance probe)</span></h3>'
-    +'<div class="mut" style="font-size:12px;margin:-2px 0 4px">Measurement, not a book: when BTC drifts 4–8bps and the drift-leader side quotes 55–66¢ on the real book, it records the ask, <b>re-polls ~2.5s later</b> to see if that quote was real (the R3 stale-ask question), and pings Discord as a <b>shadow alert — never an order, $0 staked</b>. Promotion to a real book requires the quotes to hold.</div>'
+    +'<div class="mut" style="font-size:12px;margin:-2px 0 4px">Measurement, not a book: when BTC drifts 4–8bps and the drift-leader side quotes 55–66¢ on the real book, it records the ask, <b>re-polls ~2.5s later</b> to see if that quote was real (the R3 stale-ask question), and pings Discord as a <b>shadow alert — never an order, $0 staked</b>. Its staked twin <b style="color:#c07bff">Leader $50</b> paper-trades every qualifying moment at the <b>re-polled</b> price (no fill if the quote ran) — its card and chart line above show the honest returns.</div>'
     +'<div style="font-size:12px;margin:0 0 6px">'+stat+'</div>'
     +'<div class="log">'+(rows||'<div class="mut">No qualifying moments yet.</div>')+'</div>';
 }
@@ -340,14 +341,14 @@ function eqSeries(st, id){
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
 // floor inherits capless's purple (lg-v/eqvariant classes), band inherits calm's teal (lg-c/eqcalm) — CSS class names kept to avoid churn
-const ENGMETA={impulse_v2:{label:"Impulse v2",lg:"lg-imp",cls:"eqimpulse"},impulse50:{label:"Impulse $50",lg:"lg-i50",cls:"eqimp50"},reversal_v2:{label:"Rev v2 ctrl",lg:"lg-rvv2",cls:"eqrevv2"},loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},value:{label:"value",lg:"lg-va",cls:"eqvalue"},fade:{label:"fade",lg:"lg-f",cls:"eqfade"},reversal:{label:"reversal",lg:"lg-rv",cls:"eqreversal"},reversal2:{label:"reversal2",lg:"lg-rv2",cls:"eqreversal2"},latentfire:{label:"Latent Fire",lg:"lg-lf",cls:"eqlatentfire"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"}};
+const ENGMETA={impulse_v2:{label:"Impulse v2",lg:"lg-imp",cls:"eqimpulse"},impulse50:{label:"Impulse $50",lg:"lg-i50",cls:"eqimp50"},reversal_v2:{label:"Rev v2 ctrl",lg:"lg-rvv2",cls:"eqrevv2"},loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},value:{label:"value",lg:"lg-va",cls:"eqvalue"},fade:{label:"fade",lg:"lg-f",cls:"eqfade"},reversal:{label:"reversal",lg:"lg-rv",cls:"eqreversal"},reversal2:{label:"reversal2",lg:"lg-rv2",cls:"eqreversal2"},latentfire:{label:"Latent Fire",lg:"lg-lf",cls:"eqlatentfire"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"},leader50:{label:"Leader $50",lg:"lg-l50",cls:"eqleader50"}};
 const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
 // --- engine display order -----------------------------------------------------
 // "grouped" = the pedagogical layout (ablation pairs, read 2-per-row);
 // "rank"    = sorted by current P&L, best first.
 // ONE list drives the legend, the peak/trough table, the tooltip, the live bar and the
 // cards, so those surfaces can never disagree about ordering.
-const ENGS_GROUPED=["impulse_v2","impulse50","reversal_v2","reversal","reversal2","loose","floor","band","value","fade","strict","latentfire"];
+const ENGS_GROUPED=["impulse_v2","impulse50","reversal_v2","reversal","reversal2","leader50","loose","floor","band","value","fade","strict","latentfire"];
 let ENGSORT="rank";
 function engList(st){
   if(ENGSORT!=="rank") return ENGS_GROUPED.slice();
@@ -427,7 +428,7 @@ function equityChart(st){
     +`<button data-daily="1" class="${VIEW.daily?'on':''}" onclick="toggleDaily()" title="one point per day at 11:55pm local (daily close)">Daily</button>`
     +`<button style="margin-left:auto" class="${ENGSORT==='rank'?'on':''}" onclick="toggleEngSort()" title="Rank: order every engine list by current P&amp;L, best first. Grouped: the ablation layout (loose|floor, band|value, …)">${ENGSORT==='rank'?'▼ by return':'⇄ grouped'}</button></div>`;
   // SVG is filled by layoutChart() after insert (needs the container width)
-  return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — all five books since Fri Jul 10 12:10pm, from $0 <span style="font-size:11px;color:var(--mut);font-weight:400" title="The era starts at the first interval where every running book was live together — Fri Jul 10 12:10pm CDT (17:10 UTC), Impulse v2\'s first trade. All engines rebased to $0 there, so the race is a true like-for-like comparison: real trades only, no replay or simulated data anywhere on this chart. Retired engines keep their cards but stay off the chart.">· real trades only, equal start</span> '+legend+'</h2>'
+  return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — running books since Fri Jul 10 12:10pm, from $0 <span style="font-size:11px;color:var(--mut);font-weight:400" title="The era starts at the first interval where every running book was live together — Fri Jul 10 12:10pm CDT (17:10 UTC), Impulse v2\'s first trade. All engines rebased to $0 there, so the race is a true like-for-like comparison: real trades only, no replay or simulated data anywhere on this chart. Retired engines keep their cards but stay off the chart.">· real trades only, equal start</span> '+legend+'</h2>'
     +ctrl+'<div class="eqscroll" id="eqscroll"><div class="lab" style="padding:12px 2px">…</div></div>'
     +'<div class="eqtip" id="eqtip"></div><div class="eqmeta" id="eqmeta"></div></div>';
 }
@@ -568,8 +569,8 @@ function draw(st){
   $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · hedge ${st.hedgeOn?"on":"off"} · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
   const eng=st.btc&&st.btc.engines||{};
-  const HUE={impulse_v2:"#ff8f2b",impulse50:"#ffd166",reversal_v2:"#7bd88f",loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",value:"#8bc34a",fade:"#e0559a",reversal:"#26c6da",reversal2:"#facc15",latentfire:"#ff5252",strict:"var(--btc)"};
-  const LABEL={impulse_v2:"Impulse v2",impulse50:"Impulse $50",reversal_v2:"Rev v2 ctrl",loose:"Loose",floor:"Floor",band:"Band",value:"Value",fade:"Fade",reversal:"Rev 55c",reversal2:"Reversal2",latentfire:"Latent Fire",strict:"Strict"};
+  const HUE={impulse_v2:"#ff8f2b",impulse50:"#ffd166",reversal_v2:"#7bd88f",loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",value:"#8bc34a",fade:"#e0559a",reversal:"#26c6da",reversal2:"#facc15",latentfire:"#ff5252",strict:"var(--btc)",leader50:"#c07bff"};
+  const LABEL={impulse_v2:"Impulse v2",impulse50:"Impulse $50",reversal_v2:"Rev v2 ctrl",loose:"Loose",floor:"Floor",band:"Band",value:"Value",fade:"Fade",reversal:"Rev 55c",reversal2:"Reversal2",latentfire:"Latent Fire",strict:"Strict",leader50:"Leader $50"};
   const needLbl=(id)=>{
     const need=(S[id]||{}).need||(id==="strict"?10:st.loosePass);
     if(id==="strict") return `needs 10/10`;
@@ -582,6 +583,7 @@ function draw(st){
         +(im.benched?` · <b style="color:#ff5252">BENCHED</b>`:(im.haircut?` · guard haircut`:""));
     }
     if(id==="impulse50") return `flagship twin · constant $50 stake — the live sizing A/B: same gate, cap and timing, no Kelly`;
+    if(id==="leader50") return `<b title="Staked twin of the Leader v1 conformance shadow: enters when BTC drifts 4–8bps and the leading side quotes 55–66¢, but fills at the RE-POLLED book ~2.5–5s later with a limit at first-ask+1¢ — arrival-price execution, so stale quotes cannot fake its P&L. If the quote ran, no fill (logged as conformance data).">leader_v1’s staked twin · fills at the re-poll</b> · $50 flat`;
     if(id==="reversal_v2") return `ungated twin · ≤53¢ — its paired delta vs the flagship is the day-60 gate verdict`;
     if(id==="reversal") return `ungated · ≤55¢ — settles the entry-cap dispute`;
     if(id==="reversal2") return `reversal + gamma fallback (jumps in)`;

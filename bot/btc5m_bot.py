@@ -68,7 +68,7 @@ PROFILES = {
 # flagship ARE the pre-registered day-60 gate and cap verdicts. The 7 retired
 # engines are terminal kills (momentum/value/fade fee-death is structural, not
 # parametric); their books and histories stay intact but they never trade again.
-ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "latentfire"]
+ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "latentfire", "leader50"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None, retired=True),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None, retired=True),
@@ -156,6 +156,17 @@ ENGINE_CFG = {
     "impulse50": dict(label="Impulse $50", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                       revThr=0.12, revEntryMax=0.53, revWinMin=255, holdToClose=True,
                       impGate=True, eff6Min=0.10, cnt12Max=6, shadow=True),
+    # leader50 — leader_v1's STAKED paper twin (added 2026-07-13 at user request:
+    # "we can paper trade it and see the returns, whether positive or negative").
+    # Enters whenever the $0-stake conformance shadow records a qualifying state
+    # (aligned drift 4-8bps, real-book ask 55-66c), but fills at the RE-POLLED
+    # book ~2.5-5s later — arrival-price execution, so the R3 stale-quote
+    # artifact (+14c/share of phantom fills) cannot fake its P&L. Limit =
+    # first-poll ask + 1c slip: if the quote ran away, the order does not fill,
+    # exactly like a real marketable limit. Flat $50, hold to close. external=True:
+    # entries come from _leader50_enter (the leader tick), never evaluate().
+    "leader50": dict(label="Leader $50", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                     holdToClose=True, shadow=True, external=True),
 }
 # impulse_v2 sizing/learning state defaults (persisted under st["impulse"]).
 # qlo/qhi are the bucketed win-prob estimates, bucketed by p_eff = ask + slip
@@ -837,7 +848,57 @@ class Bot:
                     r["dtMs"] = int(dt_ms)
                     r["ask2"] = b2.get("ask") if b2 else None
                     r["bid2"] = b2.get("bid") if b2 else None
+                    self._leader50_enter(r, b2)
                 return
+
+    def _leader50_enter(self, rec, b2):
+        """leader50: the staked $50 paper twin of the conformance shadow. Fires
+        exactly when a leader record completes its second poll, and fills at
+        THAT book — arrival-price execution ~2.5-5s after detection, which is
+        what a real taker would pay. Limit = first-poll ask + slip: if the
+        quote ran, no fill (a real marketable limit wouldn't fill either), and
+        the miss itself is conformance data (rec['l50']='ran')."""
+        eid = "leader50"
+        try:
+            if ENGINE_CFG[eid].get("retired"): return
+            if self.trade_for(eid, rec["t0"]) or self.open_trade(eid): return
+            f = self.feed
+            if not (f.get("t0") == rec["t0"] and f.get("open") and f.get("last") is not None):
+                rec["l50"] = "late"          # interval rolled before the re-poll landed
+                return
+            slip = clampf(self.st["slip"], 0, 5, 1) / 100
+            limit = min(0.99, rec["ask1"] + slip)
+            levels = _levels(b2, "ask") if b2 else []
+            shares, spent, avg, fully = walk_buy(levels, 50.0, limit)
+            if spent < MIN_ORDER_USD or not avg:
+                rec["l50"] = "ran"           # quote gone by arrival — the R3 verdict, one datum at a time
+                self.log(f"[LEADER50] SKIP {rec['side'].upper()} — re-poll ask "
+                         f"{'%.0fc' % (rec['ask2']*100) if rec.get('ask2') is not None else 'gone'} past limit {limit*100:.0f}c")
+                return
+            entry = min(0.99, round(avg + slip, 4))
+            shares = round(spent / entry, 4)
+            fee = taker_fee(shares, entry)
+            entered = now_ms()
+            t1 = rec.get("t1") or rec["t0"] + IVL
+            tr = dict(at=entered, t0=rec["t0"], t1=t1, slug=rec.get("slug") or f"btc-updown-5m-{rec['t0']}",
+                      profile=self.st["profile"],
+                      entrySec=max(0, int(round(entered/1000 - rec["t0"]))),
+                      asset=self.st["asset"], eng=eid, passCount=1, need=1,
+                      side=rec["side"], entry=entry, ask=rec["ask2"], slip=slip*100,
+                      stake=round(spent, 2), reqStake=50.0, fillFrac=round(spent/50.0, 3),
+                      shares=shares, feeEntry=fee, feeExit=0.0, gas=GAS_USD,
+                      btcOpen=f["open"], btcEntry=f["last"], btcClose=None,
+                      driftPct=round(rec["drift"]/100.0, 4),
+                      feed=f["src"], status="open", hedge=None, pnl=None, result=None, settledBy=None,
+                      guards=[["LeaderConf", 1], ["QuoteHeld", 1 if (rec.get("ask2") is not None and rec["ask2"] <= limit) else 0]])
+            self.trades(eid).insert(0, tr)
+            self._trim(eid)
+            rec["l50"] = "fill"
+            self.log(f"[LEADER50] ENTER {self.st['asset']} {rec['side'].upper()} @ {entry*100:.1f}c avg "
+                     f"${spent:.0f} fee ${fee:.2f} (re-poll fill, first ask {rec['ask1']*100:.0f}c) "
+                     f"+{tr['entrySec']}s into interval")
+        except Exception as e:
+            self.log(f"leader50 enter error: {e}")
 
     def _leader_tick(self, now):
         """P5/R3 leader_v1 $0-stake fill-conformance shadow (see CHANGELOG P5).
@@ -872,7 +933,7 @@ class Bot:
             if not q.get("at") or (now - q["at"]) > self.prof()["freshMs"]: return
             tok = m.get("tokUp") if side == "up" else m.get("tokDown")
             if not tok: return
-            rec = dict(t0=m["t0"], side=side, drift=round(drift_bps, 2),
+            rec = dict(t0=m["t0"], t1=m.get("t1"), slug=m.get("slug"), side=side, drift=round(drift_bps, 2),
                        sec=max(0, now_s_ - m["t0"]), ask1=q["ask"], bid1=q.get("bid"),
                        top1=(round(q["top"], 2) if q.get("top") is not None else None),
                        at1=q["at"], ask2=None, bid2=None, dtMs=None, win=None)
@@ -1101,11 +1162,14 @@ class Bot:
         return ev
 
     def evaluate(self, now, eid):
-        if ENGINE_CFG[eid].get("retired"):
-            # Terminal kill (FINAL-DESIGN v3): the book and history stay, the engine
-            # never trades again. Open trades still resolve via manage_open/settle.
+        if ENGINE_CFG[eid].get("retired") or ENGINE_CFG[eid].get("external"):
+            # Retired: terminal kill (FINAL-DESIGN v3) — the book stays, never trades.
+            # External (leader50): its entries come from the leader tick's re-poll
+            # (_leader50_enter), never from this evaluator. Open trades still
+            # resolve via manage_open/settle either way.
+            lbl = "Retired" if ENGINE_CFG[eid].get("retired") else "External"
             ev = dict(t=now, side=None, delta=0.0, q=None, mid=None, spread=None, left=None,
-                      checks=[("Retired", False)], passCount=0, need=1, must=[], mustOk=False,
+                      checks=[(lbl, False)], passCount=0, need=1, must=[], mustOk=False,
                       driftPct=None, fv=None, extra=[], extraOk=True, all=False, enter=False)
             self.eng[eid]["eval"] = ev
             return ev
@@ -2201,7 +2265,9 @@ def selftest():
                      bookUp=bku, bookDown=mirror(bku))
         b.feed = {"src": "Coinbase", "open": 100000, "last": 100000 + drift_bps * 10, "at": now, "t0": t0l}
         b._sleep_fn = lambda s: sleeps.append(s)
-        b._book_fn = lambda tok: {"bid": round((ask2 or ask) - 0.01, 2), "ask": (ask2 or ask), "at": now_ms()}
+        b._book_fn = lambda tok: {"bid": round((ask2 or ask) - 0.01, 2), "ask": (ask2 or ask),
+                                  "asks": [[(ask2 or ask), 300]], "bids": [[round((ask2 or ask) - 0.01, 2), 300]],
+                                  "topAskUsd": (ask2 or ask) * 300, "at": now_ms()}
         return b
     del sleeps[:]
     bl = mkldr()                                             # 5bps aligned drift, 62c ask, window closed
@@ -2211,10 +2277,18 @@ def selftest():
        and lr["dtMs"] is not None and sleeps == [LEADER_REPOLL_S] and bl.ldr["n"] == 1,
        "P5: qualifying drift-leader state records poll 1 + ~2.5s re-poll (quote persistence)",
        f"rec={lr}")
-    ok(all(not bl.trades(e) for e in ENGINES) and lr.get("win") is None,
-       "P5: leader shadow is $0-stake — no trade in any book, no pnl")
+    ok(all(not bl.trades(e) for e in ENGINES if e != "leader50") and lr.get("win") is None,
+       "P5: leader shadow itself is $0-stake — no trade in any book but its leader50 twin")
+    # leader50: the staked twin fills at the RE-POLLED book (arrival price), one per t0
+    l5 = bl.trades("leader50")[0] if bl.trades("leader50") else None
+    ok(l5 is not None and l5["entry"] == 0.63 and l5["ask"] == 0.62 and l5["side"] == "up"
+       and l5["stake"] == 50.0 and lr.get("l50") == "fill"
+       and dict((k, v) for k, v in l5["guards"]).get("QuoteHeld") == 1,
+       "leader50: fills $50 at the re-poll price + slip when the quote held",
+       f"entry={l5 and l5['entry']} l50={lr.get('l50')}")
     bl._leader_tick(now + 4000)                              # same interval again: one record per t0
-    ok(len(bl.ldr["book"]) == 1, "P5: one leader record per interval (dedupe)")
+    ok(len(bl.ldr["book"]) == 1 and len(bl.trades("leader50")) == 1,
+       "P5: one leader record per interval (dedupe) — and one leader50 trade")
     del sleeps[:]
     bl2 = mkldr(left=270, ask2=0.71)                         # entry windows open: re-poll must DEFER
     bl2._leader_tick(now)
@@ -2225,6 +2299,9 @@ def selftest():
     r2 = bl2.ldr["book"][-1]
     ok(r2["ask2"] == 0.71 and r2["dtMs"] is not None and bl2.ldr.get("pend") is None,
        "P5: deferred re-poll completes next tick and logs the moved quote", f"ask2={r2['ask2']}")
+    ok(not bl2.trades("leader50") and r2.get("l50") == "ran",
+       "leader50: quote ran past the limit by arrival — NO fill, miss logged as conformance data",
+       f"l50={r2.get('l50')}")
     for bad_ask, bad_drift in ((0.62, 2.0), (0.62, 9.0), (0.70, 5.0), (0.54, 5.0)):
         bx = mkldr(ask=bad_ask, drift_bps=bad_drift)
         bx._leader_tick(now)
