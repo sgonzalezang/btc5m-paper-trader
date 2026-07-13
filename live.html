@@ -285,31 +285,13 @@ function moreRows(id){ SHOWN[id]=(SHOWN[id]||PAGE)+PAGE; if(LAST) draw(LAST); }
 // the curve at t1 also lands every engine that traded the same interval on the SAME x,
 // instead of scattering them across those 5 minutes by whenever each happened to enter.
 function closeMs(t){ return (typeof t.t1==="number")?t.t1*1000:t.at; }
-// ERA: the chart races from the birth of the REAL reversal-family record —
-// Jul 8 9:35pm CDT (Jul 9 02:35 UTC), the first oracle-settled reversal trade.
-// Everything rebased to $0 there. Only the four RUNNING engines draw; retired
-// books keep their cards/ledgers below but stay off the chart.
-const ERA_MS=1783564500000;
-// Impulse v2 launched 10:40am Jul 10, so its earlier stretch is a REPLAY of its
-// exact rules over the family's real ledger: actual order-book fills, actual
-// oracle outcomes — gate + 53c cap + quarter-Kelly from the $1,000 launch bank,
-// $1 minimum order enforced (82 real intervals -> 22 sized trades, +$202.85).
-// The real book takes over from launch, offset by the replay's ending value.
-// Cards/ledgers stay 100% real.
-const IMP_SIM=[[1783568400000,34.03],[1783575000000,-20.02],[1783590600000,0.87],[1783599000000,22.21],[1783601400000,-1.5],[1783604400000,85.02],[1783606500000,74.99],[1783608000000,111.58],[1783609500000,164.97],[1783612800000,154.2],[1783613700000,103.97],[1783617900000,120.95],[1783621800000,166.75],[1783626900000,250.57],[1783631400000,320.05],[1783644300000,369.44],[1783648500000,327.99],[1783650000000,311.81],[1783675500000,256.31],[1783690800000,223.68],[1783693500000,159.46],[1783694400000,202.85]];
-const IMP_SIM_END=1783694400000, IMP_SIM_VAL=202.85;
-// impulse50 = the flagship's flat-stake twin: same gate/cap/timing, constant $50,
-// no Kelly skip — it takes every gate+cap pass. Its replay over the same record:
-// 51 trades, 28 wins, +$355.61. The live paired delta vs impulse_v2 answers
-// "does the sizing pay?" with real data.
-const IMP50_SIM=[[1783564800000,44.47],[1783567800000,-7.25],[1783568400000,57.03],[1783572000000,5.35],[1783575000000,-46.92],[1783577700000,-0.6],[1783583400000,-52.28],[1783584300000,-104.03],[1783590600000,-44.85],[1783596300000,-96.5],[1783599000000,-37.32],[1783601100000,9.0],[1783601400000,-42.96],[1783603500000,-94.64],[1783604400000,-8.0],[1783606500000,-59.86],[1783607100000,-13.54],[1783607700000,29.15],[1783608000000,93.43],[1783609500000,163.31],[1783609800000,211.56],[1783610100000,257.88],[1783612800000,206.02],[1783613100000,250.49],[1783613700000,198.35],[1783614300000,146.67],[1783616100000,192.99],[1783617900000,249.79],[1783619100000,198.11],[1783621800000,265.12],[1783623600000,213.4],[1783626600000,263.65],[1783626900000,343.05],[1783631400000,415.95],[1783635900000,364.16],[1783639500000,412.41],[1783644000000,456.88],[1783644300000,521.16],[1783648500000,469.16],[1783650000000,417.3],[1783662000000,459.99],[1783671900000,408.31],[1783673100000,456.56],[1783675500000,404.46],[1783690500000,454.71],[1783690800000,402.75],[1783692300000,351.03],[1783692600000,299.35],[1783693500000,246.86],[1783694400000,311.14],[1783701900000,355.61]];
-const IMP50_SIM_END=1783701900000, IMP50_SIM_VAL=355.61;
-const IMP50_SIM_TRADES=[[1783564500,"up",0.52,50.0,"win",44.47],[1783567500,"down",0.51,50.0,"loss",-51.72],[1783568100,"down",0.43,50.0,"win",64.28],[1783571700,"down",0.52,50.0,"loss",-51.68],[1783574700,"up",0.3515,50.0,"loss",-52.27],[1783577400,"up",0.51,50.0,"win",46.32],[1783583100,"down",0.52,50.0,"loss",-51.68],[1783584000,"up",0.5,50.0,"loss",-51.75],[1783590300,"up",0.45,50.0,"win",59.18],[1783596000,"up",0.53,50.0,"loss",-51.65],[1783598700,"up",0.45,50.0,"win",59.18],[1783600800,"down",0.51,50.0,"win",46.32],[1783601100,"up",0.44,50.0,"loss",-51.96],[1783603200,"up",0.5219,50.0,"loss",-51.68],[1783604100,"up",0.36,50.0,"win",86.64],[1783606200,"up",0.47,50.0,"loss",-51.86],[1783606800,"up",0.51,50.0,"win",46.32],[1783607400,"down",0.53,50.0,"win",42.69],[1783607700,"up",0.43,50.0,"win",64.28],[1783609200,"down",0.41,50.0,"win",69.88],[1783609500,"up",0.5,50.0,"win",48.25],[1783609800,"down",0.51,50.0,"win",46.32],[1783612500,"up",0.47,50.0,"loss",-51.86],[1783612800,"up",0.52,50.0,"win",44.47],[1783613400,"up",0.39,50.0,"loss",-52.14],[1783614000,"up",0.52,50.0,"loss",-51.68],[1783615800,"up",0.51,50.0,"win",46.32],[1783617600,"down",0.46,50.0,"win",56.8],[1783618800,"down",0.52,50.0,"loss",-51.68],[1783621500,"up",0.42,50.0,"win",67.01],[1783623300,"up",0.51,50.0,"loss",-51.72],[1783626300,"down",0.49,50.0,"win",50.25],[1783626600,"up",0.38,50.0,"win",79.4],[1783631100,"down",0.4,50.0,"win",72.9],[1783635600,"down",0.49,50.0,"loss",-51.79],[1783639200,"up",0.5,50.0,"win",48.25],[1783643700,"up",0.52,50.0,"win",44.47],[1783644000,"down",0.43,50.0,"win",64.28],[1783648200,"down",0.43,50.0,"loss",-52.0],[1783649700,"down",0.47,50.0,"loss",-51.86],[1783661700,"down",0.53,50.0,"win",42.69],[1783671600,"down",0.52,50.0,"loss",-51.68],[1783672800,"up",0.5,50.0,"win",48.25],[1783675200,"down",0.4,50.0,"loss",-52.1],[1783690200,"up",0.49,50.0,"win",50.25],[1783690500,"down",0.44,50.0,"loss",-51.96],[1783692000,"up",0.51,50.0,"loss",-51.72],[1783692300,"up",0.52,50.0,"loss",-51.68],[1783693200,"up",0.29,50.0,"loss",-52.49],[1783694100,"up",0.43,50.0,"win",64.28],[1783701600,"up",0.52,50.0,"win",44.47]];
-// the 22 replay trades behind the pre-launch line: [t0, side, fill, stake, result, pnl]
-const IMP_SIM_TRADES=[[1783568100,"down",0.43,26.47,"win",34.03],[1783574700,"up",0.3515,51.7,"loss",-54.05],[1783590300,"up",0.45,17.65,"win",20.89],[1783598700,"up",0.45,18.03,"win",21.34],[1783601100,"up",0.44,22.81,"loss",-23.71],[1783604100,"up",0.36,49.93,"win",86.52],[1783606200,"up",0.47,9.67,"loss",-10.03],[1783607700,"up",0.43,28.46,"win",36.59],[1783609200,"down",0.41,38.2,"win",53.39],[1783612500,"up",0.47,10.38,"loss",-10.77],[1783613400,"up",0.39,48.17,"loss",-50.23],[1783617600,"down",0.46,14.95,"win",16.98],[1783621500,"up",0.42,34.17,"win",45.8],[1783626600,"up",0.38,52.78,"win",83.82],[1783631100,"down",0.4,47.66,"win",69.48],[1783644000,"down",0.43,38.42,"win",49.39],[1783648200,"down",0.43,39.86,"loss",-41.45],[1783649700,"down",0.47,15.6,"loss",-16.18],[1783675200,"down",0.4,53.26,"loss",-55.5],[1783690500,"down",0.44,31.4,"loss",-32.63],[1783693200,"up",0.29,61.18,"loss",-64.22],[1783694100,"up",0.43,33.75,"win",43.39]];
-// sim/replay registry: chart + card fall back to these until each real book has trades
-const SIMS={impulse_v2:{pts:IMP_SIM,end:IMP_SIM_END,val:IMP_SIM_VAL,trades:IMP_SIM_TRADES,label:"quarter-Kelly replay"},
-            impulse50:{pts:IMP50_SIM,end:IMP50_SIM_END,val:IMP50_SIM_VAL,trades:IMP50_SIM_TRADES,label:"flat $50 replay"}};
+// ERA: the COMMON RUNNING POINT — Fri Jul 10 12:10pm CDT (17:10 UTC), the first
+// interval where all five running books were live together (impulse_v2, the last
+// to launch, logged its first trade there). Every engine rebased to $0 at this
+// point; the chart is REAL trades only — the pre-launch replay/sim backfills were
+// removed 2026-07-13 so the race reads as a true like-for-like comparison.
+// Retired books keep their cards/ledgers below but stay off the chart.
+const ERA_MS=1783703400000;
 function rawSeries(st, id){   // the engine's FULL lifetime cumulative P&L, unclipped
   const btc=st.btc||{}, hist=(btc.equity||{})[id]||[], agg=(btc.lifetime||{})[id]||{};
   const base=(typeof agg.pnl==="number")?agg.pnl:(hist.length?hist[hist.length-1][1]:0);
@@ -326,11 +308,6 @@ function eqSeries(st, id){
   const base0=stepVal(pts,ERA_MS);
   const out=era.map(p=>[p[0],+(p[1]-base0).toFixed(2)]);
   if(out.length&&out[0][0]>ERA_MS) out.unshift([ERA_MS,0]);
-  const sim=SIMS[id];
-  if(sim){
-    const real=out.filter(p=>p[0]>sim.end).map(p=>[p[0],+(p[1]+sim.val).toFixed(2)]);
-    return [[ERA_MS,0]].concat(sim.pts).concat(real);
-  }
   return out;
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
@@ -422,7 +399,7 @@ function equityChart(st){
     +`<button data-daily="1" class="${VIEW.daily?'on':''}" onclick="toggleDaily()" title="one point per day at 11:55pm local (daily close)">Daily</button>`
     +`<button style="margin-left:auto" class="${ENGSORT==='rank'?'on':''}" onclick="toggleEngSort()" title="Rank: order every engine list by current P&amp;L, best first. Grouped: the ablation layout (loose|floor, band|value, …)">${ENGSORT==='rank'?'▼ by return':'⇄ grouped'}</button></div>`;
   // SVG is filled by layoutChart() after insert (needs the container width)
-  return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — running engines since Jul 8 9:35pm, from $0 <span style="font-size:11px;color:var(--mut);font-weight:400" title="The era starts at the first oracle-settled reversal trade (Jul 8 9:35pm CDT). Impulse v2 launched 10:40am Jul 10; its earlier stretch is a replay of its exact rules over the family\'s REAL ledger — actual order-book fills, actual oracle outcomes (82 intervals, 22 sized trades, $1 min order enforced). Its real book continues from launch. Every card/ledger below is real trades only; retired engines keep their cards but stay off this chart.">· impulse replayed pre-launch</span> '+legend+'</h2>'
+  return '<div class="col" style="margin-bottom:16px;position:relative"><h2>Engine P&amp;L — all five books since Fri Jul 10 12:10pm, from $0 <span style="font-size:11px;color:var(--mut);font-weight:400" title="The era starts at the first interval where every running book was live together — Fri Jul 10 12:10pm CDT (17:10 UTC), Impulse v2\'s first trade. All engines rebased to $0 there, so the race is a true like-for-like comparison: real trades only, no replay or simulated data anywhere on this chart. Retired engines keep their cards but stay off the chart.">· real trades only, equal start</span> '+legend+'</h2>'
     +ctrl+'<div class="eqscroll" id="eqscroll"><div class="lab" style="padding:12px 2px">…</div></div>'
     +'<div class="eqtip" id="eqtip"></div><div class="eqmeta" id="eqmeta"></div></div>';
 }
@@ -598,11 +575,9 @@ function draw(st){
     return "";
   };
   // per-card equity sparkline: the engine's own FULL lifetime curve (backward-
-  // looking on purpose), step-drawn like the main chart. Impulse falls back to
-  // its pre-launch ledger replay until its real book has trades.
+  // looking on purpose), step-drawn like the main chart. Real trades only.
   const spark=(id)=>{
     let pts=rawSeries(st,id), lbl="lifetime equity";
-    if(SIMS[id]&&pts.length<2){ pts=[[ERA_MS,0]].concat(SIMS[id].pts); lbl="ledger replay (pre-launch sim)"; }
     if(pts.length===1) pts=[[pts[0][0]-3600000,0]].concat(pts);   // single settled trade: anchor a $0 start an hour before
     if(pts.length<2) return "";
     const t0=pts[0][0], t1=pts[pts.length-1][0];
@@ -626,25 +601,8 @@ function draw(st){
       +`</svg>`
       +`<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--mut)"><span>${new Date(t0).toLocaleDateString(undefined,{month:"short",day:"numeric"})} ${new Date(t0).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})} → now · ${lbl}</span><span style="color:${last>=0?"var(--up)":"var(--dn)"}">${D$(last)}</span></div></div>`;
   };
-  // the pre-launch replay trades that make up Impulse v2's chart line — listed
-  // so the card ledger explains the line even before the real book trades.
-  const replayRows=(id)=>{
-    const sim=SIMS[id];
-    if(!sim) return "";
-    const fmt=t=>new Date(t*1000).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
-    const tag=`<b style="font-size:9px;padding:0 4px;border-radius:6px;background:#3a3325;color:#d9b36a">SIM</b>`;
-    const body=sim.trades.slice().reverse().map(x=>
-      `<tr style="opacity:.78;border-top:1px solid var(--line)"><td style="padding:3px 6px">${fmt(x[0])} ${tag}</td>`
-      +`<td style="padding:3px 6px">${x[1].toUpperCase()}</td><td style="padding:3px 6px">${Math.round(x[2]*100)}¢</td>`
-      +`<td style="padding:3px 6px">$${x[3].toFixed(2)}</td><td style="padding:3px 6px">${x[4]}</td>`
-      +`<td style="padding:3px 6px;color:${x[5]>=0?"var(--up)":"var(--dn)"}">${D$(x[5])}</td></tr>`).join("");
-    return `<h3 style="margin:10px 0 4px;font-size:12.5px;color:var(--mut)" title="Replay of this engine's exact rules over the family's real order-book fills and oracle outcomes, pre-launch. These make up the chart line before launch; real trades appear in the ledger above as they settle.">Pre-launch replay (${sim.label}) — ${sim.trades.length} trades, net ${D$(sim.val)}</h3>`
-      +`<div style="max-height:200px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel2)">`
-      +`<table style="width:100%;border-collapse:collapse;font-size:11.5px"><tr style="color:var(--mut);font-size:10.5px">`
-      +`<td style="padding:3px 6px">time</td><td style="padding:3px 6px">side</td><td style="padding:3px 6px">fill</td><td style="padding:3px 6px">stake</td><td style="padding:3px 6px">result</td><td style="padding:3px 6px">P&amp;L</td></tr>${body}</table></div>`;
-  };
   const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span>${chip(id)}<span>${needLbl(id)}</span></h2>`
-    +(S[id]?tiles(S[id]):"")+spark(id)+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+replayRows(id)+`</div>`;
+    +(S[id]?tiles(S[id]):"")+spark(id)+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
   // Cards follow the SHARED order. In "grouped" this reproduces the ablation layout exactly
   // (loose|floor, band|value, fade|strict, reversal|reversal2, latentfire full-width);
   // in "rank" it lays them out best-first, 2 per row.
