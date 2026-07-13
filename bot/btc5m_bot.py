@@ -68,7 +68,7 @@ PROFILES = {
 # flagship ARE the pre-registered day-60 gate and cap verdicts. The 7 retired
 # engines are terminal kills (momentum/value/fade fee-death is structural, not
 # parametric); their books and histories stay intact but they never trade again.
-ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "latentfire", "leader50"]
+ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "latentfire", "leader50", "fade50"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None, retired=True),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None, retired=True),
@@ -167,6 +167,18 @@ ENGINE_CFG = {
     # entries come from _leader50_enter (the leader tick), never evaluate().
     "leader50": dict(label="Leader $50", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                      holdToClose=True, shadow=True, external=True),
+    # fade50 — the CONTRARIAN twin of leader50 (added 2026-07-13 at user request:
+    # "see if run ups and then fading it are profitable — likewise run downs").
+    # On every leader_v1 qualifying signal it buys the OPPOSITE side (fades the
+    # small drift-move) at the REAL opposite-side book, polled at re-poll time —
+    # so its P&L uses true opposite prices, not the 1-bid parity estimate. The
+    # opposite side is cheap (~35-45c) when the leader ran to 55-66c, so a win
+    # pays big and break-even is only ~40%. Each fill is tagged runUp (up-leader
+    # fade = bet down) vs runDown (down-leader fade = bet up) so both directions
+    # of the same question are measured separately. Flat $50, hold to close.
+    # external=True: entries come from _fade50_enter (the leader tick), not evaluate().
+    "fade50": dict(label="Fade $50", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                   holdToClose=True, shadow=True, external=True, fadeMax=0.55),
 }
 # impulse_v2 sizing/learning state defaults (persisted under st["impulse"]).
 # qlo/qhi are the bucketed win-prob estimates, bucketed by p_eff = ask + slip
@@ -848,8 +860,64 @@ class Bot:
                     r["dtMs"] = int(dt_ms)
                     r["ask2"] = b2.get("ask") if b2 else None
                     r["bid2"] = b2.get("bid") if b2 else None
-                    self._leader50_enter(r, b2)
+                    self._leader50_enter(r, b2)     # leader50 first (sets rec['l50'])
+                    self._fade50_enter(r)           # then fade50 buys the opposite side
                 return
+
+    def _fade50_enter(self, rec):
+        """fade50: the CONTRARIAN twin — buy the OPPOSITE side of the leader
+        signal at the REAL opposite-side book (polled here, at re-poll time, so
+        the price is true, not the 1-bid parity estimate). Tags runUp (up-leader
+        fade) vs runDown (down-leader fade) and whether the leader ran. Flat $50,
+        hold to close. Measurement/paper only — fade50 is external+shadow."""
+        eid = "fade50"
+        try:
+            if ENGINE_CFG[eid].get("retired"): return
+            if self.trade_for(eid, rec["t0"]) or self.open_trade(eid): return
+            opp = "down" if rec["side"] == "up" else "up"    # the side fade50 buys
+            f = self.feed
+            if not (f.get("t0") == rec["t0"] and f.get("open") and f.get("last") is not None):
+                rec["f50"] = "late"; return
+            otok = rec.get("oppTok")
+            if not otok:
+                rec["f50"] = "notok"; return
+            bopp = self._book_fn(otok)                        # the REAL opposite book, now
+            if not (bopp and bopp.get("ask") is not None):
+                rec["f50"] = "nobook"; return
+            slip = clampf(self.st["slip"], 0, 5, 1) / 100
+            cap = ENGINE_CFG[eid].get("fadeMax", 0.55)
+            limit = min(0.99, cap + slip)                    # sanity cap: the opposite of a 55-66c leader is cheap
+            levels = _levels(bopp, "ask")
+            shares, spent, avg, fully = walk_buy(levels, 50.0, limit)
+            if spent < MIN_ORDER_USD or not avg:
+                rec["f50"] = "skip"
+                self.log(f"[FADE50] SKIP {opp.upper()} — opposite ask "
+                         f"{'%.0fc' % (bopp['ask']*100)} over cap {cap*100:.0f}c or thin")
+                return
+            entry = min(0.99, round(avg + slip, 4))
+            shares = round(spent / entry, 4)
+            fee = taker_fee(shares, entry)
+            entered = now_ms()
+            t1 = rec.get("t1") or rec["t0"] + IVL
+            ranup = rec.get("l50") == "ran"
+            tr = dict(at=entered, t0=rec["t0"], t1=t1, slug=rec.get("slug") or f"btc-updown-5m-{rec['t0']}",
+                      profile=self.st["profile"], entrySec=max(0, int(round(entered/1000 - rec["t0"]))),
+                      asset=self.st["asset"], eng=eid, passCount=1, need=1,
+                      side=opp, entry=entry, ask=bopp["ask"], slip=slip*100,
+                      stake=round(spent, 2), reqStake=50.0, fillFrac=round(spent/50.0, 3),
+                      shares=shares, feeEntry=fee, feeExit=0.0, gas=GAS_USD,
+                      btcOpen=f["open"], btcEntry=f["last"], btcClose=None,
+                      driftPct=round(rec["drift"]/100.0, 4), feed=f["src"],
+                      status="open", hedge=None, pnl=None, result=None, settledBy=None,
+                      # tags for the research slice: which move we faded + whether the leader ran
+                      guards=[["fade" + rec["side"].capitalize(), 1], ["leaderRan", 1 if ranup else 0]])
+            self.trades(eid).insert(0, tr)
+            self._trim(eid)
+            rec["f50"] = "fill"
+            self.log(f"[FADE50] FADE {rec['side']}-move -> BUY {opp.upper()} @ {entry*100:.0f}c "
+                     f"${spent:.0f} fee ${fee:.2f} (leader ask {rec['ask1']*100:.0f}c{', ran' if ranup else ''})")
+        except Exception as e:
+            self.log(f"fade50 enter error: {e}")
 
     def _leader50_enter(self, rec, b2):
         """leader50: the staked $50 paper twin of the conformance shadow. Fires
@@ -939,11 +1007,12 @@ class Bot:
             if not (LEADER_ASK_LO <= q["ask"] < LEADER_ASK_HI): return
             if not q.get("at") or (now - q["at"]) > self.prof()["freshMs"]: return
             tok = m.get("tokUp") if side == "up" else m.get("tokDown")
+            opp_tok = m.get("tokDown") if side == "up" else m.get("tokUp")   # fade50 buys this side
             if not tok: return
             rec = dict(t0=m["t0"], t1=m.get("t1"), slug=m.get("slug"), side=side, drift=round(drift_bps, 2),
                        sec=max(0, now_s_ - m["t0"]), ask1=q["ask"], bid1=q.get("bid"),
                        top1=(round(q["top"], 2) if q.get("top") is not None else None),
-                       at1=q["at"], ask2=None, bid2=None, dtMs=None, win=None)
+                       at1=q["at"], ask2=None, bid2=None, dtMs=None, win=None, oppTok=opp_tok)
             self.ldr["book"].append(rec)
             self.ldr["n"] = self.ldr.get("n", 0) + 1
             del self.ldr["book"][:-LEADER_KEEP]
@@ -2387,9 +2456,18 @@ def selftest():
                      bookUp=bku, bookDown=mirror(bku))
         b.feed = {"src": "Coinbase", "open": 100000, "last": 100000 + drift_bps * 10, "at": now, "t0": t0l}
         b._sleep_fn = lambda s: sleeps.append(s)
-        b._book_fn = lambda tok: {"bid": round((ask2 or ask) - 0.01, 2), "ask": (ask2 or ask),
-                                  "asks": [[(ask2 or ask), 300]], "bids": [[round((ask2 or ask) - 0.01, 2), 300]],
-                                  "topAskUsd": (ask2 or ask) * 300, "at": now_ms()}
+        # token-aware book: leader token (LU for the up-leader fixture) returns the
+        # re-poll leader book; the OPPOSITE token (LD) returns the cheap opposite
+        # book fade50 buys (~ 1 - leader_bid), so both twins can be exercised.
+        def _bf(tok, _a=ask, _a2=ask2):
+            lead_ask = _a2 or _a
+            if tok == "LD":                              # opposite side (cheap)
+                opp = round(1 - (lead_ask - 0.01), 2)
+                return {"bid": round(opp - 0.01, 2), "ask": opp, "asks": [[opp, 300]],
+                        "bids": [[round(opp - 0.01, 2), 300]], "topAskUsd": opp * 300, "at": now_ms()}
+            return {"bid": round(lead_ask - 0.01, 2), "ask": lead_ask, "asks": [[lead_ask, 300]],
+                    "bids": [[round(lead_ask - 0.01, 2), 300]], "topAskUsd": lead_ask * 300, "at": now_ms()}
+        b._book_fn = _bf
         return b
     del sleeps[:]
     bl = mkldr()                                             # 5bps aligned drift, 62c ask, window closed
@@ -2399,8 +2477,8 @@ def selftest():
        and lr["dtMs"] is not None and sleeps == [LEADER_REPOLL_S] and bl.ldr["n"] == 1,
        "P5: qualifying drift-leader state records poll 1 + ~2.5s re-poll (quote persistence)",
        f"rec={lr}")
-    ok(all(not bl.trades(e) for e in ENGINES if e != "leader50") and lr.get("win") is None,
-       "P5: leader shadow itself is $0-stake — no trade in any book but its leader50 twin")
+    ok(all(not bl.trades(e) for e in ENGINES if e not in ("leader50", "fade50")) and lr.get("win") is None,
+       "P5: leader shadow itself is $0-stake — no trade in any book but its leader50/fade50 twins")
     # leader50: the staked twin fills at the RE-POLLED book (arrival price), one per t0
     l5 = bl.trades("leader50")[0] if bl.trades("leader50") else None
     ok(l5 is not None and l5["entry"] == 0.63 and l5["ask"] == 0.62 and l5["side"] == "up"
@@ -2408,9 +2486,16 @@ def selftest():
        and dict((k, v) for k, v in l5["guards"]).get("QuoteHeld") == 1,
        "leader50: fills $50 at the re-poll price + slip when the quote held",
        f"entry={l5 and l5['entry']} l50={lr.get('l50')}")
+    # fade50: the contrarian twin buys the OPPOSITE (down) side at the REAL opposite book (~40c)
+    fd = bl.trades("fade50")[0] if bl.trades("fade50") else None
+    gd = dict((k, v) for k, v in (fd["guards"] if fd else []))
+    ok(fd is not None and fd["side"] == "down" and abs(fd["entry"] - 0.40) < 1e-9 and fd["stake"] == 50.0
+       and gd.get("fadeUp") == 1 and gd.get("leaderRan") == 0 and lr.get("f50") == "fill",
+       "fade50: buys the OPPOSITE (down) side of an up-move at the real opposite book ~40c, tagged fadeUp",
+       f"side={fd and fd['side']} entry={fd and fd['entry']} f50={lr.get('f50')}")
     bl._leader_tick(now + 4000)                              # same interval again: one record per t0
-    ok(len(bl.ldr["book"]) == 1 and len(bl.trades("leader50")) == 1,
-       "P5: one leader record per interval (dedupe) — and one leader50 trade")
+    ok(len(bl.ldr["book"]) == 1 and len(bl.trades("leader50")) == 1 and len(bl.trades("fade50")) == 1,
+       "P5: one leader record per interval (dedupe) — one leader50 + one fade50 trade")
     del sleeps[:]
     bl2 = mkldr(left=270, ask2=0.71)                         # entry windows open: re-poll must DEFER
     bl2._leader_tick(now)
@@ -2424,6 +2509,12 @@ def selftest():
     ok(not bl2.trades("leader50") and r2.get("l50") == "ran",
        "leader50: quote ran past the limit by arrival — NO fill, miss logged as conformance data",
        f"l50={r2.get('l50')}")
+    # fade50 STILL enters on a runaway (fading the run-up is the whole point), tagged leaderRan
+    fd2 = bl2.trades("fade50")[0] if bl2.trades("fade50") else None
+    gd2 = dict((k, v) for k, v in (fd2["guards"] if fd2 else []))
+    ok(fd2 is not None and fd2["side"] == "down" and gd2.get("leaderRan") == 1 and r2.get("f50") == "fill",
+       "fade50: fades the run-up even when leader50 skipped it (buys the cheap opposite), tagged leaderRan",
+       f"side={fd2 and fd2['side']} leaderRan={gd2.get('leaderRan')}")
     # ONE combined entry ping: the re-poll makes it definite, then a single
     # shadow_decision ping fires (no separate alert). Quote holds → 'fill'.
     sfl = os.path.join(tempfile.gettempdir(), "btc5m_l50sig.json")

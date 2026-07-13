@@ -92,9 +92,31 @@ def analyze(s):
         caveat="in-sample, tiny n, opposite ask estimated as 1-bid2 (not polled) — hypothesis only",
     )
 
+    # fade50 — the LIVE staked contrarian book (buys the opposite side at the REAL
+    # opposite book). This supersedes the 1-bid parity estimate above with true fills.
+    # Slice by the move it faded: fadeUp (faded an up-move -> bought down) vs
+    # fadeDown (faded a down-move -> bought up), and by whether the leader ran.
+    ftr = [t for t in s["btc"]["engines"].get("fade50", {}).get("trades", [])
+           if t.get("result") in ("win", "loss", "stopped")]
+    def fade_slice(pred):
+        xs = [t for t in ftr if pred(t)]
+        w = sum(1 for t in xs if t.get("result") == "win")
+        return dict(n=len(xs), wins=w, winPct=(round(100 * w / len(xs), 1) if xs else None),
+                    pnl=round(sum((t.get("pnl") or 0) for t in xs), 2))
+    def tag(t, k):
+        return dict((g[0], g[1]) for g in t.get("guards", [])).get(k)
+    fade50_live = dict(
+        n=len(ftr), total_pnl=round(sum((t.get("pnl") or 0) for t in ftr), 2),
+        faded_up_move=fade_slice(lambda t: tag(t, "fadeUp") == 1),    # bought down
+        faded_down_move=fade_slice(lambda t: tag(t, "fadeDown") == 1),  # bought up
+        on_runaway=fade_slice(lambda t: tag(t, "leaderRan") == 1),
+        on_non_runaway=fade_slice(lambda t: tag(t, "leaderRan") == 0),
+    )
+
     res = dict(
         asOf=s.get("heartbeatIso"),
         n_oracle=len(orc),
+        fade50_live=fade50_live,
         continuation_rate=(round(100 * sum(1 for r in orc if r["win"] == 1) / len(orc), 1) if orc else None),
         by_bet_side={sd: grp([r for r in orc if r["side"] == sd]) for sd in ("up", "down")},
         by_outcome={od: grp([r for r in orc if outcome(r) == od]) for od in ("up", "down")},
@@ -134,10 +156,17 @@ def fmt(res):
              f"P&L if chased at the ran-up ask {rq['pnl_if_chased_ask2']:+.2f} "
              f"(pre-run price {rq['pnl_at_prerun_ask1']:+.2f})  -> low win% = a reversal warning, not momentum")
     fs = res["fade_the_runup"]
-    L.append(f"  HYPOTHESIS — FLIP to the opposite side on a run-up (fade the overshoot):")
+    L.append(f"  HYPOTHESIS (parity estimate) — FLIP to the opposite side on a run-up:")
     L.append(f"    opposite won {fs['opp_wins']}/{fs['n']} ({fs['opp_winPct']}%)  "
              f"P&L at ~1-bid2 parity {fs['pnl_fade_at_parity']:+.2f} on n={fs['n_priced']}  "
              f"[{fs['caveat']}]")
+    L.append("")
+    fl = res["fade50_live"]
+    L.append(f"FADE50 LIVE book (staked $50, opposite side at the REAL opposite book) — n={fl['n']} total {fl['total_pnl']:+.2f}")
+    L.append(f"  faded an UP-move (bought down): n={fl['faded_up_move']['n']} win {fl['faded_up_move']['winPct']}% pnl {fl['faded_up_move']['pnl']:+.2f}")
+    L.append(f"  faded a DOWN-move (bought up):  n={fl['faded_down_move']['n']} win {fl['faded_down_move']['winPct']}% pnl {fl['faded_down_move']['pnl']:+.2f}")
+    L.append(f"  on runaways: n={fl['on_runaway']['n']} win {fl['on_runaway']['winPct']}% pnl {fl['on_runaway']['pnl']:+.2f}  ·  "
+             f"non-runaway: n={fl['on_non_runaway']['n']} win {fl['on_non_runaway']['winPct']}% pnl {fl['on_non_runaway']['pnl']:+.2f}")
     L.append("")
     L.append("signals:")
     for x in res["signals"]:
