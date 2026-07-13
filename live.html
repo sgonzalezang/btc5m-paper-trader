@@ -44,6 +44,14 @@
   .books-single{margin-top:16px}
   .books-single .col{opacity:.9}
   .books-single h2 span:first-child{font-size:14px}
+  details.retired{margin-top:20px;border-top:1px dashed var(--line);padding-top:12px}
+  details.retired>summary{cursor:pointer;list-style:none;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);user-select:none}
+  details.retired>summary::-webkit-details-marker{display:none}
+  details.retired>summary::before{content:"▸ ";color:var(--mut)}
+  details.retired[open]>summary::before{content:"▾ "}
+  details.retired>summary:hover{border-color:var(--btc)}
+  details.retired[open]>summary{margin-bottom:4px}
+  details.retired .col{opacity:.85}
   .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
   .col h2{margin:0 0 8px;font-size:16px;border-bottom:2px solid var(--line);padding-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
   .col h2 span{font-size:12px;color:var(--mut)}
@@ -639,20 +647,34 @@ function draw(st){
   };
   const col=(id)=>`<div class="col"><h2><span style="color:${HUE[id]}">${LABEL[id]}</span>${chip(id)}<span>${needLbl(id)}</span></h2>`
     +(S[id]?tiles(S[id]):"")+spark(id)+rows((eng[id]||{}).trades, id, (S[id]||{}).trades)+`</div>`;
-  // Cards follow the SHARED order. In "grouped" this reproduces the ablation layout exactly
-  // (loose|floor, band|value, fade|strict, reversal|reversal2, latentfire full-width);
-  // in "rank" it lays them out best-first, 2 per row.
+  // Cards follow the SHARED order. In "grouped" this reproduces the ablation layout;
+  // in "rank" it lays them out best-first, 2 per row. Retired books are split off
+  // into a folded section so the running engines aren't buried.
+  const cfg=st.engineCfg||{};
   const order=engList(st);
-  let cards="";
-  for(let i=0;i<order.length;i+=2){
-    const pair=order.slice(i,i+2);
-    const solo=pair.length===1?"grid-template-columns:1fr;":"";
-    cards+=`<div class="books" style="${solo}${i?"margin-top:16px":""}">${pair.map(col).join("")}</div>`;
+  const activeIds=order.filter(e=>!(cfg[e]&&cfg[e].retired));
+  const retiredIds=order.filter(e=>cfg[e]&&cfg[e].retired);
+  const gridOf=(list)=>{
+    let out="";
+    for(let i=0;i<list.length;i+=2){
+      const pair=list.slice(i,i+2);
+      const solo=pair.length===1?"grid-template-columns:1fr;":"";
+      out+=`<div class="books" style="${solo}${i?"margin-top:16px":""}">${pair.map(col).join("")}</div>`;
+    }
+    return out;
+  };
+  const cards=gridOf(activeIds);
+  let retired="";
+  if(retiredIds.length){
+    const rp=retiredIds.reduce((a,e)=>a+((S[e]||{}).pnl||0),0);
+    const rt=retiredIds.reduce((a,e)=>a+((S[e]||{}).trades||0),0);
+    retired=`<details class="retired"><summary><b>Retired engines</b> <span class="mut">— ${retiredIds.length} terminally killed (FINAL-DESIGN v3): ${rt} trades, ${rp>=0?"+":"−"}$${Math.abs(rp).toFixed(2)} combined. Books kept, never trade again. Click to expand.</span></summary><div style="margin-top:12px">${gridOf(retiredIds)}</div></details>`;
   }
   $("body").innerHTML=equityChart(st)
     +ablation(st)
     +peakTrough(st)                                                  /* numeric companion to the chart: highs/lows per window */
     +cards
+    +retired
     +leaderPanel(st)
     +guardKey(must)
     +missesPanel(st)
