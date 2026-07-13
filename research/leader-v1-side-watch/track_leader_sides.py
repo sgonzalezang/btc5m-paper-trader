@@ -58,12 +58,34 @@ def analyze(s):
                     pnl_incl_wouldbe=pnl_all, pnl_actual_fills=round(sum(acts), 2),
                     n_filled=len(acts))
 
+    # "ran" quotes: leader50 took no position because the ask climbed past the limit.
+    # Would chasing them pay? Score at the pre-run ask1 AND at the ran-up ask2 (chase price).
+    fee_rate = s.get("feeRate", 0.07)
+    gas = s.get("gas", 0.004)
+    def pnl_at(entry, won):
+        if entry is None or entry <= 0:
+            return None
+        e = min(0.99, round(entry + 0.01, 4))
+        sh = round(50.0 / e, 4)
+        f = sh * fee_rate * e * (1 - e)
+        return round((sh - 50.0 if won else -50.0) - f - gas, 2)
+    ran = [r for r in orc if r.get("l50") == "ran"]
+    ran_chase = [pnl_at(r.get("ask2"), r["win"] == 1) for r in ran]
+    ran_stats = dict(
+        n=len(ran), wins=sum(1 for r in ran if r["win"] == 1),
+        winPct=(round(100 * sum(1 for r in ran if r["win"] == 1) / len(ran), 1) if ran else None),
+        pnl_at_prerun_ask1=round(sum(pnl_at(r.get("ask1"), r["win"] == 1) or 0 for r in ran), 2),
+        pnl_if_chased_ask2=round(sum(p or 0 for p in ran_chase), 2),
+        n_chaseable=sum(1 for p in ran_chase if p is not None),
+    )
+
     res = dict(
         asOf=s.get("heartbeatIso"),
         n_oracle=len(orc),
         continuation_rate=(round(100 * sum(1 for r in orc if r["win"] == 1) / len(orc), 1) if orc else None),
         by_bet_side={sd: grp([r for r in orc if r["side"] == sd]) for sd in ("up", "down")},
         by_outcome={od: grp([r for r in orc if outcome(r) == od]) for od in ("up", "down")},
+        ran_quotes=ran_stats,
         signals=[dict(t0=r["t0"], bet=r["side"], filled=r.get("l50"),
                       won=bool(r["win"]), pnl=round(realized(r), 2)) for r in sorted(orc, key=lambda x: x["t0"])],
     )
@@ -91,6 +113,12 @@ def fmt(res):
     tot_wb = round(sum(res["by_bet_side"][sd]["pnl_incl_wouldbe"] for sd in ("up", "down")), 2)
     tot_ac = round(sum(res["by_bet_side"][sd]["pnl_actual_fills"] for sd in ("up", "down")), 2)
     L.append(f"TOTAL: actual filled P&L {tot_ac:+.2f} · full-signal (incl. would-be) {tot_wb:+.2f}")
+    L.append("")
+    rq = res["ran_quotes"]
+    L.append("RAN quotes (climbed out of range, leader50 skipped) — is it worth chasing them?")
+    L.append(f"  n={rq['n']}  winners {rq['wins']}/{rq['n']} ({rq['winPct']}%)  "
+             f"P&L if chased at the ran-up ask {rq['pnl_if_chased_ask2']:+.2f} "
+             f"(pre-run price {rq['pnl_at_prerun_ask1']:+.2f})  -> low win% = a reversal warning, not momentum")
     L.append("")
     L.append("signals:")
     for x in res["signals"]:

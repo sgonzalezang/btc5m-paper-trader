@@ -31,6 +31,19 @@ reason for skepticism.
   loss costs ~−$51. Break-even therefore needs roughly **58–62% wins**. A 50% up-side is
   deeply under water; a 57% blended rate still loses. This is structural, not noise.
 
+## Sub-question: should we CHASE the quotes that "ran out of range"? (No.)
+
+Owner asked 2026-07-13 whether the signals leader50 skips because the ask climbed past
+its limit ("ran") are secretly winners worth entering. First n=6: **only 2/6 = 33% won**,
+and simulating a chase **at the ran-up price loses −$157** (worse than the −$148 at the
+pre-run price). Intuition says a climbing ask = momentum = winner; the data says the
+opposite — a quote that keeps climbing in those 2–3 seconds is the market **overshooting
+right before it snaps back**, i.e. a **reversal warning**. So the "re-poll, don't chase"
+rule is a feature: it screens out leader50's worst signals, which is why the actual fills
+(+$35) look better than the full-signal quality (−$112). **Do not add a chase path.**
+Tracked in the same script (`ran_quotes` block); revisit if the chase P&L turns positive
+over a much larger n, which would contradict the reversion mechanic.
+
 ## Pre-registered decision rule (set 2026-07-13, before more data — do not move)
 
 - **Primary metric:** full-signal P&L and win% **per bet side** (incl. would-be). Do NOT
