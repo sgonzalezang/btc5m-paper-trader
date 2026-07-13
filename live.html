@@ -282,6 +282,21 @@ function leaderPanel(st){
     +(actual!=null?`<span><b>leader50 actual</b> <span class="mut">(${l50.settled||0} filled)</span> <b style="color:${cl(actual)}">${D$(actual)}</b></span>`:"")
     +(missed.length?`<span><b>would-be on misses</b> <span class="mut">(${missed.length} not filled, hypothetical)</span> <b style="color:${cl(wbSum)}">${D$(wbSum)}</b></span>`:"")
     +`<span class="mut" style="font-size:11.5px">— separate ledgers; would-be is never added to leader50's P&amp;L</span></div>`;
+  // Fade $50 broken out by the two directions of the question (from the trade tags).
+  const fadeTr=((st.btc&&st.btc.engines&&st.btc.engines.fade50)||{}).trades||[];
+  const fadeSlice=(tagKey)=>{
+    const xs=fadeTr.filter(t=>["win","loss","stopped"].includes(t.result)&&(t.guards||[]).some(g=>g[0]===tagKey&&g[1]===1));
+    const w=xs.filter(t=>t.result==="win").length, pnl=xs.reduce((a,t)=>a+(t.pnl||0),0);
+    return {n:xs.length, w, pnl};
+  };
+  const fu=fadeSlice("fadeUp"), fd=fadeSlice("fadeDown");
+  const fade50=(st.summary||{}).fade50||{};
+  const fadeSplit=(fu.n||fd.n||fade50.settled)
+    ?`<div style="font-size:12.5px;margin:-4px 0 8px;display:flex;flex-wrap:wrap;gap:6px 18px">`
+      +`<span><b style="color:#2dd4bf">Fade $50</b> total <b style="color:${cl(fade50.pnl||0)}">${D$(fade50.pnl||0)}</b> <span class="mut">(${fade50.settled||0})</span></span>`
+      +`<span class="mut">fade up-moves (buy down): <b style="color:${cl(fu.pnl)}">${D$(fu.pnl)}</b> ${fu.w}/${fu.n}</span>`
+      +`<span class="mut">fade down-moves (buy up): <b style="color:${cl(fd.pnl)}">${D$(fd.pnl)}</b> ${fd.w}/${fd.n}</span></div>`
+    :`<div class="mut" style="font-size:11.5px;margin:-4px 0 8px">Fade $50 (contrarian twin) — no fades settled yet; up/down split appears here as trades resolve.</div>`;
   const rows=rec.slice(0,20).map(r=>{
     const iv=new Date(r.t0*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
     const side=r.side==="up"?'<b class="up">▲ up</b>':'<b class="dn">▼ down</b>';
@@ -298,6 +313,7 @@ function leaderPanel(st){
   return '<h3 class="sec">Leader v1 — 👻 $0-stake shadow <span style="font-weight:400;color:var(--mut)">(fill-conformance probe)</span></h3>'
     +'<div class="mut" style="font-size:12px;margin:-2px 0 4px">Measurement, not a book: when BTC drifts 4–8bps and the drift-leader side quotes 55–66¢ on the real book, it records the ask, <b>re-polls ~2.5s later</b> to see if that quote was real (the R3 stale-ask question), and pings Discord as a <b>shadow alert — never an order, $0 staked</b>. Its staked twin <b style="color:#c07bff">Leader $50</b> paper-trades every qualifying moment at the <b>re-polled</b> price (no fill if the quote ran) — its card and chart line above show the honest returns.</div>'
     +split
+    +fadeSplit
     +'<div style="font-size:12px;margin:0 0 6px">'+stat+'</div>'
     +'<div class="log">'+(rows||'<div class="mut">No qualifying moments yet.</div>')+'</div>';
 }
