@@ -1,0 +1,42 @@
+== epoch checks ==
+Jun26 epoch: 1782432000 claimed split: 1782432000 match: True
+cb5m candles: 18046 2026-05-11 11:55 -> 2026-07-13 03:40
+cb5m not-300-aligned: 0
+cb5m gaps (diff!=300): 0 []
+cb5m non-monotonic/dupes: 0
+cb5m bad opens: 0
+expected candles for span: 18046 actual: 18046 missing: 0
+
+cb1m candles: 23980 2026-06-26 11:56 -> 2026-07-13 03:40
+cb1m gaps: 2 [('2026-06-29 13:09', '2026-06-29 13:14', '4 min missing'), ('2026-07-06 01:37', '2026-07-06 01:39', '1 min missing')]
+cb1m not-60-aligned: 0
+
+== independent pipeline ==
+rows 18044 triggers 4102 gateReady 18032 gated 2802 ties(all rows) 1857
+all: n_sel 2802 ties 182 q_ex_tie 0.5489 q_tie_as_loss 0.5132
+train: n_sel 2015 ties 116 q_ex_tie 0.5408 q_tie_as_loss 0.5097
+test: n_sel 787 ties 66 q_ex_tie 0.5700 q_tie_as_loss 0.5222
+
+== published file ==
+meta.counts: {'rows': 18044, 'triggers': 4102, 'gate_passes': 2802, 'ties': 1857} window: ['2026-05-11 12:00', '2026-07-13 03:35']
+published rows: 18044
+row-by-row mismatches: {'trigger': 0, 'gatePass': 0, 'ready': 0, 'label': 0, 'side': 0, 'eff6': 0, 'cnt12': 0, 'missing': 0} in-mine-not-published: 0 []
+
+== coverage ==
+5m grid points in span: 18046; candles present: 18046; missing from cb5m: 0
+grid intervals with NO dataset row: 2 -> ['2026-05-11 11:55', '2026-07-13 03:40']
+boundary drops: 2 non-boundary drops: 0
+
+rows at/after cb1m start+600 (2026-06-26 12:06) NOT using 1m vol: 4
+   2026-06-29 13:15 src 5m2 vol 0.2849 trigger False gatePass True
+   2026-06-29 13:20 src 5m2 vol 0.1862 trigger False gatePass True
+   2026-07-06 01:40 src 5m2 vol 0.3715 trigger True gatePass True
+   2026-07-06 01:45 src 5m2 vol 0.3071 trigger False gatePass True
+TEST-era 1m-vol median 0.1906; fallback rows vol values: [0.2849, 0.1862, 0.3715, 0.3071]
+split x vol_src: {('train', None): 1, ('train', '5m2'): 13103, ('test', '5m2'): 150, ('test', '1m'): 4790}
+
+== ties ==
+non-tie rows with |ret0%|<0.01 (should be 0 if tie=1bp on % units... note 1bp = 0.01%): 0
+tie rows total: 1857 max |ret0| among ties: 0.01
+gated ties: 182 claimed 182
+exact-zero ret0 ties: 41

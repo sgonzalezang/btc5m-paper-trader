@@ -1,0 +1,72 @@
+{
+ "gated_q": {
+  "n": 2802,
+  "q_all": 0.5455,
+  "q_ex_tie": 0.5489,
+  "q_train": 0.5385,
+  "n_train": 2015,
+  "q_test": 0.5636,
+  "n_test": 787,
+  "informed_seed": 0.54,
+  "note": "is .54 seed ~ the 60d gated q (circular)?"
+ },
+ "reachability": {
+  "gated_signals_total": 2802,
+  "span_days": 62.6,
+  "mean_per_day": 44.76,
+  "max_rolling_7d_count": 492,
+  "max_7d_per_day": 70.29,
+  "needed_for_haircut_7d": 120,
+  "ever_reaches_120_in_7d": true,
+  "note": "upper bound: every gated signal becomes a settled measure record (really only cap-compliant ones do)"
+ },
+ "live_book": {
+  "n_records": 36,
+  "n_settled": 35,
+  "lo": [
+   6,
+   14
+  ],
+  "hi": [
+   9,
+   21
+  ],
+  "firstpoll_netps_c": -6.23,
+  "hybrid_qlo": 0.4953,
+  "hybrid_qhi": 0.4932,
+  "binom_se_on_35": 0.085
+ },
+ "jul11_n4": {
+  "n": 4,
+  "netps_c": -23.72
+ },
+ "no_min_bench_cf": {
+  "n": 24,
+  "pnl": 129.07,
+  "cps": 6.49,
+  "n_iv2_total": 26
+ },
+ "informed_M400_flips": {
+  "qlo": 0.5361,
+  "qhi": 0.5346,
+  "n_flips": 12,
+  "n_flips_settled": 12,
+  "sum_net_per_share_usd": -2.22,
+  "mean_net_per_share_c": -18.5,
+  "all_newly_sized": true,
+  "flip_costs": [
+   0.5275,
+   0.5075,
+   0.5175,
+   0.5175,
+   0.5275,
+   0.5175,
+   0.5275,
+   0.5175,
+   0.5175,
+   0.5075,
+   0.5175,
+   0.5175
+  ]
+ }
+}

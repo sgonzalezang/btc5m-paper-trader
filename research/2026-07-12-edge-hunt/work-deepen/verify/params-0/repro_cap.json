@@ -1,0 +1,66 @@
+{
+ "implicit_cap": {
+  "now": 0.47,
+  "post_r8_qlo_4954": 0.46,
+  "qhat_ceiling_056": 0.53,
+  "haircut_state": false
+ },
+ "measure_book": {
+  "n": 36,
+  "ask_min": 0.25,
+  "ask_max": 0.52,
+  "n_ask_gt47": 21,
+  "blocked_by_47_but_f_sized": 0,
+  "f_rule_matches_sized_stamp": 36,
+  "mean_cost": 0.4911
+ },
+ "f_nonpos_cohort": {
+  "n": 21,
+  "q": 0.4286,
+  "ev_c": -9.99
+ },
+ "ledger": {
+  "flagship": {
+   "n": 26,
+   "n_ask_gt47": 0,
+   "max_ask": 0.47,
+   "ev_all": 3.57
+  },
+  "impulse50": {
+   "n": 34,
+   "n_ask_gt47": 20,
+   "ev_gt47": -12.87,
+   "ev_all": -7.82
+  },
+  "ask49_cost": 0.5175
+ },
+ "cap_avail_semantics": {
+  "on_fill_p": {
+   "0.47": 0.333,
+   "0.49": 0.472,
+   "0.51": 0.75,
+   "0.53": 1.0
+  },
+  "on_ask": {
+   "0.47": 0.417,
+   "0.49": 0.667,
+   "0.51": 0.889,
+   "0.53": 1.0
+  }
+ },
+ "window": {
+  "first_fill": {
+   "n": 77,
+   "p50": 10,
+   "max": 45,
+   "le15": 0.727,
+   "le30": 0.922,
+   "le45": 1.0
+  },
+  "flagship": {
+   "n": 26,
+   "max": 33,
+   "le45": 1.0
+  }
+ }
+}

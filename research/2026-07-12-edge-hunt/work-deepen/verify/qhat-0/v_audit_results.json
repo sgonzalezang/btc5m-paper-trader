@@ -1,0 +1,174 @@
+{
+ "A_loop_metrics": {
+  "total": 14,
+  "fixture": 10,
+  "genuine": 4,
+  "fixture_qlo_derived": 0.4175,
+  "fixture_n15_derived": -0.1975,
+  "fixture_all_match_derived": true,
+  "genuine_ticks": [
+   "07-10 15:05:41",
+   "07-11 00:10:04",
+   "07-12 00:10:02",
+   "07-13 00:10:01"
+  ],
+  "genuine_all_unbenched": true,
+  "one_genuine_per_nightly_due": true
+ },
+ "B_bot_log": {
+  "guard_lines": 0,
+  "benched_lines": 0,
+  "nightly_lines": 4
+ },
+ "C_nightly_replication": [
+  {
+   "tick": "07-10 15:05:41",
+   "replicated": true,
+   "lag_s": 0,
+   "n7_raw": [
+    null,
+    0
+   ],
+   "guard_would_fire_per_code": false,
+   "nomin_bench": false,
+   "nomin_haircut": false
+  },
+  {
+   "tick": "07-11 00:10:04",
+   "replicated": true,
+   "lag_s": 0,
+   "n7_raw": [
+    -0.2372,
+    4
+   ],
+   "guard_would_fire_per_code": false,
+   "nomin_bench": true,
+   "nomin_haircut": true
+  },
+  {
+   "tick": "07-12 00:10:02",
+   "replicated": true,
+   "lag_s": 0,
+   "n7_raw": [
+    -0.1373,
+    11
+   ],
+   "guard_would_fire_per_code": false,
+   "nomin_bench": true,
+   "nomin_haircut": true
+  },
+  {
+   "tick": "07-13 00:10:01",
+   "replicated": true,
+   "lag_s": 15,
+   "n7_raw": [
+    -0.0543,
+    20
+   ],
+   "guard_would_fire_per_code": false,
+   "nomin_bench": true,
+   "nomin_haircut": true
+  }
+ ],
+ "D_nomin_bench_cf": {
+  "fires": "07-11 00:10:04",
+  "trades_skipped": 24,
+  "pnl_foregone": 129.07,
+  "cps": 6.49
+ },
+ "E_m2": {
+  "cohort_recount": 123,
+  "cohort_netps_c": 2.75,
+  "expected": [
+   123,
+   2.75
+  ],
+  "per_nightly": [
+   {
+    "tick": "07-10 15:05:41",
+    "n": 123,
+    "seeded_n7_c": 2.75,
+    "evaluable": true,
+    "fires": false
+   },
+   {
+    "tick": "07-11 00:10:04",
+    "n": 127,
+    "seeded_n7_c": 1.92,
+    "evaluable": true,
+    "fires": false
+   },
+   {
+    "tick": "07-12 00:10:02",
+    "n": 134,
+    "seeded_n7_c": 1.4,
+    "evaluable": true,
+    "fires": false
+   },
+   {
+    "tick": "07-13 00:10:01",
+    "n": 143,
+    "seeded_n7_c": 1.61,
+    "evaluable": true,
+    "fires": false
+   }
+  ]
+ },
+ "F_reach": {
+  "rate_per_day": 14.24,
+  "needs": {
+   "h7": 17.1,
+   "b15": 16.7,
+   "u10": 10.0
+  },
+  "reachable": {
+   "h7": false,
+   "b15": false,
+   "u10": true
+  },
+  "n7_now_c": -6.23,
+  "n7_n": 35,
+  "rescale_check": {
+   "h7_80": 11.4,
+   "b15_170": 11.3
+  }
+ },
+ "G_live_table": {
+  "deployed_n_sized": 15,
+  "b_spec": {
+   "qlo": 0.4954,
+   "qhi": 0.4932,
+   "n_sized": 12,
+   "flips": 3,
+   "flip_ev_sum": -0.005
+  },
+  "hybrid": {
+   "qlo": 0.4953,
+   "qhi": 0.4932,
+   "n_sized": 12,
+   "flips": 3,
+   "flip_ev_sum": -0.005
+  },
+  "informed_M200": {
+   "qlo": 0.5324,
+   "qhi": 0.5297,
+   "n_sized": 27,
+   "flips": 12,
+   "flip_ev_sum": -2.22
+  },
+  "hybrid_edge49": {
+   "qlo": 0.4953,
+   "qhi": 0.4933,
+   "n_sized": 12,
+   "flips": 3,
+   "flip_ev_sum": -0.005
+  },
+  "hybrid_edge51": {
+   "qlo": 0.4954,
+   "qhi": 0.4932,
+   "n_sized": 12,
+   "flips": 3,
+   "flip_ev_sum": -0.005
+  }
+ }
+}

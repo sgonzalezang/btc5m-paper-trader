@@ -1,0 +1,156 @@
+{
+ "checks": [
+  {
+   "name": "A: old formula reproduces live state qlo/qhi exactly",
+   "ok": true,
+   "extra": "0.5068/0.503 vs state 0.5068/0.503"
+  },
+  {
+   "name": "B: migration joined exactly the ledger-traded measurement rows",
+   "ok": true,
+   "extra": "joined 27, expected 27 (R4 audit: 27 trades / 36 rows)"
+  },
+  {
+   "name": "B: every legacy row is stamped final (window long closed)",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "B: first-poll diagnostic costs untouched by migration",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "B: migration idempotent on second call",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "C: n=123 seed cohort loaded",
+   "ok": true,
+   "extra": "n=123"
+  },
+  {
+   "name": "C: seed cohort net/share matches the R8-verified +2.75c",
+   "ok": true,
+   "extra": "+2.75c"
+  },
+  {
+   "name": "D: module nightly == independent closed-form (registered formula, p_eff buckets, operated basis)",
+   "ok": true,
+   "extra": "qlo 0.4934 (n=27,w=12)  qhi 0.4952 (n=8,w=3)"
+  },
+  {
+   "name": "D: no bench on the real book",
+   "ok": true,
+   "extra": "benched=False"
+  },
+  {
+   "name": "D: haircut state consistent with the seeded 7d window",
+   "ok": true,
+   "extra": "n7=1.61c on 158 (seeds make it evaluable)"
+  },
+  {
+   "name": "E: first-poll basis reproduces the R4 headline (-6.23c/sh)",
+   "ok": true,
+   "extra": "-6.23c on n=35"
+  },
+  {
+   "name": "E: operated basis sits above the first-poll basis (the R4 gap, live data)",
+   "ok": true,
+   "extra": "operated -2.40c vs first-poll -6.23c (gap 3.84c)"
+  },
+  {
+   "name": "F: lastNightly==0 -> baseline set, NO catch-up nightly (flap guard)",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "F: second tick same day is a no-op (idempotent)",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "F: metrics land only on the configured metricsPath",
+   "ok": true,
+   "extra": "lines=1"
+  },
+  {
+   "name": "G: measure rows survive the round-trip",
+   "ok": true,
+   "extra": "159 rows"
+  },
+  {
+   "name": "G: new fields (fillCost/bestCost/final/seed) survive sanitize",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "G: mAmend/seeded/epoch persist",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "G: leader shadow state persists",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "G: leaderShadow published in the snapshot",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "H: firstFillMax=0.47 on impulse_v2 only",
+   "ok": true,
+   "extra": ""
+  }
+ ],
+ "A_baseline": {
+  "qlo": 0.5068,
+  "qhi": 0.503,
+  "settled_at_due": 20
+ },
+ "B_migration": {
+  "rows": 36,
+  "joined": 27,
+  "orphan_skips_repaired": 12
+ },
+ "C_seeds": {
+  "n": 123,
+  "netps_c": 2.75
+ },
+ "D_nightly": {
+  "qlo_before": 0.5068,
+  "qhi_before": 0.503,
+  "qlo_after": 0.4934,
+  "qhi_after": 0.4952,
+  "lo_bucket": {
+   "n": 27,
+   "wins": 12
+  },
+  "hi_bucket": {
+   "n": 8,
+   "wins": 3
+  },
+  "sized_boundary_p_eff_before": 0.4893,
+  "sized_boundary_p_eff_after": 0.4759,
+  "n7_seeded_c": 1.61,
+  "n7_count": 158,
+  "benched": false,
+  "haircut": false
+ },
+ "E_kill_preview": {
+  "n_settled": 35,
+  "firstpoll_cps": -6.23,
+  "operated_cps": -2.4,
+  "gap_cps": 3.84,
+  "note": "operated basis still holds 9 never-entered signals at their first-poll cost (legacy rows have no bestCost); the gap grows as amended records accrue bestCost"
+ },
+ "H_cap_diag": {
+  "live_first_polls_over_47c_ask": 24,
+  "of": 36,
+  "note": "these first polls would now log skip=first_fill_cap; refill path unchanged"
+ },
+ "fails": 0
+}

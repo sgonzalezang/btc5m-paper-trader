@@ -1,0 +1,155 @@
+--- a/bot/btc5m_bot.py
++++ b/bot/btc5m_bot.py
+@@ -131,9 +131,19 @@
+     # clearable price), first-45s entry only (contrarian mid disperses violently
+     # by ~60s; winners' entrySec p50=9s). Sized: quarter-Kelly on bucketed qhat
+     # from its own $1,000 bank (sized=True); f<=0 or bench or bank<$250 = SKIP.
++    # firstFillMax (P4/R1, 2026-07-12): hard ask cap at the sizing step —
++    # never take ANY fill whose ask exceeds 47c, independent of learned qhat.
++    # Freezes the behavior the f>0 check produced by accident (skip rich first
++    # quotes, take the cheap re-poll) and closes the verified loophole where
++    # nightly qhat drift could silently re-open 48-53c first fills (R1/R2:
++    # the 48-53c zone is fee-dead in every era; cap jitter-robust 47/48/49c).
++    # Cheaper re-polls inside the 45s window still size normally — the refill
++    # path this cap protects. Applies to impulse_v2 ONLY: impulse50,
++    # reversal_v2, reversal and reversal2 are pre-registered controls and
++    # keep their exact registered behavior.
+     "impulse_v2": dict(label="Impulse v2", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                        revThr=0.12, revEntryMax=0.53, revWinMin=255, holdToClose=True,
+-                       impGate=True, eff6Min=0.10, cnt12Max=6, sized=True),
++                       impGate=True, eff6Min=0.10, cnt12Max=6, sized=True, firstFillMax=0.47),
+     # reversal_v2 — ungated control shadow. Identical spec minus the impulse gate,
+     # $50 flat. Its paired per-share delta vs impulse_v2 on common signals is the
+     # pre-registered day-60 gate verdict (does the gate pay at live fills?).
+@@ -214,6 +224,15 @@
+ #        resurrected/foreign state never feed qhat or the guards; M2 seed
+ #        rows are exempt by design). Legacy states load with epoch=0 — no
+ #        behavior change on the current live book.
++# P4 [R1 FIRST-FILL CAP] impulse_v2 gains firstFillMax=0.47: a hard ask cap
++#    evaluated at the sizing step, independent of learned qhat (named SKIP
++#    'first_fill_cap'; the measurement book still records the signal, and a
++#    cheaper in-window re-poll still sizes — the refill path). Rationale:
++#    R1/R2 — the flagship's live outperformance IS the skip/refill of rich
++#    ≥48c first quotes; the 48-53c fill zone clears fees in NO era or cut;
++#    nothing else prevents nightly qhat drift from re-opening it. Applies to
++#    impulse_v2 ONLY — impulse50/reversal_v2/reversal/reversal2 are
++#    pre-registered controls and are untouched.
+ # ---------------------------------------------------------------------------
+ IMP_SEED_LO, IMP_SEED_HI = 0.5057, 0.5068  # launch-day qhat STATE values only (§4.2 MF3)
+ IMP_PRIOR = 200          # P2/R8: registered per-bucket shrinkage mass (§4.2); was 400
+@@ -952,7 +971,15 @@
+         if cfg.get("sized") and fillable:
+             # measurement first (stake-independent), then the sizing decision
+             p_fill = min(0.99, q["ask"] + slip)
+-            stake_usd, skip_why = self._impulse_stake(p_fill)
++            ffmax = cfg.get("firstFillMax")
++            if ffmax is not None and q["ask"] > ffmax + 1e-9:
++                # P4/R1: hard first-fill ask cap — a named SKIP at the sizing
++                # step, independent of qhat. The signal still enters the
++                # measurement book below; a cheaper in-window re-poll can
++                # still size (the refill path).
++                stake_usd, skip_why = None, "first_fill_cap"
++            else:
++                stake_usd, skip_why = self._impulse_stake(p_fill)
+             feats = dict(ask=q["ask"], pm=(round(prior_move, 4) if prior_move is not None else None),
+                          eff6=eff6, cnt12=cnt12,
+                          spread=(round(spread, 4) if spread is not None else None),
+@@ -1786,7 +1813,8 @@
+        "impulse_v2 stays latent in churn (eff6 gate)", f"eff6={zv['eff6']}")
+     bw = mkimp(); bw.imp["qlo"] = 0.53; bw.ivl_hist2 = bw.ivl_hist2[-5:]   # history not warmed up / non-contiguous
+     ok(not bw.evaluate(now,"impulse_v2")["enter"], "impulse_v2 stays latent until 13 contiguous intervals exist")
+-    bs = mkimp(ask=0.50, bid=0.49)                           # seeds only: 51c fill costs .5275 > qhi -> f<=0 SKIP
++    bs = mkimp(ask=0.46, bid=0.45)                           # P4: under the 47c cap; qlo 0.46 < cost .4874 -> f<=0 SKIP
++    bs.imp["qlo"] = 0.46
+     sv = bs.evaluate(now, "impulse_v2")
+     bs.evaluate(now + 60000, "impulse_v2")                   # window closes -> skip becomes FINAL (R4/MF6)
+     ok(not sv["enter"] and sv["stakeUsd"] is None and bs.imp["measure"] and bs.imp["measure"][-1]["skip"]=="f_nonpos"
+@@ -1794,17 +1822,17 @@
+        "sizing SKIP (f<=0) is a decision: no trade, measurement + skip reason recorded",
+        f"skip={bs.imp['measure'] and bs.imp['measure'][-1]['skip']}")
+     mf = bs.imp["measure"][-1].get("f") or {}
+-    ok(mf.get("eff6") is not None and mf.get("cnt12")==0 and mf.get("ask")==0.50 and mf.get("hour") is not None,
++    ok(mf.get("eff6") is not None and mf.get("cnt12")==0 and mf.get("ask")==0.46 and mf.get("hour") is not None,
+        "measurement rows carry decision-time ML features (ML-PLAN Phase 0)",
+        f"f={mf}")
+     ok(bs.imp["measure"][-1].get("final") is True and bs.imp["skips"].get("f_nonpos", 0) == 1,
+        "P1: skip stamped FINAL at window close, counted once despite multiple polls (MF6)",
+        f"final={bs.imp['measure'][-1].get('final')} n={bs.imp['skips'].get('f_nonpos')}")
+     # --- P1 (R4 amendment): poll-cumulative, window-final measurement book ---
+-    ba = mkimp(ask=0.52, bid=0.51)                           # first poll RICH: 54c fill -> f_nonpos at seeds
++    ba = mkimp(ask=0.52, bid=0.51)                           # first poll RICH: 52c ask -> first_fill_cap SKIP (P4)
+     av1 = ba.evaluate(now, "impulse_v2")
+     ra = ba.imp["measure"][-1]
+-    ok(av1["stakeUsd"] is None and ra["skip"] == "f_nonpos" and ra.get("final") is False
++    ok(av1["stakeUsd"] is None and ra["skip"] == "first_fill_cap" and ra.get("final") is False
+        and ra["bestCost"] == ra["cost"] and ra.get("fillCost") is None,
+        "P1: first rich poll writes a PROVISIONAL record (final=False, bestCost=firstCost)",
+        f"cost={ra['cost']} best={ra['bestCost']} final={ra.get('final')}")
+@@ -1872,18 +1900,20 @@
+        and Bot._p_eff_from_cost(0.5075) < 0.50 and abs(Bot._p_eff_from_cost(0.4673) - 0.45) < 2e-4,
+        "P2: _p_eff_from_cost inverts the fee formula (4dp-rounded costs land in the right bucket)",
+        f".5175->{Bot._p_eff_from_cost(0.5175)} .5075->{Bot._p_eff_from_cost(0.5075)}")
+-    b22 = mkimp(ask=0.48, bid=0.47)                          # p_fill=0.49: LO bucket sizes at learned qlo
++    # (P4 rework: these two probe the SIZER's bucket selection directly —
++    # the 47c first-fill cap now stops 48-50c asks before qhat is consulted)
++    b22 = Bot({}, default_state(A))                          # p_eff=0.49: LO bucket sizes at learned qlo
+     b22.imp["qlo"], b22.imp["qhi"] = 0.53, 0.50
+-    v22 = b22.evaluate(now, "impulse_v2")
+-    ok(v22["enter"] and v22["stakeUsd"] and v22["stakeUsd"] >= 1,
++    s22, w22 = b22._impulse_stake(0.49)
++    ok(s22 is not None and s22 >= 1 and w22 is None,
+        "P2: sizer buckets by p_eff — a 49c effective fill uses qlo (old cost-boundary sent it to qhi)",
+-       f"stake={v22['stakeUsd']}")
+-    b23 = mkimp(ask=0.49, bid=0.48)                          # p_fill=0.50 exactly: HI bucket per §4.2 [0.50, 0.53]
++       f"stake={s22}")
++    b23 = Bot({}, default_state(A))                          # p_eff=0.50 exactly: HI bucket per §4.2 [0.50, 0.53]
+     b23.imp["qlo"], b23.imp["qhi"] = 0.56, 0.50
+-    v23 = b23.evaluate(now, "impulse_v2")
+-    ok(not v23["enter"] and b23.imp["measure"][-1]["skip"] == "f_nonpos",
++    s23, w23 = b23._impulse_stake(0.50)
++    ok(s23 is None and w23 == "f_nonpos",
+        "P2: p_eff=0.50 exactly lands in the HI bucket (boundary is strict <)",
+-       f"skip={b23.imp['measure'][-1]['skip']}")
++       f"why={w23}")
+     # M2 seeding: seeds satisfy guard minimums and drive netps, but never qhat
+     import tempfile
+     seedf = os.path.join(tempfile.gettempdir(), "btc5m_seed_test.json")
+@@ -1964,6 +1994,38 @@
+        "P3: nightly metrics land ONLY on the configured metricsPath — selftest bots write nothing",
+        f"lines={len(lines)}")
+     os.remove(mtmp)
++    # --- P4 (R1): <=47c first-fill ask cap on impulse_v2, independent of qhat ---
++    bc1 = mkimp(ask=0.48, bid=0.47)                          # 48c ask, qhat maximally bullish: cap must still skip
++    bc1.imp["qlo"] = bc1.imp["qhi"] = 0.56
++    vc1 = bc1.evaluate(now, "impulse_v2")
++    ok(not vc1["enter"] and vc1["stakeUsd"] is None and bc1.imp["measure"][-1]["skip"] == "first_fill_cap",
++       "P4: 48c first fill is skipped by the hard cap even at qhat=0.56 (qhat-drift loophole closed)",
++       f"skip={bc1.imp['measure'][-1]['skip']}")
++    bc2 = mkimp(ask=0.46, bid=0.45)                          # 46c ask passes the cap and sizes normally
++    bc2.imp["qlo"] = 0.53
++    vc2 = bc2.evaluate(now, "impulse_v2")
++    ok(vc2["enter"] and vc2["stakeUsd"] and vc2["stakeUsd"] >= 1,
++       "P4: fills at <=47c ask size normally under the cap", f"stake={vc2['stakeUsd']}")
++    bc3 = mkimp(ask=0.50, bid=0.49)                          # refill path: rich first poll, cheap re-poll sizes
++    bc3.imp["qlo"] = 0.53
++    bc3.evaluate(now, "impulse_v2")
++    rc3 = bc3.imp["measure"][-1]
++    bk3 = {"bid": 0.42, "ask": 0.43, "asks": [[0.43, 300]], "bids": [[0.42, 300]],
++           "topAskUsd": 129.0, "mirrorTopUsd": 174.0, "at": now + 8000}
++    bc3.mkt["bookDown"] = bk3; bc3.mkt["bookUp"] = mirror(bk3)
++    bc3.feed = dict(bc3.feed); bc3.feed["at"] = now + 8000
++    vc3 = bc3.evaluate(now + 8000, "impulse_v2")
++    ok(rc3["skip"] is None and rc3["sized"] and vc3["enter"] and rc3["bestCost"] < rc3["cost"],
++       "P4: the cap keeps the refill path — cheaper in-window re-poll still sizes",
++       f"best={rc3['bestCost']} first={rc3['cost']}")
++    bc4 = mkimp(ask=0.50, bid=0.49)                          # controls stay EXACTLY as registered: no cap
++    c50 = bc4.evaluate(now, "impulse50"); cv2 = bc4.evaluate(now, "reversal_v2")
++    ok(c50["enter"] and cv2["enter"],
++       "P4: impulse50 and reversal_v2 controls take 50c fills unchanged (no cap leakage)",
++       f"i50={c50['enter']} rv2={cv2['enter']}")
++    ok(all("firstFillMax" not in ENGINE_CFG[e] for e in ("impulse50", "reversal_v2", "reversal", "reversal2"))
++       and ENGINE_CFG["impulse_v2"].get("firstFillMax") == 0.47,
++       "P4: firstFillMax=0.47 exists on impulse_v2 ONLY")
+     bb = mkimp(); bb.imp["qlo"] = 0.53; bb.imp["benched"] = True
+     bv2 = bb.evaluate(now, "impulse_v2")
+     ok(not bv2["enter"] and bb.imp["measure"][-1]["skip"]=="benched", "guard bench zeroes the stake (tier 3)")

@@ -1,0 +1,1356 @@
+{
+ "K_selection": 22,
+ "families": {
+  "a_current": {
+   "bucket": "cost",
+   "M": 400,
+   "seed": [
+    0.5057,
+    0.5068
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "b_spec": {
+   "bucket": "peff",
+   "M": 200,
+   "seed": [
+    0.5,
+    0.5
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "c_M50_neutral": {
+   "bucket": "peff",
+   "M": 50,
+   "seed": [
+    0.506,
+    0.506
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "c_M50_informed": {
+   "bucket": "peff",
+   "M": 50,
+   "seed": [
+    0.54,
+    0.54
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "c_M100_neutral": {
+   "bucket": "peff",
+   "M": 100,
+   "seed": [
+    0.506,
+    0.506
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "c_M100_informed": {
+   "bucket": "peff",
+   "M": 100,
+   "seed": [
+    0.54,
+    0.54
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "c_M200_neutral": {
+   "bucket": "peff",
+   "M": 200,
+   "seed": [
+    0.506,
+    0.506
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "c_M200_informed": {
+   "bucket": "peff",
+   "M": 200,
+   "seed": [
+    0.54,
+    0.54
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "c_M400_neutral": {
+   "bucket": "peff",
+   "M": 400,
+   "seed": [
+    0.506,
+    0.506
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "c_M400_informed": {
+   "bucket": "peff",
+   "M": 400,
+   "seed": [
+    0.54,
+    0.54
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "d_win10": {
+   "bucket": "peff",
+   "M": 200,
+   "seed": [
+    0.506,
+    0.506
+   ],
+   "window": 10,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "d_winInf": {
+   "bucket": "peff",
+   "M": 200,
+   "seed": [
+    0.506,
+    0.506
+   ],
+   "window": 1000000,
+   "decay_hl": null,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "d_decay7": {
+   "bucket": "peff",
+   "M": 200,
+   "seed": [
+    0.506,
+    0.506
+   ],
+   "window": 1000000,
+   "decay_hl": 7,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "d_decay14": {
+   "bucket": "peff",
+   "M": 200,
+   "seed": [
+    0.506,
+    0.506
+   ],
+   "window": 1000000,
+   "decay_hl": 14,
+   "shrink": null,
+   "cap": 0.56
+  },
+  "e_shrink100": {
+   "bucket": "peff",
+   "M": 100,
+   "seed": [
+    0.506,
+    0.506
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": "pooled",
+   "cap": 0.56
+  },
+  "e_shrink200": {
+   "bucket": "peff",
+   "M": 200,
+   "seed": [
+    0.506,
+    0.506
+   ],
+   "window": 30,
+   "decay_hl": null,
+   "shrink": "pooled",
+   "cap": 0.56
+  }
+ },
+ "results": {
+  "a_current": {
+   "train": {
+    "pnl": 1996.46,
+    "cps": 5.144,
+    "brier": 0.24909,
+    "sized_per_day": 17.95,
+    "mean_stake": 22.13,
+    "pnl_anchor": {
+     "0.45": 1632.0,
+     "0.49": 364.46,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1270.44,
+    "cps": 6.946,
+    "brier": 0.24746,
+    "sized_per_day": 22.19,
+    "mean_stake": 22.61,
+    "pnl_anchor": {
+     "0.45": 844.74,
+     "0.49": 413.89,
+     "0.51": 11.81
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5216,
+    0.5353
+   ],
+   "q_max_raw": 0.5224
+  },
+  "b_spec": {
+   "train": {
+    "pnl": 2700.87,
+    "cps": 5.06,
+    "brier": 0.24913,
+    "sized_per_day": 17.95,
+    "mean_stake": 30.41,
+    "pnl_anchor": {
+     "0.45": 2220.21,
+     "0.49": 480.66,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1749.11,
+    "cps": 7.113,
+    "brier": 0.24724,
+    "sized_per_day": 18.93,
+    "mean_stake": 35.45,
+    "pnl_anchor": {
+     "0.45": 1206.07,
+     "0.49": 543.04,
+     "0.51": 0.0
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.541,
+    0.5269
+   ],
+   "q_max_raw": 0.541
+  },
+  "c_M50_neutral": {
+   "train": {
+    "pnl": 4378.4,
+    "cps": 4.609,
+    "brier": 0.24897,
+    "sized_per_day": 22.03,
+    "mean_stake": 44.46,
+    "pnl_anchor": {
+     "0.45": 3387.21,
+     "0.49": 1020.89,
+     "0.51": -29.7
+    }
+   },
+   "test": {
+    "pnl": 2346.97,
+    "cps": 6.488,
+    "brier": 0.24679,
+    "sized_per_day": 25.23,
+    "mean_stake": 39.49,
+    "pnl_anchor": {
+     "0.45": 1501.53,
+     "0.49": 781.58,
+     "0.51": 63.87
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5516,
+    0.5452
+   ],
+   "q_max_raw": 0.5596
+  },
+  "c_M50_informed": {
+   "train": {
+    "pnl": 6331.64,
+    "cps": 4.375,
+    "brier": 0.2488,
+    "sized_per_day": 24.38,
+    "mean_stake": 61.62,
+    "pnl_anchor": {
+     "0.45": 4685.21,
+     "0.49": 1612.63,
+     "0.51": 33.81
+    }
+   },
+   "test": {
+    "pnl": 2630.42,
+    "cps": 6.318,
+    "brier": 0.24665,
+    "sized_per_day": 25.23,
+    "mean_stake": 45.6,
+    "pnl_anchor": {
+     "0.45": 1631.41,
+     "0.49": 880.54,
+     "0.51": 118.47
+    }
+   },
+   "nights_cap_bound": 5,
+   "q_final": [
+    0.5544,
+    0.5523
+   ],
+   "q_max_raw": 0.572
+  },
+  "c_M100_neutral": {
+   "train": {
+    "pnl": 3757.3,
+    "cps": 4.825,
+    "brier": 0.24896,
+    "sized_per_day": 18.55,
+    "mean_stake": 43.15,
+    "pnl_anchor": {
+     "0.45": 2945.93,
+     "0.49": 816.56,
+     "0.51": -5.19
+    }
+   },
+   "test": {
+    "pnl": 2122.67,
+    "cps": 6.695,
+    "brier": 0.24691,
+    "sized_per_day": 23.99,
+    "mean_stake": 36.28,
+    "pnl_anchor": {
+     "0.45": 1396.33,
+     "0.49": 699.55,
+     "0.51": 26.8
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5481,
+    0.5383
+   ],
+   "q_max_raw": 0.5481
+  },
+  "c_M100_informed": {
+   "train": {
+    "pnl": 6278.93,
+    "cps": 4.41,
+    "brier": 0.24876,
+    "sized_per_day": 24.38,
+    "mean_stake": 60.62,
+    "pnl_anchor": {
+     "0.45": 4622.87,
+     "0.49": 1602.83,
+     "0.51": 53.23
+    }
+   },
+   "test": {
+    "pnl": 2618.27,
+    "cps": 6.377,
+    "brier": 0.24663,
+    "sized_per_day": 25.23,
+    "mean_stake": 44.95,
+    "pnl_anchor": {
+     "0.45": 1626.37,
+     "0.49": 875.99,
+     "0.51": 115.91
+    }
+   },
+   "nights_cap_bound": 1,
+   "q_final": [
+    0.5533,
+    0.5502
+   ],
+   "q_max_raw": 0.5634
+  },
+  "c_M200_neutral": {
+   "train": {
+    "pnl": 3055.65,
+    "cps": 5.009,
+    "brier": 0.24901,
+    "sized_per_day": 17.95,
+    "mean_stake": 34.82,
+    "pnl_anchor": {
+     "0.45": 2464.16,
+     "0.49": 591.49,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1844.52,
+    "cps": 7.032,
+    "brier": 0.24713,
+    "sized_per_day": 20.89,
+    "mean_stake": 34.31,
+    "pnl_anchor": {
+     "0.45": 1256.32,
+     "0.49": 584.09,
+     "0.51": 4.11
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5426,
+    0.53
+   ],
+   "q_max_raw": 0.5426
+  },
+  "c_M200_informed": {
+   "train": {
+    "pnl": 6252.02,
+    "cps": 4.461,
+    "brier": 0.2487,
+    "sized_per_day": 24.38,
+    "mean_stake": 59.67,
+    "pnl_anchor": {
+     "0.45": 4568.0,
+     "0.49": 1607.61,
+     "0.51": 76.4
+    }
+   },
+   "test": {
+    "pnl": 2595.35,
+    "cps": 6.462,
+    "brier": 0.2466,
+    "sized_per_day": 25.23,
+    "mean_stake": 43.94,
+    "pnl_anchor": {
+     "0.45": 1616.17,
+     "0.49": 866.94,
+     "0.51": 112.24
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5515,
+    0.5476
+   ],
+   "q_max_raw": 0.5553
+  },
+  "c_M400_neutral": {
+   "train": {
+    "pnl": 2420.3,
+    "cps": 5.271,
+    "brier": 0.2491,
+    "sized_per_day": 17.95,
+    "mean_stake": 26.09,
+    "pnl_anchor": {
+     "0.45": 2034.59,
+     "0.49": 385.71,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1510.54,
+    "cps": 7.302,
+    "brier": 0.24747,
+    "sized_per_day": 18.93,
+    "mean_stake": 29.76,
+    "pnl_anchor": {
+     "0.45": 1075.82,
+     "0.49": 434.71,
+     "0.51": 0.0
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.535,
+    0.5218
+   ],
+   "q_max_raw": 0.5354
+  },
+  "c_M400_informed": {
+   "train": {
+    "pnl": 6334.9,
+    "cps": 4.518,
+    "brier": 0.24865,
+    "sized_per_day": 24.38,
+    "mean_stake": 59.71,
+    "pnl_anchor": {
+     "0.45": 4583.49,
+     "0.49": 1652.63,
+     "0.51": 98.78
+    }
+   },
+   "test": {
+    "pnl": 2559.78,
+    "cps": 6.564,
+    "brier": 0.24658,
+    "sized_per_day": 25.23,
+    "mean_stake": 42.63,
+    "pnl_anchor": {
+     "0.45": 1599.59,
+     "0.49": 852.32,
+     "0.51": 107.87
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5491,
+    0.545
+   ],
+   "q_max_raw": 0.5491
+  },
+  "d_win10": {
+   "train": {
+    "pnl": 2316.67,
+    "cps": 5.187,
+    "brier": 0.24918,
+    "sized_per_day": 17.5,
+    "mean_stake": 26.03,
+    "pnl_anchor": {
+     "0.45": 1967.32,
+     "0.49": 349.34,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1546.59,
+    "cps": 7.027,
+    "brier": 0.24753,
+    "sized_per_day": 18.93,
+    "mean_stake": 31.69,
+    "pnl_anchor": {
+     "0.45": 1097.99,
+     "0.49": 448.6,
+     "0.51": 0.0
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5381,
+    0.5213
+   ],
+   "q_max_raw": 0.5467
+  },
+  "d_winInf": {
+   "train": {
+    "pnl": 3345.77,
+    "cps": 5.043,
+    "brier": 0.24894,
+    "sized_per_day": 17.95,
+    "mean_stake": 37.92,
+    "pnl_anchor": {
+     "0.45": 2624.14,
+     "0.49": 721.63,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1947.84,
+    "cps": 7.051,
+    "brier": 0.24696,
+    "sized_per_day": 21.81,
+    "mean_stake": 34.65,
+    "pnl_anchor": {
+     "0.45": 1311.25,
+     "0.49": 626.19,
+     "0.51": 10.4
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5402,
+    0.5324
+   ],
+   "q_max_raw": 0.541
+  },
+  "d_decay7": {
+   "train": {
+    "pnl": 2246.01,
+    "cps": 5.296,
+    "brier": 0.24916,
+    "sized_per_day": 17.74,
+    "mean_stake": 24.35,
+    "pnl_anchor": {
+     "0.45": 1922.51,
+     "0.49": 323.5,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1410.81,
+    "cps": 7.149,
+    "brier": 0.24768,
+    "sized_per_day": 18.93,
+    "mean_stake": 28.38,
+    "pnl_anchor": {
+     "0.45": 1019.88,
+     "0.49": 390.94,
+     "0.51": 0.0
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5301,
+    0.5177
+   ],
+   "q_max_raw": 0.5361
+  },
+  "d_decay14": {
+   "train": {
+    "pnl": 2633.77,
+    "cps": 5.171,
+    "brier": 0.24907,
+    "sized_per_day": 17.95,
+    "mean_stake": 29.0,
+    "pnl_anchor": {
+     "0.45": 2172.48,
+     "0.49": 461.29,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1644.45,
+    "cps": 7.116,
+    "brier": 0.24736,
+    "sized_per_day": 18.93,
+    "mean_stake": 33.29,
+    "pnl_anchor": {
+     "0.45": 1148.96,
+     "0.49": 495.48,
+     "0.51": 0.0
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5362,
+    0.5236
+   ],
+   "q_max_raw": 0.5395
+  },
+  "e_shrink100": {
+   "train": {
+    "pnl": 5302.22,
+    "cps": 4.323,
+    "brier": 0.24899,
+    "sized_per_day": 23.59,
+    "mean_stake": 53.91,
+    "pnl_anchor": {
+     "0.45": 4009.98,
+     "0.49": 1302.99,
+     "0.51": -10.74
+    }
+   },
+   "test": {
+    "pnl": 2619.86,
+    "cps": 6.267,
+    "brier": 0.24668,
+    "sized_per_day": 25.23,
+    "mean_stake": 45.8,
+    "pnl_anchor": {
+     "0.45": 1625.51,
+     "0.49": 877.01,
+     "0.51": 117.34
+    }
+   },
+   "nights_cap_bound": 6,
+   "q_final": [
+    0.5552,
+    0.5546
+   ],
+   "q_max_raw": 0.5768
+  },
+  "e_shrink200": {
+   "train": {
+    "pnl": 5150.21,
+    "cps": 4.339,
+    "brier": 0.24898,
+    "sized_per_day": 23.59,
+    "mean_stake": 52.15,
+    "pnl_anchor": {
+     "0.45": 3905.99,
+     "0.49": 1257.7,
+     "0.51": -13.47
+    }
+   },
+   "test": {
+    "pnl": 2596.54,
+    "cps": 6.28,
+    "brier": 0.24668,
+    "sized_per_day": 25.23,
+    "mean_stake": 45.29,
+    "pnl_anchor": {
+     "0.45": 1614.17,
+     "0.49": 867.92,
+     "0.51": 114.45
+    }
+   },
+   "nights_cap_bound": 5,
+   "q_final": [
+    0.5548,
+    0.554
+   ],
+   "q_max_raw": 0.5727
+  },
+  "a_current_cap60": {
+   "train": {
+    "pnl": 1996.46,
+    "cps": 5.144,
+    "brier": 0.24909,
+    "sized_per_day": 17.95,
+    "mean_stake": 22.13,
+    "pnl_anchor": {
+     "0.45": 1632.0,
+     "0.49": 364.46,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1270.44,
+    "cps": 6.946,
+    "brier": 0.24746,
+    "sized_per_day": 22.19,
+    "mean_stake": 22.61,
+    "pnl_anchor": {
+     "0.45": 844.74,
+     "0.49": 413.89,
+     "0.51": 11.81
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5216,
+    0.5353
+   ],
+   "q_max_raw": 0.5224
+  },
+  "a_current_cap100": {
+   "train": {
+    "pnl": 1996.46,
+    "cps": 5.144,
+    "brier": 0.24909,
+    "sized_per_day": 17.95,
+    "mean_stake": 22.13,
+    "pnl_anchor": {
+     "0.45": 1632.0,
+     "0.49": 364.46,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1270.44,
+    "cps": 6.946,
+    "brier": 0.24746,
+    "sized_per_day": 22.19,
+    "mean_stake": 22.61,
+    "pnl_anchor": {
+     "0.45": 844.74,
+     "0.49": 413.89,
+     "0.51": 11.81
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5216,
+    0.5353
+   ],
+   "q_max_raw": 0.5224
+  },
+  "b_spec_cap60": {
+   "train": {
+    "pnl": 2700.87,
+    "cps": 5.06,
+    "brier": 0.24913,
+    "sized_per_day": 17.95,
+    "mean_stake": 30.41,
+    "pnl_anchor": {
+     "0.45": 2220.21,
+     "0.49": 480.66,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1749.11,
+    "cps": 7.113,
+    "brier": 0.24724,
+    "sized_per_day": 18.93,
+    "mean_stake": 35.45,
+    "pnl_anchor": {
+     "0.45": 1206.07,
+     "0.49": 543.04,
+     "0.51": 0.0
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.541,
+    0.5269
+   ],
+   "q_max_raw": 0.541
+  },
+  "b_spec_cap100": {
+   "train": {
+    "pnl": 2700.87,
+    "cps": 5.06,
+    "brier": 0.24913,
+    "sized_per_day": 17.95,
+    "mean_stake": 30.41,
+    "pnl_anchor": {
+     "0.45": 2220.21,
+     "0.49": 480.66,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1749.11,
+    "cps": 7.113,
+    "brier": 0.24724,
+    "sized_per_day": 18.93,
+    "mean_stake": 35.45,
+    "pnl_anchor": {
+     "0.45": 1206.07,
+     "0.49": 543.04,
+     "0.51": 0.0
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.541,
+    0.5269
+   ],
+   "q_max_raw": 0.541
+  },
+  "c_M50_informed_cap60": {
+   "train": {
+    "pnl": 6346.42,
+    "cps": 4.356,
+    "brier": 0.24884,
+    "sized_per_day": 24.38,
+    "mean_stake": 62.04,
+    "pnl_anchor": {
+     "0.45": 4699.74,
+     "0.49": 1612.63,
+     "0.51": 34.06
+    }
+   },
+   "test": {
+    "pnl": 2630.42,
+    "cps": 6.318,
+    "brier": 0.24665,
+    "sized_per_day": 25.23,
+    "mean_stake": 45.6,
+    "pnl_anchor": {
+     "0.45": 1631.41,
+     "0.49": 880.54,
+     "0.51": 118.47
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5544,
+    0.5523
+   ],
+   "q_max_raw": 0.572
+  },
+  "c_M50_informed_cap100": {
+   "train": {
+    "pnl": 6346.42,
+    "cps": 4.356,
+    "brier": 0.24884,
+    "sized_per_day": 24.38,
+    "mean_stake": 62.04,
+    "pnl_anchor": {
+     "0.45": 4699.74,
+     "0.49": 1612.63,
+     "0.51": 34.06
+    }
+   },
+   "test": {
+    "pnl": 2630.42,
+    "cps": 6.318,
+    "brier": 0.24665,
+    "sized_per_day": 25.23,
+    "mean_stake": 45.6,
+    "pnl_anchor": {
+     "0.45": 1631.41,
+     "0.49": 880.54,
+     "0.51": 118.47
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5544,
+    0.5523
+   ],
+   "q_max_raw": 0.572
+  }
+ },
+ "ranked_by_train_pnl": [
+  [
+   "c_M50_informed_cap60",
+   6346.42,
+   2630.42
+  ],
+  [
+   "c_M50_informed_cap100",
+   6346.42,
+   2630.42
+  ],
+  [
+   "c_M400_informed",
+   6334.9,
+   2559.78
+  ],
+  [
+   "c_M50_informed",
+   6331.64,
+   2630.42
+  ],
+  [
+   "c_M100_informed",
+   6278.93,
+   2618.27
+  ],
+  [
+   "c_M200_informed",
+   6252.02,
+   2595.35
+  ],
+  [
+   "e_shrink100",
+   5302.22,
+   2619.86
+  ],
+  [
+   "e_shrink200",
+   5150.21,
+   2596.54
+  ],
+  [
+   "c_M50_neutral",
+   4378.4,
+   2346.97
+  ],
+  [
+   "c_M100_neutral",
+   3757.3,
+   2122.67
+  ],
+  [
+   "d_winInf",
+   3345.77,
+   1947.84
+  ],
+  [
+   "c_M200_neutral",
+   3055.65,
+   1844.52
+  ],
+  [
+   "b_spec",
+   2700.87,
+   1749.11
+  ],
+  [
+   "b_spec_cap60",
+   2700.87,
+   1749.11
+  ],
+  [
+   "b_spec_cap100",
+   2700.87,
+   1749.11
+  ],
+  [
+   "d_decay14",
+   2633.77,
+   1644.45
+  ],
+  [
+   "c_M400_neutral",
+   2420.3,
+   1510.54
+  ],
+  [
+   "d_win10",
+   2316.67,
+   1546.59
+  ],
+  [
+   "d_decay7",
+   2246.01,
+   1410.81
+  ],
+  [
+   "a_current",
+   1996.46,
+   1270.44
+  ],
+  [
+   "a_current_cap60",
+   1996.46,
+   1270.44
+  ],
+  [
+   "a_current_cap100",
+   1996.46,
+   1270.44
+  ]
+ ],
+ "winner_by_train": "c_M50_informed_cap60",
+ "winner_vs_current_test_delta": {
+  "point": 1359.97,
+  "n_blocks": 317,
+  "ci90": [
+   597.08,
+   2108.62
+  ],
+  "p_le_0": 0.0018
+ },
+ "tie_sensitivity": {
+  "a_current_tie_loss": {
+   "train": {
+    "pnl": 567.29,
+    "cps": 3.683,
+    "brier": 0.25001,
+    "sized_per_day": 10.02,
+    "mean_stake": 15.31,
+    "pnl_anchor": {
+     "0.45": 587.74,
+     "0.49": -20.46,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 276.24,
+    "cps": 4.298,
+    "brier": 0.24975,
+    "sized_per_day": 16.94,
+    "mean_stake": 10.1,
+    "pnl_anchor": {
+     "0.45": 280.79,
+     "0.49": -4.55,
+     "0.51": 0.0
+    }
+   }
+  },
+  "a_current_tie_excl": {
+   "train": {
+    "pnl": 1971.06,
+    "cps": 5.292,
+    "brier": 0.249,
+    "sized_per_day": 16.96,
+    "mean_stake": 22.5,
+    "pnl_anchor": {
+     "0.45": 1584.88,
+     "0.49": 386.17,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1303.86,
+    "cps": 7.439,
+    "brier": 0.24704,
+    "sized_per_day": 20.71,
+    "mean_stake": 23.25,
+    "pnl_anchor": {
+     "0.45": 835.95,
+     "0.49": 450.33,
+     "0.51": 17.57
+    }
+   }
+  },
+  "b_spec_tie_loss": {
+   "train": {
+    "pnl": 539.25,
+    "cps": 3.629,
+    "brier": 0.25007,
+    "sized_per_day": 9.3,
+    "mean_stake": 15.9,
+    "pnl_anchor": {
+     "0.45": 556.71,
+     "0.49": -17.45,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 284.07,
+    "cps": 4.268,
+    "brier": 0.2498,
+    "sized_per_day": 16.09,
+    "mean_stake": 10.99,
+    "pnl_anchor": {
+     "0.45": 292.21,
+     "0.49": -8.15,
+     "0.51": 0.0
+    }
+   }
+  },
+  "b_spec_tie_excl": {
+   "train": {
+    "pnl": 2717.24,
+    "cps": 5.198,
+    "brier": 0.24903,
+    "sized_per_day": 16.96,
+    "mean_stake": 31.56,
+    "pnl_anchor": {
+     "0.45": 2197.61,
+     "0.49": 519.62,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1825.68,
+    "cps": 7.633,
+    "brier": 0.24677,
+    "sized_per_day": 17.84,
+    "mean_stake": 36.61,
+    "pnl_anchor": {
+     "0.45": 1223.34,
+     "0.49": 601.15,
+     "0.51": 1.18
+    }
+   }
+  },
+  "c_M50_informed_tie_loss": {
+   "train": {
+    "pnl": 664.99,
+    "cps": 2.554,
+    "brier": 0.25023,
+    "sized_per_day": 18.3,
+    "mean_stake": 14.45,
+    "pnl_anchor": {
+     "0.45": 730.1,
+     "0.49": -52.83,
+     "0.51": -12.27
+    }
+   },
+   "test": {
+    "pnl": 344.02,
+    "cps": 3.792,
+    "brier": 0.24973,
+    "sized_per_day": 18.93,
+    "mean_stake": 12.88,
+    "pnl_anchor": {
+     "0.45": 333.83,
+     "0.49": 10.19,
+     "0.51": 0.0
+    }
+   }
+  },
+  "c_M50_informed_tie_excl": {
+   "train": {
+    "pnl": 6618.3,
+    "cps": 4.49,
+    "brier": 0.24864,
+    "sized_per_day": 22.98,
+    "mean_stake": 66.68,
+    "pnl_anchor": {
+     "0.45": 4777.31,
+     "0.49": 1774.21,
+     "0.51": 66.77
+    }
+   },
+   "test": {
+    "pnl": 2867.23,
+    "cps": 6.78,
+    "brier": 0.24601,
+    "sized_per_day": 23.12,
+    "mean_stake": 50.63,
+    "pnl_anchor": {
+     "0.45": 1705.31,
+     "0.49": 1004.68,
+     "0.51": 157.24
+    }
+   }
+  }
+ },
+ "guard_runs": {
+  "a_current_guards_code": {
+   "train": {
+    "pnl": 1996.46,
+    "cps": 5.144,
+    "brier": 0.24909,
+    "sized_per_day": 17.95,
+    "mean_stake": 22.13,
+    "pnl_anchor": {
+     "0.45": 1632.0,
+     "0.49": 364.46,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1270.44,
+    "cps": 6.946,
+    "brier": 0.24746,
+    "sized_per_day": 22.19,
+    "mean_stake": 22.61,
+    "pnl_anchor": {
+     "0.45": 844.74,
+     "0.49": 413.89,
+     "0.51": 11.81
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5216,
+    0.5353
+   ],
+   "q_max_raw": 0.5224
+  },
+  "a_current_guards_spec": {
+   "train": {
+    "pnl": 1996.46,
+    "cps": 5.144,
+    "brier": 0.24909,
+    "sized_per_day": 17.95,
+    "mean_stake": 22.13,
+    "pnl_anchor": {
+     "0.45": 1632.0,
+     "0.49": 364.46,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1270.44,
+    "cps": 6.946,
+    "brier": 0.24746,
+    "sized_per_day": 22.19,
+    "mean_stake": 22.61,
+    "pnl_anchor": {
+     "0.45": 844.74,
+     "0.49": 413.89,
+     "0.51": 11.81
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.5216,
+    0.5353
+   ],
+   "q_max_raw": 0.5224
+  },
+  "b_spec_guards_code": {
+   "train": {
+    "pnl": 2700.87,
+    "cps": 5.06,
+    "brier": 0.24913,
+    "sized_per_day": 17.95,
+    "mean_stake": 30.41,
+    "pnl_anchor": {
+     "0.45": 2220.21,
+     "0.49": 480.66,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1749.11,
+    "cps": 7.113,
+    "brier": 0.24724,
+    "sized_per_day": 18.93,
+    "mean_stake": 35.45,
+    "pnl_anchor": {
+     "0.45": 1206.07,
+     "0.49": 543.04,
+     "0.51": 0.0
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.541,
+    0.5269
+   ],
+   "q_max_raw": 0.541
+  },
+  "b_spec_guards_spec": {
+   "train": {
+    "pnl": 2700.87,
+    "cps": 5.06,
+    "brier": 0.24913,
+    "sized_per_day": 17.95,
+    "mean_stake": 30.41,
+    "pnl_anchor": {
+     "0.45": 2220.21,
+     "0.49": 480.66,
+     "0.51": 0.0
+    }
+   },
+   "test": {
+    "pnl": 1749.11,
+    "cps": 7.113,
+    "brier": 0.24724,
+    "sized_per_day": 18.93,
+    "mean_stake": 35.45,
+    "pnl_anchor": {
+     "0.45": 1206.07,
+     "0.49": 543.04,
+     "0.51": 0.0
+    }
+   },
+   "nights_cap_bound": 0,
+   "q_final": [
+    0.541,
+    0.5269
+   ],
+   "q_max_raw": 0.541
+  }
+ },
+ "mc_check": {
+  "a_current": {
+   "train": {
+    "pnl_mean": 1865.8,
+    "pnl_sd": 1461.7,
+    "win_frac": 0.96
+   },
+   "test": {
+    "pnl_mean": 1281.1,
+    "pnl_sd": 724.6,
+    "win_frac": 1.0
+   }
+  },
+  "b_spec": {
+   "train": {
+    "pnl_mean": 2216.2,
+    "pnl_sd": 1895.7,
+    "win_frac": 1.0
+   },
+   "test": {
+    "pnl_mean": 1628.1,
+    "pnl_sd": 1046.5,
+    "win_frac": 0.96
+   }
+  },
+  "c_M50_informed": {
+   "train": {
+    "pnl_mean": 5066.3,
+    "pnl_sd": 5025.9,
+    "win_frac": 1.0
+   },
+   "test": {
+    "pnl_mean": 2315.3,
+    "pnl_sd": 1590.5,
+    "win_frac": 1.0
+   }
+  }
+ },
+ "notes": [
+  "expected-book deterministic primary; MC 25 seeds cross-check",
+  "fill model frozen + row-independent: bucket-definition differences are under-identified offline (both buckets converge to the same pooled q); rankings reflect prior mass / window / seed / cap only",
+  "any family whose edge comes from opening the .49/.51 anchors is flagged vs wave-1 R2 (48-53c fee-dead) \u2014 see pnl_anchor"
+ ]
+}

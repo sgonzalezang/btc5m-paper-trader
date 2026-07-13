@@ -1,0 +1,24 @@
+prior cb5m window: 2026-05-11 11:55 -> 2026-07-10 11:50 candles: 17280
+prior cb5m gaps: 0
+old-vs-new cb5m open disagreements on overlap: 0
+recon: n_all 4022 (claim 4022) n_sel 2742 (claim 2742) q 0.5503 (claim .5511) wins 1509 delta_wins 2.1
+
+ivlHist2 n=20 |feed-candle| bps: median 1.70 max 5.17
+interval 1783908900 feed vs candle bps: [(12.9, 11.1)] (claim +12.90 vs +11.10)
+
+v3 trades: 106 Counter({'reversal_v2': 44, 'impulse50': 35, 'impulse_v2': 27})
+exceptions: 13 (claim 13)
+by t0: {1783904700: 2, 1783905300: 2, 1783906500: 2, 1783907400: 1, 1783909200: 3, 1783914000: 3} distinct t0s: 6
+fired gated-engine t0s missing from measure book: []
+
+PM join: resolved t0s 1014 (ambiguous dropped 0); non-tie 940 agree 929 (0.9883) (claim 929/940=.988); ties 74 up 32 (0.432) (claim 32/74=.432)
+
+live window [2026-07-10 16:40,2026-07-13 03:40]: candle gate-passes 50 (claim 50); in_measure 30 (30); ledger_only 0 (0); unaccounted 20 (20)
+measure recs that are NOT candle trigger+gatePass: 5 ['2026-07-13 01:05', '2026-07-13 01:15', '2026-07-13 01:35', '2026-07-13 01:50', '2026-07-13 02:20']
+measure recs past horizon: 1
+unaccounted pm range: 0.1216 0.4747
+
+real joins: rows 43 measure 35 (claim 35) ledger 43 (claim 43) on-gate-pass 30 (claim 30)
+alt rows 270 (claim 270) trigger-flips 45 (claim 45) gatePass-flips 228 (claim 228)
+borderline triggers 637/4102 = 0.1553 (claim 637/4102=.155); near-misses 847 (claim 847)
+alt-row o-c recompute mismatches (of 40 sampled): 0

@@ -1,0 +1,3 @@
+nightly expanding mean TEST brier 0.245923
+nightly-mean vs impl: qhat brier 0.246341 d +0.000418 CI95[-0.000063,+0.000903] p_le0=0.0425 pass=False
+nightly-mean vs spec: qhat brier 0.246209 d +0.000287 CI95[-0.000019,+0.000587] p_le0=0.0322 pass=False

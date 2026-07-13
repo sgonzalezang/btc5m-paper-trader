@@ -1,0 +1,88 @@
+{
+ "cadence": {
+  "live_span_days": 2.46,
+  "gated_candle_signals_in_span": 50,
+  "gated_per_day_in_span": 20.34,
+  "measure_records": 36,
+  "record_capture_ratio": 0.72,
+  "fill_model_availability": 0.55,
+  "expected_records_per_day_at_55pct": 11.2,
+  "test_era_max_rolling7d_gated": 379,
+  "test_era_max_7d_per_day": 54.1,
+  "implied_records_per_day_if_capture_holds": 39.0,
+  "threshold_7d_tier": 17.1
+ },
+ "selection_corrected": {
+  "c_M50_informed": {
+   "delta_test": 1359.97,
+   "signflip_perm_p": 0.0017,
+   "bonf22": 0.0374,
+   "bonf90": 0.153,
+   "cps": 6.318,
+   "cps_current": 6.946,
+   "beats_current_per_share": false
+  },
+  "c_M400_informed": {
+   "delta_test": 1289.34,
+   "signflip_perm_p": 0.0008,
+   "bonf22": 0.0176,
+   "bonf90": 0.072,
+   "cps": 6.564,
+   "cps_current": 6.946,
+   "beats_current_per_share": false
+  },
+  "hybrid_cost_M200": {
+   "delta_test": 213.39,
+   "signflip_perm_p": 0.0043,
+   "bonf22": 0.0946,
+   "bonf90": 0.387,
+   "cps": 6.631,
+   "cps_current": 6.946,
+   "beats_current_per_share": false
+  },
+  "b_spec": {
+   "delta_test": 478.66,
+   "signflip_perm_p": 0.0,
+   "bonf22": 0.0,
+   "bonf90": 0.0,
+   "cps": 7.113,
+   "cps_current": 6.946,
+   "beats_current_per_share": true
+  },
+  "c_M200_neutral": {
+   "delta_test": 574.08,
+   "signflip_perm_p": 0.00015,
+   "bonf22": 0.0033,
+   "bonf90": 0.0135,
+   "cps": 7.032,
+   "cps_current": 6.946,
+   "beats_current_per_share": true
+  }
+ },
+ "levels": {
+  "a_current": {
+   "test_pnl": 1270.44,
+   "cps": 6.946
+  },
+  "b_spec": {
+   "test_pnl": 1749.11,
+   "cps": 7.113
+  },
+  "hybrid_cost_M200": {
+   "test_pnl": 1483.83,
+   "cps": 6.631
+  },
+  "c_M50_informed": {
+   "test_pnl": 2630.42,
+   "cps": 6.318
+  },
+  "c_M400_informed": {
+   "test_pnl": 2559.78,
+   "cps": 6.564
+  },
+  "c_M200_neutral": {
+   "test_pnl": 1844.52,
+   "cps": 7.032
+  }
+ }
+}

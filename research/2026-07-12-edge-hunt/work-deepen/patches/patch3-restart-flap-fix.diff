@@ -1,0 +1,188 @@
+--- a/bot/btc5m_bot.py
++++ b/bot/btc5m_bot.py
+@@ -195,6 +195,25 @@
+ #        hysteresis at 7d≥−1c (holds state in between and when the window
+ #        lacks min-n). Bench (15d<−3c on ≥250 OR 7d<−4c on ≥120; release
+ #        10d≥0 on ≥100) and the $250 breaker are unchanged.
++# P3 [R8 RESTART-FLAP FIX] Diagnosed mechanism (wave-1 R8, both readings
++#    covered): the 7-10 anomalous Jul-10 loop_metrics lines are byte-exact
++#    --selftest fixture output (qlo .4175 = (90+400·.5057)/700) — the
++#    selftest's throwaway Bot objects appended to the PRODUCTION
++#    loop_metrics.jsonl because the path was derived from __file__. And a
++#    restart whose state load fails (or a resurrected stale state file) ran
++#    an immediate catch-up nightly over an empty/foreign measurement book,
++#    recomputing qhat/guard state from the wrong basis. Three minimal fixes:
++#    (a) nightly metrics are written ONLY when cfg['metricsPath'] is set —
++#        main() sets it for the production loop; selftest fixtures never
++#        write the live log;
++#    (b) a state whose nightly clock was never set (lastNightly==0) sets the
++#        baseline WITHOUT running a catch-up nightly — the first real nightly
++#        runs at the next 00:10 UTC boundary crossed while live;
++#    (c) the impulse state carries its creation `epoch`; nightly prunes
++#        non-seed measurement rows with t0 < epoch (pre-epoch rows from a
++#        resurrected/foreign state never feed qhat or the guards; M2 seed
++#        rows are exempt by design). Legacy states load with epoch=0 — no
++#        behavior change on the current live book.
+ # ---------------------------------------------------------------------------
+ IMP_SEED_LO, IMP_SEED_HI = 0.5057, 0.5068  # launch-day qhat STATE values only (§4.2 MF3)
+ IMP_PRIOR = 200          # P2/R8: registered per-bucket shrinkage mass (§4.2); was 400
+@@ -203,7 +222,8 @@
+ IMP_BUCKET_LO = 0.50     # P2/R8: bucket boundary on p_eff = ask + slip (§4.2); was cost<0.50
+ def default_impulse():
+     return dict(bank=1000.0, bank0=1000.0, qlo=IMP_SEED_LO, qhi=IMP_SEED_HI, benched=False,
+-                measure=[], skips={}, lastNightly=0)
++                measure=[], skips={}, lastNightly=0,
++                epoch=now_s() - IVL)   # P3: rows older than this state never feed the nightly
+ VOL_WIN_MS = 600000   # trailing window for the volatility measure (10 min)
+ # Guards the loose engine must have GREEN regardless of its N/10 count. The
+ # backtest (2026-07-06, 21 honest trades) showed loose entries that skipped
+@@ -789,6 +809,16 @@
+         separate, human-reviewed step per FINAL-DESIGN v3 — nothing automated)."""
+         due = (ns // 86400) * 86400 + 600
+         if ns < due or self.imp.get("lastNightly", 0) >= due: return
++        if not self.imp.get("lastNightly"):
++            # P3/R8 restart-flap fix: a state whose nightly clock was never set
++            # (fresh default OR a failed/replaced state load) must NOT run a
++            # catch-up nightly over whatever basis it happens to hold — that is
++            # how qhat/guard state got recomputed from stale or empty books on
++            # restarts. Set the baseline; the first real nightly runs at the
++            # next 00:10 UTC boundary crossed while live.
++            self.imp["lastNightly"] = due
++            self.log("nightly clock initialized — first nightly at the next 00:10 UTC boundary")
++            return
+         self.imp["lastNightly"] = due
+         try: self._impulse_nightly(ns)
+         except Exception as e: self.log(f"nightly job error: {e}")
+@@ -796,7 +826,11 @@
+     def _impulse_nightly(self, ns):
+         imp = self.imp
+         cut = (ns - 31 * 86400)
+-        imp["measure"] = [m for m in imp["measure"] if m["t0"] >= cut]
++        # P3/R8: pre-epoch rows (a resurrected or foreign state's book) never
++        # feed the nightly; M2 seed rows are exempt (deliberately pre-launch).
++        epoch = imp.get("epoch", 0)
++        imp["measure"] = [m for m in imp["measure"]
++                          if m["t0"] >= cut and (m.get("seed") or m["t0"] >= epoch)]
+         settled = [m for m in imp["measure"] if m["win"] is not None]
+         # R4 (2026-07-12): qhat and the guard windows read the OPERATED basis
+         # (_m_opcost: fillCost if filled else bestCost; legacy first-poll cost
+@@ -837,10 +871,15 @@
+         metrics = dict(t=ns, qlo=imp["qlo"], qhi=imp["qhi"], benched=imp["benched"], haircut=imp["haircut"],
+                        bank=round(imp["bank"], 2), measured=len(imp["measure"]), settled=len(settled),
+                        n15=(round(n15, 4) if n15 is not None else None), skips=dict(imp["skips"]), feeBad=fee_bad)
+-        try:
+-            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "loop_metrics.jsonl"), "a") as f:
+-                f.write(json.dumps(metrics, separators=(",", ":")) + "\n")
+-        except Exception: pass
++        # P3/R8: write ONLY to the path the production loop configured —
++        # --selftest fixture Bots have no metricsPath and must never append
++        # fixture output to the live loop_metrics.jsonl (the Jul-10 "flap").
++        mp = self.cfg.get("metricsPath")
++        if mp:
++            try:
++                with open(mp, "a") as f:
++                    f.write(json.dumps(metrics, separators=(",", ":")) + "\n")
++            except Exception: pass
+         self.log(f"nightly: qlo {imp['qlo']} qhi {imp['qhi']} bank ${imp['bank']:.0f} "
+                  f"measured {len(settled)}/{len(imp['measure'])}{' BENCHED' if imp['benched'] else ''}")
+ 
+@@ -1439,6 +1478,9 @@
+             di = d["impulse"]
+             for k in ("bank", "bank0", "qlo", "qhi", "lastNightly", "mAmend", "seeded"):
+                 if isinstance(im.get(k), (int, float)): di[k] = im[k]
++            # P3: legacy states (no epoch) load with epoch=0 — accept all rows,
++            # identical to pre-patch behavior on the current live book.
++            di["epoch"] = im["epoch"] if isinstance(im.get("epoch"), (int, float)) else 0
+             for k in ("benched", "haircut"):
+                 if isinstance(im.get(k), bool): di[k] = im[k]
+             if isinstance(im.get("skips"), dict):
+@@ -1803,6 +1845,7 @@
+     # guard windows read the OPERATED basis: rich first polls + cheap real fills must NOT bench
+     def opbook(fill_cost, first_cost_=0.5474, n=300):
+         b = Bot({}, default_state(A))
++        b.imp["epoch"] = 0                                   # P3: fixture backdates its rows
+         b.imp["measure"] = [dict(t0=ns - 86400 + i * 300, side="up", cost=first_cost_,
+                                  win=(1 if i % 2 == 0 else 0), sized=True, skip=None,
+                                  bestCost=first_cost_, fillCost=fill_cost, final=True) for i in range(n)]
+@@ -1818,6 +1861,7 @@
+        "P2: nightly shrinks to prior MEAN 0.5 with mass 200 (registered §4.2), not the ledger seeds",
+        f"qlo={b20.imp['qlo']} qhi={b20.imp['qhi']}")
+     b21 = Bot({}, default_state(A))                          # p_eff=0.49 rows (cost .5075): LO bucket per §4.2
++    b21.imp["epoch"] = 0                                     # P3: fixture backdates its rows
+     b21.imp["measure"] = [dict(t0=ns - 3600 - i * 300, side="up", cost=0.5075, win=1, sized=True, skip=None)
+                           for i in range(10)]
+     b21._impulse_nightly(ns)
+@@ -1859,6 +1903,7 @@
+     # §5.2 haircut: single 7d<-2c trigger with hysteresis; the deleted 15d/-1c tier must NOT fire
+     def hbook(recent_wins, old_rows=None):
+         b = Bot({}, default_state(A))
++        b.imp["epoch"] = 0                                   # P3: fixture backdates its rows
+         b.imp["measure"] = [dict(t0=ns - 3600 - i * 300, side="up", cost=0.53,
+                                  win=(1 if i < recent_wins else 0), sized=True, skip=None)
+                             for i in range(130)] + (old_rows or [])
+@@ -1880,6 +1925,45 @@
+     ok(not bh4.imp["haircut"] and not bh4.imp["benched"],
+        "P2: the deleted 15d/-1c haircut tier is gone — a -2c 15d window with a healthy 7d does nothing",
+        f"haircut={bh4.imp['haircut']}")
++    # --- P3 (restart-flap fix): no catch-up nightly, no selftest pollution, pre-epoch guard ---
++    ns_t = (ns // 86400 + 2) * 86400 + 4000                  # synthetic time past a 00:10 boundary
++    bf = Bot({}, default_state(A))
++    bf.imp["epoch"] = 0
++    bf.imp["measure"] = [dict(t0=ns_t - 86400 + i * 300, side="up", cost=0.53, win=0, sized=True, skip=None)
++                         for i in range(300)]                # a book that WOULD bench if the nightly ran
++    q0 = (bf.imp["qlo"], bf.imp["qhi"])
++    bf.nightly_tick(ns_t)                                    # lastNightly==0: restart/fresh state
++    ok((bf.imp["qlo"], bf.imp["qhi"]) == q0 and not bf.imp["benched"]
++       and bf.imp["lastNightly"] == (ns_t // 86400) * 86400 + 600,
++       "P3: lastNightly==0 sets the baseline WITHOUT a catch-up nightly (no restart flap)",
++       f"qlo={bf.imp['qlo']} benched={bf.imp['benched']}")
++    bf.nightly_tick(ns_t + 86400)                            # next boundary crossed live: nightly runs
++    ok(bf.imp["benched"] and bf.imp["qlo"] != q0[0],
++       "P3: the first real nightly runs at the next 00:10 boundary", f"benched={bf.imp['benched']}")
++    bp = Bot({}, default_state(A))                           # pre-epoch rows: a resurrected stale book
++    bp.imp["epoch"] = ns - 86400
++    bp.imp["measure"] = [dict(t0=ns - 2 * 86400 + i * 100, side="up", cost=0.4975, win=0, sized=True, skip=None)
++                         for i in range(300)]                # all rows PRE-epoch -> must be pruned, not fed
++    bp._impulse_nightly(ns)
++    ok(not bp.imp["benched"] and bp.imp["qlo"] == 0.5 and len(bp.imp["measure"]) == 0,
++       "P3: pre-epoch rows are pruned — a resurrected stale book cannot bench or move qhat",
++       f"n={len(bp.imp['measure'])} benched={bp.imp['benched']}")
++    bp2 = Bot({}, default_state(A))                          # seed rows are exempt from the epoch fence
++    bp2.imp["epoch"] = ns
++    bp2.imp["measure"] = [dict(t0=ns - 3600 - i * 300, side="up", cost=0.55, win=0, sized=False,
++                               skip="seed", seed=True, final=True) for i in range(130)]
++    bp2._impulse_nightly(ns)
++    ok(len(bp2.imp["measure"]) == 130 and bp2.imp["benched"],
++       "P3: M2 seed rows survive the epoch fence and still drive the guard windows")
++    mtmp = os.path.join(tempfile.gettempdir(), "btc5m_metrics_test.jsonl")
++    if os.path.exists(mtmp): os.remove(mtmp)
++    bm1 = Bot({}, default_state(A)); bm1._impulse_nightly(ns)      # no metricsPath: fixture bot
++    bm2 = Bot({"metricsPath": mtmp}, default_state(A)); bm2._impulse_nightly(ns)
++    lines = open(mtmp).read().strip().splitlines() if os.path.exists(mtmp) else []
++    ok(len(lines) == 1 and json.loads(lines[0])["qlo"] == 0.5,
++       "P3: nightly metrics land ONLY on the configured metricsPath — selftest bots write nothing",
++       f"lines={len(lines)}")
++    os.remove(mtmp)
+     bb = mkimp(); bb.imp["qlo"] = 0.53; bb.imp["benched"] = True
+     bv2 = bb.evaluate(now, "impulse_v2")
+     ok(not bv2["enter"] and bb.imp["measure"][-1]["skip"]=="benched", "guard bench zeroes the stake (tier 3)")
+@@ -1904,6 +1988,7 @@
+     bn.imp["measure"] = [dict(t0=ns-3*86400+i*300, side="up", cost=0.4975, win=(1 if i%10 < 3 else 0), sized=True, skip=None)
+                          for i in range(300)]                # 30% win rate at ~50c cost — a dead regime
+     bn.imp["lastNightly"] = 0
++    bn.imp["epoch"] = 0                                      # P3: fixture backdates its rows — declare the epoch
+     bn._impulse_nightly(ns)
+     ok(bn.imp["qlo"] < 0.47 and bn.imp["benched"],
+        "nightly: qhat absorbs a dead regime and the tier-3 guard benches the stake",
+@@ -2060,7 +2145,10 @@
+     sig_engines = [e for e in (x.strip() for x in args.signal_engines.split(",")) if e in ENGINES]
+     bot = Bot({"publishEvery": args.publish_every, "sigEngines": sig_engines, "sigFile": args.signal_file,
+                # P2/M2: pre-launch guard seed cohort (n=123) ships next to the script
+-               "seedPath": os.path.join(os.path.dirname(os.path.abspath(__file__)), "impulse_guard_seed.json")}, st)
++               "seedPath": os.path.join(os.path.dirname(os.path.abspath(__file__)), "impulse_guard_seed.json"),
++               # P3/R8: nightly metrics go here ONLY from the production loop —
++               # selftest fixtures have no metricsPath and can never pollute it
++               "metricsPath": os.path.join(os.path.dirname(os.path.abspath(__file__)), "loop_metrics.jsonl")}, st)
+     must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
+     live_e = [e for e in ENGINES if not ENGINE_CFG[e].get("retired")]
+     bot.log(f"bot started — {st['asset']} · {st['profile']} · FINAL-DESIGN v3 roster: "

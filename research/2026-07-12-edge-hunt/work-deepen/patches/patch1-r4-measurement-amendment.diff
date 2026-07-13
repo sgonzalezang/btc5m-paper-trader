@@ -1,0 +1,256 @@
+--- a/bot/btc5m_bot.py
++++ b/bot/btc5m_bot.py
+@@ -152,6 +152,23 @@
+ # neutral ledger seeds and prior mass 400 (FINAL-DESIGN v3 MF2/MF3); measure is
+ # the measurement book: every cap-compliant gated signal, sized or skipped —
+ # qhat learns from THIS, never from the bank-censored sized book.
++# ---------------------------------------------------------------------------
++# CHANGELOG 2026-07-12 — wave-2 patch set (research/2026-07-12-edge-hunt/FINDINGS.md)
++# P1 [R4 AMENDMENT, before day 14] The measurement book is now poll-cumulative
++#    and window-final: each record additionally carries bestCost (best
++#    in-window fillable cost, updated in place across polls), fillCost
++#    (realized all-in fill cost when actually filled), and final (sized/skip
++#    stamped at the t0+45s window close per FINAL-DESIGN MF6 — NOT at first
++#    poll). Legacy rows are migrated once by joining the flagship ledger on
++#    t0 (_measure_migrate). Schema-additive: no existing field changes.
++#    PRE-COMMITMENT (R4): the day-14 Phase-1 kill, the §5.2 guard windows and
++#    the nightly qhat all read the OPERATED basis
++#        opCost = fillCost if filled else bestCost      (_m_opcost;
++#                 legacy rows fall back to their first-poll cost)
++#    and exclude seed=True rows. The first-poll `cost` series is retained
++#    unchanged as a DIAGNOSTIC ONLY — it feeds no verdict, no guard, no
++#    estimator. Committed 2026-07-12, before day 14 of the v3 trial.
++# ---------------------------------------------------------------------------
+ IMP_SEED_LO, IMP_SEED_HI, IMP_PRIOR = 0.5057, 0.5068, 400
+ def default_impulse():
+     return dict(bank=1000.0, bank0=1000.0, qlo=IMP_SEED_LO, qhi=IMP_SEED_HI, benched=False,
+@@ -416,6 +433,7 @@
+         self.sig_webhook = os.environ.get("BTC5M_SIGNAL_WEBHOOK", "")
+         self.sig_secret = os.environ.get("BTC5M_SIGNAL_SECRET", "")
+         self.sig_last = {}                    # eid -> t0 already emitted (one-shot per engine per interval)
++        self._measure_migrate()               # R4 one-shot legacy-row migration (see CHANGELOG P1); idempotent
+ 
+     # --- config accessors ---
+     def prof(self): return PROFILES[self.st["profile"]]
+@@ -576,14 +594,94 @@
+         qhat learns from this, never from the bank-censored sized book.
+         feats = decision-time context (ML-PLAN.md Phase 0): the training row for
+         the future meta-labeling model. Recorded at decision time so no feature
+-        can leak information from after the entry moment."""
++        can leak information from after the entry moment.
++        R4 AMENDMENT (2026-07-12): poll-cumulative. The first fillable poll
++        appends the record (cost = first-poll fillable cost, kept forever as
++        the diagnostic series); every later in-window fillable poll updates
++        bestCost in place and refreshes the PROVISIONAL sized/skip stamp to
++        the latest poll's decision. Nothing is final until _measure_finalize
++        stamps the record at the t0+45s window close (MF6 skip finality)."""
+         ms = self.imp["measure"]
+-        if ms and ms[-1].get("t0") == t0: return
+-        ms.append(dict(t0=t0, side=side, cost=round(cost, 4), win=None,
+-                       sized=bool(sized), skip=(why or None), f=(feats or None)))
+-        del ms[:-12000]
+-        if why: self.imp["skips"][why] = self.imp["skips"].get(why, 0) + 1
++        cur = ms[-1] if ms and ms[-1].get("t0") == t0 else None
++        if cur is None:
++            if ms and not ms[-1].get("final", True):
++                # previous interval's record never saw its window close
++                # (restart/downtime mid-window) — finalize it now, late.
++                self._measure_finalize(ms[-1]["t0"])
++            ms.append(dict(t0=t0, side=side, cost=round(cost, 4), win=None,
++                           sized=bool(sized), skip=(why or None), f=(feats or None),
++                           bestCost=round(cost, 4), fillCost=None, final=False))
++            del ms[:-12000]
++            return
++        if cur.get("final"): return
++        if cur.get("bestCost") is None or cost < cur["bestCost"]:
++            cur["bestCost"] = round(cost, 4)
++        if cur.get("fillCost") is None:              # not filled yet: last in-window poll's decision
++            cur["sized"], cur["skip"] = bool(sized), (None if sized else (why or None))
+ 
++    def _measure_fill(self, t0, entry):
++        """R4: stamp the realized all-in fill cost onto the measurement row —
++        the operated basis the day-14 kill reads for filled signals. `entry`
++        already includes the 1c slip; fee per the frozen model."""
++        for m in reversed(self.imp["measure"]):
++            if m.get("t0") == t0:
++                m["fillCost"] = round(entry + FEE_RATE * entry * (1 - entry), 4)
++                m["sized"], m["skip"] = True, None
++                return
++
++    def _measure_finalize(self, t0):
++        """MF6/R4: sized/skip become FINAL at the entry-window close (t0+45s),
++        not at the first poll. Idempotent; called on the first eval after the
++        window closes. A record that granted a stake but never actually filled
++        (thin book) finalizes as skip='no_fill'. Skip-reason counters are
++        incremented here — once per signal, on the final reason."""
++        ms = self.imp["measure"]
++        m = ms[-1] if ms and ms[-1].get("t0") == t0 else None
++        if not m or m.get("final"): return
++        m["final"] = True
++        m["sized"] = m.get("fillCost") is not None
++        if m["sized"]:
++            m["skip"] = None
++        else:
++            m["skip"] = m.get("skip") or "no_fill"
++            self.imp["skips"][m["skip"]] = self.imp["skips"].get(m["skip"], 0) + 1
++
++    @staticmethod
++    def _m_opcost(m):
++        """Operated cost basis (R4 pre-commitment — see CHANGELOG P1): realized
++        fill cost when filled, else best in-window fillable cost; legacy rows
++        (pre-amendment) fall back to their first-poll cost. The day-14 kill,
++        the guard windows and qhat read THIS; first-poll `cost` is diagnostic."""
++        if m.get("fillCost") is not None: return m["fillCost"]
++        if m.get("bestCost") is not None: return m["bestCost"]
++        return m["cost"]
++
++    def _measure_migrate(self):
++        """One-shot R4 schema migration (2026-07-12), idempotent and additive:
++        legacy measurement rows (written before the amendment, no `final`
++        field) are stamped final and joined to the flagship ledger by t0 — a
++        row whose interval WAS traded gets its realized fillCost/sized=True
++        (the interval dup-guard guarantees same-signal identity; R4 verified
++        the side matches 12/12 on the affected skips). The first-poll `cost`
++        field is never modified."""
++        if self.imp.get("mAmend"): return
++        trades = {}
++        for t in (self.st.get("engines", {}).get("impulse_v2", {}) or {}).get("trades", []):
++            if isinstance(t.get("t0"), (int, float)) and isinstance(t.get("entry"), (int, float)):
++                trades.setdefault(t["t0"], t)
++        n_fill = 0
++        for m in self.imp["measure"]:
++            if "final" in m or m.get("seed"): continue
++            m["final"] = True
++            t = trades.get(m.get("t0"))
++            if t is not None and t.get("side") == m.get("side"):
++                m["fillCost"] = round(t["entry"] + FEE_RATE * t["entry"] * (1 - t["entry"]), 4)
++                m["sized"], m["skip"] = True, None
++                n_fill += 1
++        self.imp["mAmend"] = 1
++        if n_fill:
++            self.log(f"measurement book amended (R4): {n_fill} legacy rows joined to realized fills")
++
+     def _measure_settle(self, t0, w):
+         """Backfill measurement outcomes from any oracle-settled interval."""
+         for m in self.imp["measure"]:
+@@ -629,14 +727,17 @@
+         cut = (ns - 31 * 86400)
+         imp["measure"] = [m for m in imp["measure"] if m["t0"] >= cut]
+         settled = [m for m in imp["measure"] if m["win"] is not None]
++        # R4 (2026-07-12): qhat and the guard windows read the OPERATED basis
++        # (_m_opcost: fillCost if filled else bestCost; legacy first-poll cost
++        # as fallback) — the first-poll series no longer feeds any estimator.
+         def qhat(bucket_lo, seed):
+-            xs = [m for m in settled if (m["cost"] < 0.50) == bucket_lo]
++            xs = [m for m in settled if (self._m_opcost(m) < 0.50) == bucket_lo]
+             return round(min(0.56, (sum(m["win"] for m in xs) + IMP_PRIOR * seed) / (len(xs) + IMP_PRIOR)), 4)
+         imp["qlo"], imp["qhi"] = qhat(True, IMP_SEED_LO), qhat(False, IMP_SEED_HI)
+         def netps(days, nmin):
+             xs = [m for m in settled if m["t0"] >= ns - days * 86400]
+             if len(xs) < nmin: return None
+-            tot = sum((1 - m["cost"]) if m["win"] else -m["cost"] for m in xs)
++            tot = sum((1 - self._m_opcost(m)) if m["win"] else -self._m_opcost(m) for m in xs)
+             return tot / len(xs)
+         n15, n7, n10 = netps(15, 250), netps(7, 120), netps(10, 100)
+         if (n15 is not None and n15 < -0.03) or (n7 is not None and n7 < -0.04):
+@@ -741,6 +842,10 @@
+                 self.sig_last["_impskip"] = m["t0"]
+                 self.log(f"[IMPULSE_V2] signal but SKIP ({skip_why}) ask {q['ask']*100:.0f}c "
+                          f"qlo {self.imp['qlo']} qhi {self.imp['qhi']} bank ${self.imp['bank']:.0f}")
++        if cfg.get("sized") and m and left is not None and not early:
++            # R4/MF6: the entry window is closed — stamp this interval's
++            # measurement record final (skip finality at t0+45s, not first poll)
++            self._measure_finalize(m["t0"])
+         enter = bool(market_ok and signal and early and priced_ok and spread_ok and fresh and depth_ok and can_fill
+                      and eff_ok and imp_ok and (stake_usd is not None or not cfg.get("sized")))
+         delta = (pv["ret"] * pv["open"]) if (pv and pv.get("open")) else 0.0                 # prior move in $ (for logs)
+@@ -898,6 +1003,9 @@
+                   guards=[[k, 1 if ok else 0] for k, ok in ev["checks"]])
+         self.trades(eid).insert(0, tr)
+         self._trim(eid)
++        if ENGINE_CFG[eid].get("sized"):
++            # R4: the measurement row must carry the fill the arm actually paid
++            self._measure_fill(m["t0"], entry)
+         part = "" if fully else f" partial {tr['fillFrac']*100:.0f}%"
+         self.log(f"[{eid.upper()}] ENTER {self.st['asset']} {side.upper()} @ {entry*100:.1f}c avg "
+                  f"${spent:.0f}{part} fee ${fee:.2f} ({ev['passCount']}/10) +{tr['entrySec']}s into interval "
+@@ -1246,7 +1354,7 @@
+         im = o.get("impulse")
+         if isinstance(im, dict):
+             di = d["impulse"]
+-            for k in ("bank", "bank0", "qlo", "qhi", "lastNightly"):
++            for k in ("bank", "bank0", "qlo", "qhi", "lastNightly", "mAmend"):
+                 if isinstance(im.get(k), (int, float)): di[k] = im[k]
+             for k in ("benched", "haircut"):
+                 if isinstance(im.get(k), bool): di[k] = im[k]
+@@ -1555,6 +1663,7 @@
+     ok(not bw.evaluate(now,"impulse_v2")["enter"], "impulse_v2 stays latent until 13 contiguous intervals exist")
+     bs = mkimp(ask=0.50, bid=0.49)                           # seeds only: 51c fill costs .5275 > qhi -> f<=0 SKIP
+     sv = bs.evaluate(now, "impulse_v2")
++    bs.evaluate(now + 60000, "impulse_v2")                   # window closes -> skip becomes FINAL (R4/MF6)
+     ok(not sv["enter"] and sv["stakeUsd"] is None and bs.imp["measure"] and bs.imp["measure"][-1]["skip"]=="f_nonpos"
+        and bs.imp["skips"].get("f_nonpos",0) >= 1,
+        "sizing SKIP (f<=0) is a decision: no trade, measurement + skip reason recorded",
+@@ -1563,6 +1672,62 @@
+     ok(mf.get("eff6") is not None and mf.get("cnt12")==0 and mf.get("ask")==0.50 and mf.get("hour") is not None,
+        "measurement rows carry decision-time ML features (ML-PLAN Phase 0)",
+        f"f={mf}")
++    ok(bs.imp["measure"][-1].get("final") is True and bs.imp["skips"].get("f_nonpos", 0) == 1,
++       "P1: skip stamped FINAL at window close, counted once despite multiple polls (MF6)",
++       f"final={bs.imp['measure'][-1].get('final')} n={bs.imp['skips'].get('f_nonpos')}")
++    # --- P1 (R4 amendment): poll-cumulative, window-final measurement book ---
++    ba = mkimp(ask=0.52, bid=0.51)                           # first poll RICH: 54c fill -> f_nonpos at seeds
++    av1 = ba.evaluate(now, "impulse_v2")
++    ra = ba.imp["measure"][-1]
++    ok(av1["stakeUsd"] is None and ra["skip"] == "f_nonpos" and ra.get("final") is False
++       and ra["bestCost"] == ra["cost"] and ra.get("fillCost") is None,
++       "P1: first rich poll writes a PROVISIONAL record (final=False, bestCost=firstCost)",
++       f"cost={ra['cost']} best={ra['bestCost']} final={ra.get('final')}")
++    first_cost = ra["cost"]
++    ba.imp["qlo"] = 0.53                                     # learned qhat so the cheap re-poll sizes
++    bkc = {"bid": 0.43, "ask": 0.44, "asks": [[0.44, 300]], "bids": [[0.43, 300]],
++           "topAskUsd": 132.0, "mirrorTopUsd": 171.0, "at": now + 8000}   # re-poll 8s later: 44c refill
++    ba.mkt["bookDown"] = bkc; ba.mkt["bookUp"] = mirror(bkc)
++    ba.feed = dict(ba.feed); ba.feed["at"] = now + 8000
++    av2 = ba.evaluate(now + 8000, "impulse_v2")
++    entered2 = ba.paper_enter("impulse_v2", av2) if av2["enter"] else False
++    ra = ba.imp["measure"][-1]
++    ok(av2["enter"] and entered2 and len([m for m in ba.imp["measure"] if m["t0"] == ba.mkt["t0"]]) == 1
++       and ra["cost"] == first_cost and ra["bestCost"] < first_cost and ra.get("fillCost") is not None,
++       "P1: cheaper re-poll updates bestCost IN PLACE and the realized fill lands in fillCost",
++       f"cost={ra['cost']} best={ra['bestCost']} fill={ra.get('fillCost')}")
++    ba.evaluate(now + 60000, "impulse_v2")                   # window closes -> finalize
++    ok(ra.get("final") is True and ra["sized"] is True and ra["skip"] is None
++       and abs(Bot._m_opcost(ra) - ra["fillCost"]) < 1e-9,
++       "P1: sized stamped at WINDOW CLOSE; operated basis (opCost) = realized fill",
++       f"final={ra.get('final')} opCost={Bot._m_opcost(ra)}")
++    # legacy-row migration: a pre-amendment skip row whose interval WAS traded
++    stm = default_state(A)
++    t0m = (now // 1000 // IVL) * IVL - 900
++    stm["impulse"]["measure"] = [dict(t0=t0m, side="down", cost=0.5474, win=1, sized=False, skip="f_nonpos")]
++    stm["engines"]["impulse_v2"]["trades"] = [dict(t0=t0m, side="down", entry=0.45, at=now,
++                                                   status="settled", result="win")]
++    bmig = Bot({}, stm)
++    rm = bmig.imp["measure"][0]
++    exp_fc = round(0.45 + FEE_RATE * 0.45 * 0.55, 4)
++    ok(rm.get("final") is True and rm.get("fillCost") == exp_fc and rm["sized"] is True
++       and rm["skip"] is None and rm["cost"] == 0.5474 and bmig.imp.get("mAmend") == 1,
++       "P1: migration joins legacy skip rows to realized fills (first-poll cost untouched)",
++       f"fillCost={rm.get('fillCost')} vs {exp_fc}")
++    rm["fillCost"] = 0.1234                                  # prove idempotency: second migrate must not re-join
++    bmig._measure_migrate()
++    ok(rm["fillCost"] == 0.1234, "P1: migration is idempotent (mAmend flag)")
++    # guard windows read the OPERATED basis: rich first polls + cheap real fills must NOT bench
++    def opbook(fill_cost, first_cost_=0.5474, n=300):
++        b = Bot({}, default_state(A))
++        b.imp["measure"] = [dict(t0=ns - 86400 + i * 300, side="up", cost=first_cost_,
++                                 win=(1 if i % 2 == 0 else 0), sized=True, skip=None,
++                                 bestCost=first_cost_, fillCost=fill_cost, final=True) for i in range(n)]
++        b._impulse_nightly(ns)
++        return b
++    ok(not opbook(0.30).imp["benched"] and opbook(0.5474).imp["benched"],
++       "P1: nightly guards bench on the operated cost basis, not the first-poll series",
++       f"cheapFill bench={opbook(0.30).imp['benched']}")
+     bb = mkimp(); bb.imp["qlo"] = 0.53; bb.imp["benched"] = True
+     bv2 = bb.evaluate(now, "impulse_v2")
+     ok(not bv2["enter"] and bb.imp["measure"][-1]["skip"]=="benched", "guard bench zeroes the stake (tier 3)")

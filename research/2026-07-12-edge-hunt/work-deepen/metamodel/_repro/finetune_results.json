@@ -1,0 +1,125 @@
+{
+ "n_live": 32,
+ "wins": 14,
+ "mu_grid": [
+  0.3,
+  1.0,
+  3.0,
+  10.0
+ ],
+ "K_finetune": 4,
+ "loo_finetune": {
+  "0.3": {
+   "brier": 0.413276,
+   "logloss": 1.101573,
+   "preds_minmax": [
+    0.0835,
+    0.9612
+   ]
+  },
+  "1.0": {
+   "brier": 0.383524,
+   "logloss": 1.004242,
+   "preds_minmax": [
+    0.1593,
+    0.9254
+   ]
+  },
+  "3.0": {
+   "brier": 0.344275,
+   "logloss": 0.897916,
+   "preds_minmax": [
+    0.2467,
+    0.8485
+   ]
+  },
+  "10.0": {
+   "brier": 0.301319,
+   "logloss": 0.798388,
+   "preds_minmax": [
+    0.345,
+    0.7201
+   ]
+  }
+ },
+ "mu_star": 10.0,
+ "pretrained_no_ft": {
+  "brier": 0.259288,
+  "logloss": 0.711813
+ },
+ "qhat_impl_loo": {
+  "brier": 0.251627,
+  "logloss": 0.696401
+ },
+ "qhat_spec_loo": {
+  "brier": 0.251631,
+  "logloss": 0.69641
+ },
+ "const_0.5": {
+  "brier": 0.25,
+  "logloss": 0.693147
+ },
+ "qhat_deployed_state_insample": {
+  "brier": 0.250518,
+  "logloss": 0.694183
+ },
+ "finetuned_coefs_standardized": {
+  "cost": 0.048418,
+  "pm": 0.147025,
+  "eff6": 0.07369,
+  "cnt12": 0.052275,
+  "hsin": -0.067663,
+  "hcos": -0.125417,
+  "vol": 0.04344,
+  "spread": -0.136217,
+  "sec": 0.042055
+ },
+ "finetuned_intercept": 0.06367,
+ "pretrain_coefs_standardized": {
+  "cost": -0.0,
+  "pm": -0.01484,
+  "eff6": 0.037772,
+  "cnt12": 0.001566,
+  "hsin": -0.033132,
+  "hcos": 0.011844,
+  "vol": -0.013276,
+  "spread": -0.0,
+  "sec": 0.0
+ },
+ "pretrain_intercept": 0.196178,
+ "standardization": {
+  "shared_mu": {
+   "cost": 0.507493,
+   "pm": 0.215971,
+   "eff6": 0.497272,
+   "cnt12": 3.172137,
+   "hsin": -0.08317,
+   "hcos": -0.03803,
+   "vol": 0.394858,
+   "spread": 0.01,
+   "sec": 20.0
+  },
+  "shared_sd": {
+   "cost": 1.0,
+   "pm": 0.118676,
+   "eff6": 0.257415,
+   "cnt12": 1.855193,
+   "hsin": 0.676514,
+   "hcos": 0.730729,
+   "vol": 0.221677,
+   "spread": 1.0,
+   "sec": 1.0
+  },
+  "live_only_mu": {
+   "spread": 0.010313,
+   "cost": 0.491582,
+   "sec": 9.8125
+  },
+  "live_only_sd": {
+   "spread": 0.00174,
+   "cost": 0.060027,
+   "sec": 9.71287
+  }
+ },
+ "UNPOWERED": "n=32 over 2.5 days; nothing here can overturn the primary FAIL"
+}

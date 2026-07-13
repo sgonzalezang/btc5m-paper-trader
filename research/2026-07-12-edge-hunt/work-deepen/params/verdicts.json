@@ -1,0 +1,47 @@
+{
+ "task": "wave-2 DEEPENING / params: robustness map around frozen impulse_v2 (revThr=12bps, eff6Min=.10, cnt12Max=6, cap=.53, window=45s)",
+ "reference": "frozen TEST ex-tie +6.76 c/share (ties-as-loss +1.98), $163/day mid at $50 x .55 avail; TRAIN +3.84 / +0.72, $93/day (sweep1d.json frozen block)",
+ "K_accounting": {
+  "candle_backtest_cells_1d": 14,
+  "candle_backtest_cells_2d_new": 12,
+  "candle_backtest_total": 26,
+  "modeled_overlay_cells": "cap sweep 4 caps x 2 refill variants = 8 + cap.55 qualitative + 5 window cells = 14",
+  "K_total": 40,
+  "note": "no cell was promoted; all deltas quoted with 1h-block boot CI90 vs frozen; multiplicity makes the few p<=0.14 tightening cells even weaker"
+ },
+ "verdicts": {
+  "revThr_12bps": {
+   "verdict": "PLATEAU EDGE - leave it",
+   "evidence": "Loosening cliff: 8bps TEST delta CI90 [-4.47,-0.40] p<=0=.975; marginal sub-12bps mass fee-dead (TEST added n=588 q_xt=.5125, TRAIN added n=1436 q_xt=.5191, ties-as-loss EV -4 to -5c). 10bps also negative (TEST p<=0=.919). Tightening plateau: 15/20bps c/share flat (deltas within [-3.8,+4.2] noise) but $/day mid falls 163->117->62. 2D: neither eff6Min .15/.20 nor cnt12Max 4/5 rescues the 8bps mass (added q_xt stays .50-.52, all TEST deltas still negative). Frozen sits at the frequency-times-edge optimum.",
+   "day60_candidate": false,
+   "noise_floor": "trigger membership is ~1-2bps fuzzy feed-vs-candle; 15.5% of triggers within +-1.5bps of 12bps - do not tune finer"
+  },
+  "eff6Min_0.10": {
+   "verdict": "PLATEAU EDGE - leave it",
+   "evidence": "Loosening cliff: eff6Min=0 TEST CI90 [-2.57,-0.26] p<=0=.982 AND TRAIN [-1.5,-0.12] p<=0=.973; .05 TEST [-1.85,-0.38] p<=0=.991 (removed low-eff6 mass runs q_xt .40-.46 on TEST). Tightening plateau .10-.30: point estimates up to +0.5c/share better (.20 best both splits) but never significant (best p<=0=.14 TRAIN pre-multiplicity) and $/day lower everywhere. Live feed noise on eff6 is 0.04-0.06 - .10 vs .15 is barely one noise-floor step.",
+   "day60_candidate": false
+  },
+  "cnt12Max_6": {
+   "verdict": "PLATEAU (5-7) - leave it",
+   "evidence": "Loosening: 8 is TRAIN-significant negative (CI90 [-1.82,-0.16] p<=0=.981) but TEST flat (+7 extension mass q_xt .55-.58 TEST vs fee-dead TRAIN - regime-inconsistent). Tightening to 3/4: TEST +1.9/+1.0c better (p<=0 .105/.137) but TRAIN flat-to-worse and $/day mid falls 163->128/148 - train-test inconsistent, matches wave-1 R6's TEST-concentration caveat. Live cnt12 is +-1 noisy at the boundary (Jul 13 cascade: bot-looser). 2D P3: eff6 and cnt12 loosening cliffs are ADDITIVE (interaction -0.02c), independent mass - no combined re-tune signal.",
+   "day60_candidate": false
+  },
+  "revEntryMax_0.53": {
+   "verdict": "NEARLY INERT for the operated flagship; for flat/first-fill economics CAP-DOWN direction confirmed - but leave to the pre-registered day-60 cap verdict",
+   "evidence": "The f>0 rule already imposes an implicit first-fill ask cap of .47 (qlo=.5068), .46 post-R8 prior-200 fix - so revEntryMax .49-.55 changes nothing the flagship does at first poll. Flat-arm modeled sweep (36-record book CDF, refill-corrected 12/21 at ~11.2c): per-share EV monotone improving cap-down (.53->.47: +7.9->+15.2c q-flat pole, +7.9->+24.7c R2-adjusted) and $/day q-flat also favors down (210->343 refill / 210->150 no-refill bracket - refill assumption is the driver, bracket honest). Raising to .55 dominated (wave-1 #36: 53-55c band q=.433, -12.9c/share).",
+   "day60_candidate": "the day-60 CAP verdict is already registered; this evidence feeds CAP-DOWN. No mid-experiment move (inert for flagship)."
+  },
+  "window_45s": {
+   "verdict": "PLATEAU TOP - leave it",
+   "evidence": "45s captures 97.4% of first fills (n=77 pooled first-fill engines, p50=10.5s) and 100% of flagship entries incl. refills (n=26, max 32.7s). Shrinking: 30s loses 8%/12%, 15s loses 34%/58% of fills/entries with NO speed alpha to buy back (micro F3: fast-vs-slow price-stratified -4.45c fast-WORSE, perm p=.75, CI ~+-8c; entry price flat across bins). Extending 60/90s: unmeasurable availability (cap-blocked misses lack asks) and every measured selection effect beyond 45s is adverse - 45s+ pooled ledger bin -3.47c/share (n=814), mid-interval cheap dips q .32-.33 (wave-1 #32); bracket [-15,+2]c on added fills.",
+   "day60_candidate": false
+  },
+  "firstFillMax_task2": {
+   "recommendation": "0.47, first-fill-only semantics (refills below cap stay allowed)",
+   "evidence": "Zero decision changes today: 0/36 measure-book records and 0/26 flagship fills had first-poll ask >.47 that f>0 sized (implicit cap already .47). Post-R8 prior-200 fix the f-rule tightens to ask .46, so the explicit .47 cap binds NEVER under correct qhat - it binds exactly and only when nightly qhat drifts UP (code ceiling .56 -> implicit cap .53 = whole R2 fee-dead zone reopens). Measured leak it forecloses: f_nonpos cohort n=21 q=.4286 first-poll EV -9.99c/share; impulse50 fills >.47 ask n=20 realized -12.87c/share. Cost $0/day as-operated, insurance positive. 0.49 rejected: cost_of(.49+slip)=.5075 >= .50 sits inside the R2 dead zone. 'None' rejected: leaves the R1 loophole open.",
+   "expected_delta": "c/share and $/day delta = 0 as-operated (redundant with f>0 at current and post-R8 qhat); insurance against drift scenario worth ~10-13c/share on every fill it would block"
+  }
+ },
+ "no_strict_dominance": "No swept value beats frozen on BOTH train and test on BOTH c/share and $/day; per the pre-registered bar, no mid-experiment parameter moves.",
+ "artifacts": ["sweep1d.py/json", "sweep2d.py/json", "cap_window.py/json"]
+}

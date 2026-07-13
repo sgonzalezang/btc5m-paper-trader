@@ -1,0 +1,410 @@
+{
+ "gap_audit": {
+  "cb5m_candles": 18046,
+  "cb5m_gaps": 0,
+  "cb5m_window": [
+   "2026-05-11 11:55",
+   "2026-07-13 03:40"
+  ],
+  "cb1m_candles": 23980,
+  "cb1m_gaps": 2,
+  "cb1m_gap_list": [
+   [
+    "2026-06-29 13:09",
+    "2026-06-29 13:14"
+   ],
+   [
+    "2026-07-06 01:37",
+    "2026-07-06 01:39"
+   ]
+  ]
+ },
+ "meta_counts_claimed": {
+  "rows": 18044,
+  "triggers": 4102,
+  "gate_passes": 2802,
+  "ties": 1857
+ },
+ "full_universe": {
+  "rows": 18044,
+  "decision_bit_mismatches": 0,
+  "mismatch_sample": [],
+  "my_triggers": 4102,
+  "my_gateReady": 18032,
+  "my_ties": 1857,
+  "my_gated": 2802,
+  "my_gated_train": 2015,
+  "my_gated_test": 787,
+  "my_gated_ties": {
+   "train": 116,
+   "test": 66
+  },
+  "my_q_ex_tie": {
+   "pooled": 0.5489,
+   "train": 0.5408,
+   "test": 0.57
+  },
+  "my_q_tie_as_loss": {
+   "pooled": 0.5132,
+   "train": 0.5097,
+   "test": 0.5222
+  }
+ },
+ "sample200": {
+  "n": 200,
+  "rows_with_any_field_error": 0,
+  "detail": []
+ },
+ "measure_book": {
+  "n": 36,
+  "beyond_horizon": 1,
+  "in_window": 35,
+  "trig_and_gp": 30,
+  "side_ok": 34,
+  "eff6_exact4": 0,
+  "cnt12_exact": 19,
+  "cnt12_pm1": 32,
+  "n_feat": 32,
+  "mismatches": [
+   {
+    "t0": 1783904700,
+    "utc": "2026-07-13 01:05",
+    "why": "not candle trigger+gatePass",
+    "trigger": true,
+    "trig_move_bps": -19.6,
+    "eff6": 0.1862,
+    "cnt12": 7
+   },
+   {
+    "t0": 1783905300,
+    "utc": "2026-07-13 01:15",
+    "why": "not candle trigger+gatePass",
+    "trigger": true,
+    "trig_move_bps": 21.24,
+    "eff6": 0.0856,
+    "cnt12": 7
+   },
+   {
+    "t0": 1783906500,
+    "utc": "2026-07-13 01:35",
+    "why": "not candle trigger+gatePass",
+    "trigger": true,
+    "trig_move_bps": -19.5,
+    "eff6": 0.5619,
+    "cnt12": 7
+   },
+   {
+    "t0": 1783907400,
+    "utc": "2026-07-13 01:50",
+    "why": "not candle trigger+gatePass",
+    "trigger": true,
+    "trig_move_bps": -13.96,
+    "eff6": 0.433,
+    "cnt12": 7
+   },
+   {
+    "t0": 1783909200,
+    "utc": "2026-07-13 02:20",
+    "why": "not candle trigger+gatePass",
+    "trigger": false,
+    "trig_move_bps": 11.1,
+    "eff6": 0.2877,
+    "cnt12": 6
+   },
+   {
+    "t0": 1783914000,
+    "utc": "2026-07-13 03:40",
+    "why": "beyond candle horizon"
+   }
+  ],
+  "d_eff6": {
+   "n": 32,
+   "median": 0.0419,
+   "max": 0.221
+  },
+  "d_cnt12": {
+   "n": 32,
+   "median": 0,
+   "max": 1
+  },
+  "d_pm_bps": {
+   "n": 32,
+   "median": 1.0198,
+   "max": 6.9
+  },
+  "d_vol": {
+   "n": 32,
+   "median": 0.0218,
+   "max": 0.096
+  }
+ },
+ "ivlhist2_check": {
+  "borderline": {
+   "t0_interval": 1783908900,
+   "utc": "2026-07-13 02:15",
+   "feed_ret_bps": 12.9,
+   "candle_oo_bps": 11.1,
+   "candle_oc_bps": 11.09
+  },
+  "n_snapshot": 20,
+  "feed_vs_candle_bps": {
+   "median": 1.6998,
+   "max": 5.17
+  }
+ },
+ "ledger": {
+  "n": 106,
+  "by_eng": {
+   "reversal_v2": {
+    "n": 44,
+    "trigger": 42,
+    "gatePass": 30
+   },
+   "impulse50": {
+    "n": 35,
+    "trigger": 33,
+    "gatePass": 29
+   },
+   "impulse_v2": {
+    "n": 27,
+    "trigger": 25,
+    "gatePass": 22
+   }
+  },
+  "exceptions": [
+   {
+    "eng": "impulse50",
+    "t0": 1783904700,
+    "utc": "2026-07-13 01:05",
+    "trigger": true,
+    "trig_move_bps": -19.6,
+    "eff6": 0.1862,
+    "cnt12": 7
+   },
+   {
+    "eng": "impulse_v2",
+    "t0": 1783904700,
+    "utc": "2026-07-13 01:05",
+    "trigger": true,
+    "trig_move_bps": -19.6,
+    "eff6": 0.1862,
+    "cnt12": 7
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783905300,
+    "utc": "2026-07-13 01:15",
+    "trigger": true,
+    "trig_move_bps": 21.24,
+    "eff6": 0.0856,
+    "cnt12": 7
+   },
+   {
+    "eng": "impulse_v2",
+    "t0": 1783905300,
+    "utc": "2026-07-13 01:15",
+    "trigger": true,
+    "trig_move_bps": 21.24,
+    "eff6": 0.0856,
+    "cnt12": 7
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783906500,
+    "utc": "2026-07-13 01:35",
+    "trigger": true,
+    "trig_move_bps": -19.5,
+    "eff6": 0.5619,
+    "cnt12": 7
+   },
+   {
+    "eng": "impulse_v2",
+    "t0": 1783906500,
+    "utc": "2026-07-13 01:35",
+    "trigger": true,
+    "trig_move_bps": -19.5,
+    "eff6": 0.5619,
+    "cnt12": 7
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783907400,
+    "utc": "2026-07-13 01:50",
+    "trigger": true,
+    "trig_move_bps": -13.96,
+    "eff6": 0.433,
+    "cnt12": 7
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783909200,
+    "utc": "2026-07-13 02:20",
+    "trigger": false,
+    "trig_move_bps": 11.1,
+    "eff6": 0.2877,
+    "cnt12": 6
+   },
+   {
+    "eng": "impulse_v2",
+    "t0": 1783909200,
+    "utc": "2026-07-13 02:20",
+    "trigger": false,
+    "trig_move_bps": 11.1,
+    "eff6": 0.2877,
+    "cnt12": 6
+   },
+   {
+    "eng": "reversal_v2",
+    "t0": 1783909200,
+    "utc": "2026-07-13 02:20",
+    "trigger": false,
+    "trig_move_bps": 11.1,
+    "eff6": 0.2877,
+    "cnt12": 6
+   },
+   {
+    "eng": "impulse50",
+    "t0": 1783914000,
+    "utc": "2026-07-13 03:40",
+    "why": "beyond candle window"
+   },
+   {
+    "eng": "impulse_v2",
+    "t0": 1783914000,
+    "utc": "2026-07-13 03:40",
+    "why": "beyond candle window"
+   },
+   {
+    "eng": "reversal_v2",
+    "t0": 1783914000,
+    "utc": "2026-07-13 03:40",
+    "why": "beyond candle window"
+   }
+  ],
+  "exception_rows": 13,
+  "exception_t0s": [
+   1783904700,
+   1783905300,
+   1783906500,
+   1783907400,
+   1783909200,
+   1783914000
+  ]
+ },
+ "prior_recon": {
+  "window": [
+   "2026-05-11 11:55",
+   "2026-07-10 11:50"
+  ],
+  "n_all": 4022,
+  "n_sel": 2742,
+  "q_sel": 0.5511,
+  "claim": {
+   "n_all": 4022,
+   "n_sel": 2742,
+   "q_sel": 0.5511
+  }
+ },
+ "label_vs_pm": {
+  "n_resolved": 1014,
+  "nontie": 940,
+  "nontie_agree": 929,
+  "rate": 0.9883,
+  "ties_resolved": 74,
+  "tie_up": 32,
+  "sub2bps": 86,
+  "sub2bps_agree": 84
+ },
+ "coverage": {
+  "window": [
+   "2026-07-10 16:40",
+   "2026-07-13 03:40"
+  ],
+  "candle_gate_passes": 50,
+  "measure_records": 36,
+  "in_measure": 30,
+  "ledger_only": 0,
+  "unaccounted": 20,
+  "unaccounted_t0": [
+   "2026-07-10 17:25",
+   "2026-07-10 18:55",
+   "2026-07-10 21:25",
+   "2026-07-10 23:05",
+   "2026-07-11 00:45",
+   "2026-07-11 09:45",
+   "2026-07-11 16:40",
+   "2026-07-11 19:30",
+   "2026-07-11 23:25",
+   "2026-07-12 00:00",
+   "2026-07-12 06:05",
+   "2026-07-12 09:15",
+   "2026-07-12 11:35",
+   "2026-07-12 14:50",
+   "2026-07-12 16:15",
+   "2026-07-12 17:55",
+   "2026-07-13 00:55",
+   "2026-07-13 02:25",
+   "2026-07-13 03:20",
+   "2026-07-13 03:35"
+  ]
+ },
+ "misc": {
+  "borderline_pm1p5": 642,
+  "near_miss_10p5_12": 843,
+  "alt_rows": 270,
+  "alt_trigger_flips": 45,
+  "alt_gate_flips": 228,
+  "real_rows": 43,
+  "real_ledger": 43,
+  "real_measure": 35,
+  "real_on_gatepass": 30,
+  "vol_sources": {
+   "null": 1,
+   "5m2": 13253,
+   "1m": 4790
+  },
+  "my_cost_anchors": [
+   0.467325,
+   0.507493,
+   0.527493
+  ],
+  "file_cost_anchors": [
+   0.467325,
+   0.507493,
+   0.527493
+  ]
+ },
+ "verdict": "CONFIRMED",
+ "corrections": [
+  {
+   "id": "C1",
+   "what": "prior-recon q residual",
+   "finding": "q_sel reproduces .5511 EXACTLY (1511/2742) when labels use unrounded open-to-open returns; the unit reported .5503 because its recon_sign labeled from the 4dp-rounded ret0 field, which zeroes two sub-0.01bp down moves (t0 1778593200 raw -1.24e-7, t0 1781632200 raw -3.04e-7; both side=down -> 2 wins lost under the r0==0->up rule). Attribution to the prior program dollar-diff eff6 denominator / tie handling is wrong; reconciliation is fully exact. STRENGTHENS deliverable 2."
+  },
+  {
+   "id": "C2",
+   "what": "ledger by-engine gate-pass counts",
+   "finding": "claimed impulse_v2 23/27 and impulse50 30/35 count the raw gate bit without requiring the trigger: the 02:20 borderline row (t0 1783909200) has gatePass=True but trigger=False. Joint trigger+gate = impulse_v2 22/27, impulse50 29/35; reversal_v2 trigger 42/44 correct. The 13-row exception list itself is exact."
+  },
+  {
+   "id": "C3",
+   "what": "README exception t0 count",
+   "finding": "13 exception rows span 6 unique t0s (4 cascade + 1783909200 + 1783914000), not 7 as README states."
+  },
+  {
+   "id": "C4",
+   "what": "vol10m 5m-proxy \"all TRAIN era\"",
+   "finding": "150 of the 13,253 5m2-proxy rows are TEST-split (Jun 26 00:00-12:25 before cb1m coverage starts, plus the two cb1m gap windows). All TRAIN rows are proxy, but proxy is not a TRAIN-only marker; the source-dummy action already covers it."
+  },
+  {
+   "id": "C5",
+   "what": "cost anchor typo in deliverable text",
+   "finding": ".507497 should be .507493 = 0.49+0.07*0.49*0.51; the file meta.fill_model is correct (.467325/.507493/.527493)."
+  },
+  {
+   "id": "C6",
+   "what": "borderline masses",
+   "finding": "637/847 use the 4dp-rounded pm and a float boundary; unrounded pm gives 642/843. Immaterial to the ~15.5% noise-band conclusion."
+  }
+ ]
+}

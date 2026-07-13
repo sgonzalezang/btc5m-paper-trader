@@ -1,0 +1,62 @@
+vol harmonization: reproduced 2055/2055 5m2 rows exactly
+lam=0.03    TRAIN-OOS brier=0.253893 ll=0.701792 | TEST-OOS brier=0.247459 ll=0.688101
+lam=0.1     TRAIN-OOS brier=0.253882 ll=0.701763 | TEST-OOS brier=0.247458 ll=0.688100
+lam=0.3     TRAIN-OOS brier=0.253849 ll=0.701683 | TEST-OOS brier=0.247457 ll=0.688098
+lam=1.0     TRAIN-OOS brier=0.253739 ll=0.701413 | TEST-OOS brier=0.247453 ll=0.688089
+lam=3.0     TRAIN-OOS brier=0.253457 ll=0.700725 | TEST-OOS brier=0.247441 ll=0.688063
+lam=10.0    TRAIN-OOS brier=0.252719 ll=0.698988 | TEST-OOS brier=0.247402 ll=0.687981
+lam=30.0    TRAIN-OOS brier=0.251617 ll=0.696532 | TEST-OOS brier=0.247306 ll=0.687778
+lam=100.0   TRAIN-OOS brier=0.250486 ll=0.694156 | TEST-OOS brier=0.247069 ll=0.687289
+lambda* = 100.0
+[TEST-OOS] n=721 base=0.57 model brier=0.247069
+[pooled-OOS] n=2309 base=0.5448 model brier=0.249419
+[TRAIN-OOS] n=1588 base=0.5334 model brier=0.250486
+VERDICT: FAIL {
+ "impl_improve_brier": {
+  "mean": -0.000727,
+  "ci95": [
+   -0.00212,
+   0.000714
+  ],
+  "excludes_zero_positive": false
+ },
+ "impl_improve_logloss": {
+  "mean": -0.001469,
+  "ci95": [
+   -0.00429,
+   0.001438
+  ],
+  "excludes_zero_positive": false
+ },
+ "spec_improve_brier": {
+  "mean": -0.000859,
+  "ci95": [
+   -0.002208,
+   0.000537
+  ],
+  "excludes_zero_positive": false
+ },
+ "spec_improve_logloss": {
+  "mean": -0.001734,
+  "ci95": [
+   -0.004465,
+   0.00109
+  ],
+  "excludes_zero_positive": false
+ }
+}
+money[anchor_p0.45] model $5326.24 (721 staked) | impl $5241.28 | spec $5472.67
+money[anchor_p0.49] model $1289.54 (707 staked) | impl $1335.71 | spec $1459.97
+money[anchor_p0.51] model $220.22 (573 staked) | impl $261.67 | spec $341.83
+abl drop_pm 0.247103 0.687356
+abl drop_eff6 0.246961 0.687079
+abl drop_cnt12 0.246887 0.68693
+abl drop_hour 0.246451 0.686049
+abl drop_vol 0.246866 0.686871
+abl only_pm 0.245956 0.685045
+abl only_eff6 0.246091 0.685316
+abl only_cnt12 0.246065 0.685265
+abl only_hour 0.246474 0.686087
+abl only_vol 0.246296 0.685743
+abl vol_as_shipped 0.247068 0.687288
+wrote results.json

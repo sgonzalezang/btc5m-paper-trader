@@ -1,0 +1,267 @@
+{
+ "loop_metrics": {
+  "total_lines": 14,
+  "fixture_lines": 10,
+  "genuine_lines": 4,
+  "fixture_signature": {
+   "qlo": 0.4175,
+   "n15": -0.1975,
+   "measured": 300,
+   "source": "--selftest dead-regime fixture, btc5m_bot.py:1586-1593; selftest bot appends to loop_metrics.jsonl (abs path, :657) but log() only prints to stdout (:449) -> no bot.log trace, matches observed"
+  },
+  "fixture_ticks_utc": [
+   "07-10 15:01:42",
+   "07-10 15:02:27",
+   "07-10 15:02:27",
+   "07-10 15:03:12",
+   "07-10 15:03:12",
+   "07-10 15:07:38",
+   "07-10 15:40:20",
+   "07-10 16:49:56",
+   "07-10 17:30:14",
+   "07-10 17:30:14"
+  ],
+  "genuine_ticks_utc": [
+   "07-10 15:05:41",
+   "07-11 00:10:04",
+   "07-12 00:10:02",
+   "07-13 00:10:01"
+  ]
+ },
+ "nightly_audit": [
+  {
+   "tick": 1783695941,
+   "tick_utc": "07-10 15:05:41",
+   "lag_used_s": 0,
+   "logged": {
+    "qlo": 0.5057,
+    "qhi": 0.5068,
+    "benched": false,
+    "haircut": false,
+    "settled": 0
+   },
+   "replicated": {
+    "qlo": 0.5057,
+    "qhi": 0.5068,
+    "settled": 0
+   },
+   "exact_match": true,
+   "windows": {
+    "n15": [
+     null,
+     0
+    ],
+    "n7": [
+     null,
+     0
+    ],
+    "n10": [
+     null,
+     0
+    ]
+   },
+   "decision_correct_per_code": true,
+   "decision_correct_per_spec": true,
+   "no_min_counterfactual": {
+    "n7_raw": [
+     null,
+     0
+    ],
+    "would_haircut_no_min": false,
+    "would_bench_no_min": false
+   }
+  },
+  {
+   "tick": 1783728604,
+   "tick_utc": "07-11 00:10:04",
+   "lag_used_s": 0,
+   "logged": {
+    "qlo": 0.5032,
+    "qhi": 0.5068,
+    "benched": false,
+    "haircut": false,
+    "settled": 4
+   },
+   "replicated": {
+    "qlo": 0.5032,
+    "qhi": 0.5068,
+    "settled": 4
+   },
+   "exact_match": true,
+   "windows": {
+    "n15": [
+     null,
+     4
+    ],
+    "n7": [
+     null,
+     4
+    ],
+    "n10": [
+     null,
+     4
+    ]
+   },
+   "decision_correct_per_code": true,
+   "decision_correct_per_spec": true,
+   "no_min_counterfactual": {
+    "n7_raw": [
+     -0.2372,
+     4
+    ],
+    "would_haircut_no_min": true,
+    "would_bench_no_min": true
+   }
+  },
+  {
+   "tick": 1783815002,
+   "tick_utc": "07-12 00:10:02",
+   "lag_used_s": 0,
+   "logged": {
+    "qlo": 0.5032,
+    "qhi": 0.5055,
+    "benched": false,
+    "haircut": false,
+    "settled": 11
+   },
+   "replicated": {
+    "qlo": 0.5032,
+    "qhi": 0.5055,
+    "settled": 11
+   },
+   "exact_match": true,
+   "windows": {
+    "n15": [
+     null,
+     11
+    ],
+    "n7": [
+     null,
+     11
+    ],
+    "n10": [
+     null,
+     11
+    ]
+   },
+   "decision_correct_per_code": true,
+   "decision_correct_per_spec": true,
+   "no_min_counterfactual": {
+    "n7_raw": [
+     -0.1373,
+     11
+    ],
+    "would_haircut_no_min": true,
+    "would_bench_no_min": true
+   }
+  },
+  {
+   "tick": 1783901401,
+   "tick_utc": "07-13 00:10:01",
+   "lag_used_s": 120,
+   "logged": {
+    "qlo": 0.5068,
+    "qhi": 0.503,
+    "benched": false,
+    "haircut": false,
+    "settled": 20
+   },
+   "replicated": {
+    "qlo": 0.5068,
+    "qhi": 0.503,
+    "settled": 20
+   },
+   "exact_match": true,
+   "windows": {
+    "n15": [
+     null,
+     20
+    ],
+    "n7": [
+     null,
+     20
+    ],
+    "n10": [
+     null,
+     20
+    ]
+   },
+   "decision_correct_per_code": true,
+   "decision_correct_per_spec": true,
+   "no_min_counterfactual": {
+    "n7_raw": [
+     -0.0543,
+     20
+    ],
+    "would_haircut_no_min": true,
+    "would_bench_no_min": true
+   }
+  }
+ ],
+ "live_state_flap": {
+  "ever_benched": false,
+  "ever_haircut": false,
+  "bench_skips_in_measure_book": 0,
+  "guard_log_lines_in_bot_log": 0,
+  "verdict": "live state NEVER benched or haircut; the benched=true lines are selftest fixture pollution of loop_metrics.jsonl only (R8-selection reading confirmed, R8-integrity/repro 'state flap' reading refuted)"
+ },
+ "bench_cost_v3_era": {
+  "direct_cost_usd": 0.0,
+  "note": "bench/haircut never engaged; sized-per-formula-without-bench counterfactual is identical to what ran"
+ },
+ "no_min_bench_counterfactual": {
+  "fires_at": "07-11 00:10:04",
+  "operated_trades_skipped": 24,
+  "operated_pnl_foregone": 129.07,
+  "per_share_c": 6.49
+ },
+ "m2_seeding_counterfactual": {
+  "per_nightly": [
+   {
+    "tick_utc": "07-10 15:05:41",
+    "live_n": 0,
+    "n7_seeded_c": 2.75,
+    "n": 123,
+    "evaluable": true,
+    "would_haircut": false,
+    "would_bench": false
+   },
+   {
+    "tick_utc": "07-11 00:10:04",
+    "live_n": 4,
+    "n7_seeded_c": 1.92,
+    "n": 127,
+    "evaluable": true,
+    "would_haircut": false,
+    "would_bench": false
+   },
+   {
+    "tick_utc": "07-12 00:10:02",
+    "live_n": 11,
+    "n7_seeded_c": 1.4,
+    "n": 134,
+    "evaluable": true,
+    "would_haircut": false,
+    "would_bench": false
+   },
+   {
+    "tick_utc": "07-13 00:10:01",
+    "live_n": 20,
+    "n7_seeded_c": 1.61,
+    "n": 143,
+    "evaluable": true,
+    "would_haircut": false,
+    "would_bench": false
+   }
+  ],
+  "seed_ageout_utc": "07-17 14:35:14",
+  "live_settle_rate_per_day": 14.2
+ },
+ "current_state": {
+  "qlo": 0.5068,
+  "qhi": 0.503,
+  "benched": false,
+  "haircut": false,
+  "bank": 1074.25
+ }
+}

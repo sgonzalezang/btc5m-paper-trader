@@ -1,0 +1,227 @@
+--- a/bot/btc5m_bot.py
++++ b/bot/btc5m_bot.py
+@@ -233,12 +233,32 @@
+ #    nothing else prevents nightly qhat drift from re-opening it. Applies to
+ #    impulse_v2 ONLY — impulse50/reversal_v2/reversal/reversal2 are
+ #    pre-registered controls and are untouched.
++# P5 [R3 LEADER_V1 SHADOW] $0-stake fill-conformance measurement book (NOT a
++#    trading engine: no orders, no stake, no pnl, no equity). When the
++#    drift-leader state qualifies — current-interval spot drift aligned with
++#    the leader side, |drift| in [4,8) bps of open, leader-side REAL-book ask
++#    in [0.55,0.66) — record the polled ask, then re-poll the same token's
++#    book ~2.5s later and log quote persistence. This is the datum that
++#    decides R3: wave-1 found the bot's polled asks were ~8c/share below
++#    independent PM snapshots ONLY in this state (stale-quote capture — a
++#    cancel-race a taker likely loses); promotion to anything sized requires
++#    demonstrated live fill conformance at sub-market asks. The band is the
++#    R3-verifier WIDE band (the 60c lower edge was shown overfit: 59-60c
++#    aligned ran q=.368); stratify offline. One record per interval, bounded
++#    list, published in state. The blocking re-poll is DEFERRED to the next
++#    tick whenever any live arm's entry window is still open, so the shadow
++#    can never delay a trading decision.
+ # ---------------------------------------------------------------------------
+ IMP_SEED_LO, IMP_SEED_HI = 0.5057, 0.5068  # launch-day qhat STATE values only (§4.2 MF3)
+ IMP_PRIOR = 200          # P2/R8: registered per-bucket shrinkage mass (§4.2); was 400
+ IMP_PRIOR_MEAN = 0.5     # P2/R8: registered prior center (§4.2 "mean 0.5"); was the ledger seeds
+ IMP_QCAP = 0.56          # hard qhat cap (§4.2)
+ IMP_BUCKET_LO = 0.50     # P2/R8: bucket boundary on p_eff = ask + slip (§4.2); was cost<0.50
++# P5/R3 leader_v1 shadow constants (see CHANGELOG P5)
++LEADER_DRIFT_LO, LEADER_DRIFT_HI = 4.0, 8.0   # aligned current-interval drift band, bps of open
++LEADER_ASK_LO, LEADER_ASK_HI = 0.55, 0.66     # leader-side ask band (wide per R3 verification)
++LEADER_REPOLL_S = 2.5    # target re-poll delay for the quote-persistence probe
++LEADER_KEEP = 2000       # bounded shadow book
+ def default_impulse():
+     return dict(bank=1000.0, bank0=1000.0, qlo=IMP_SEED_LO, qhi=IMP_SEED_HI, benched=False,
+                 measure=[], skips={}, lastNightly=0,
+@@ -505,6 +525,10 @@
+         self.sig_last = {}                    # eid -> t0 already emitted (one-shot per engine per interval)
+         self._measure_migrate()               # R4 one-shot legacy-row migration (see CHANGELOG P1); idempotent
+         self._guard_seed_load()               # M2 §5.3 one-shot guard-window seeding (see CHANGELOG P2)
++        # P5/R3 leader_v1 $0-stake shadow book; injectable I/O for offline tests
++        self.ldr = self.st.setdefault("leader", {"book": [], "n": 0})
++        self._book_fn = book
++        self._sleep_fn = time.sleep
+ 
+     # --- config accessors ---
+     def prof(self): return PROFILES[self.st["profile"]]
+@@ -797,6 +821,73 @@
+         for m in self.imp["measure"]:
+             if m["t0"] == t0 and w in ("up", "down"):
+                 m["win"] = 1 if m["side"] == w else 0
++        for r in self.st.get("leader", {}).get("book", [])[-40:]:
++            # P5: oracle-grade outcome upgrade for the leader shadow when the
++            # same interval settles through a trading book (diagnostic only)
++            if r.get("t0") == t0 and w in ("up", "down"):
++                r["win"], r["winBy"] = (1 if r.get("side") == w else 0), "oracle"
++
++    def _leader_fill2(self, t0, b2, dt_ms):
++        """P5: complete a leader record's second poll (quote persistence)."""
++        for r in reversed(self.ldr["book"]):
++            if r.get("t0") == t0:
++                if r.get("dtMs") is None:
++                    r["dtMs"] = int(dt_ms)
++                    r["ask2"] = b2.get("ask") if b2 else None
++                    r["bid2"] = b2.get("bid") if b2 else None
++                return
++
++    def _leader_tick(self, now):
++        """P5/R3 leader_v1 $0-stake fill-conformance shadow (see CHANGELOG P5).
++        MEASUREMENT ONLY — no orders, no pnl, nothing enters any trading book.
++        Poll 1 reuses the tick's already-fetched leader-side book; poll 2
++        re-fetches the same token ~2.5s later (or on the next tick, ~4-5s,
++        whenever any live arm's entry window is still open — this shadow must
++        never delay a trading decision). dtMs records the honest gap."""
++        try:
++            m, f = self.mkt, self.feed
++            now_s_ = now // 1000
++            pend = self.ldr.pop("pend", None)
++            if pend:                                     # complete a deferred re-poll first
++                b2 = self._book_fn(pend["tok"])
++                self._leader_fill2(pend["t0"], b2, now_ms() - pend["at1"])
++            pv = self.prev_ivl                           # feed-proxy outcome backfill (winBy='feed', ~97% oracle-agreement)
++            if pv and pv.get("ret") is not None:
++                for r in self.ldr["book"][-8:]:
++                    if r.get("t0") == pv["t0"] and r.get("win") is None:
++                        up = pv["ret"] >= 0                               # ties resolve Up (venue rule)
++                        r["win"], r["winBy"] = (1 if (up == (r["side"] == "up")) else 0), "feed"
++            if not (m and m.get("ev") and f.get("open") and f.get("last") is not None): return
++            if any(r.get("t0") == m["t0"] for r in self.ldr["book"][-4:]): return   # one record per interval
++            delta = f["last"] - f["open"]
++            if not delta: return
++            drift_bps = abs(delta) / f["open"] * 10000.0
++            if not (LEADER_DRIFT_LO <= drift_bps < LEADER_DRIFT_HI): return
++            side = "up" if delta > 0 else "down"         # the drift-LEADER side: alignment by construction
++            q = self.quote(side)
++            if not (q and q.get("src") == "book" and q.get("ask") is not None): return   # REAL book only (R3)
++            if not (LEADER_ASK_LO <= q["ask"] < LEADER_ASK_HI): return
++            if not q.get("at") or (now - q["at"]) > self.prof()["freshMs"]: return
++            tok = m.get("tokUp") if side == "up" else m.get("tokDown")
++            if not tok: return
++            rec = dict(t0=m["t0"], side=side, drift=round(drift_bps, 2),
++                       sec=max(0, now_s_ - m["t0"]), ask1=q["ask"], bid1=q.get("bid"),
++                       top1=(round(q["top"], 2) if q.get("top") is not None else None),
++                       at1=q["at"], ask2=None, bid2=None, dtMs=None, win=None)
++            self.ldr["book"].append(rec)
++            self.ldr["n"] = self.ldr.get("n", 0) + 1
++            del self.ldr["book"][:-LEADER_KEEP]
++            left = (m["t1"] - now_s_) if m.get("t1") else 0
++            live_win = min([c["revWinMin"] for c in ENGINE_CFG.values()
++                            if c.get("revThr") and not c.get("retired")] or [IVL])
++            if left >= live_win - 5:
++                self.ldr["pend"] = dict(t0=m["t0"], tok=tok, at1=rec["at1"])   # defer: an entry window is open
++            else:
++                self._sleep_fn(LEADER_REPOLL_S)
++                b2 = self._book_fn(tok)
++                self._leader_fill2(m["t0"], b2, now_ms() - rec["at1"])
++        except Exception as e:
++            self.log(f"leader_v1 shadow error: {e}")
+ 
+     def warm_ivl_hist(self):
+         """Cold-start rule (FINAL-DESIGN M6): rebuild the impulse gate's interval
+@@ -1448,6 +1539,7 @@
+             self.prev_quote = {"side": cs, "ask": cq["ask"], "t": now} if (cs and cq and cq["ask"] is not None) else None
+             self.settle_pending(now)
+             self.nightly_tick(ns)
++            self._leader_tick(now)    # P5/R3 $0-stake shadow — last, so its re-poll can never delay a decision
+             self.err = None
+         except Exception as e:
+             self.err = str(e)
+@@ -1469,6 +1561,7 @@
+             "ivlHist": [],                                      # rolling interval returns for Latent Fire's regime gate
+             "ivlHist2": [],                                     # [[t0, ret], ...] — impulse gate window (contiguity-aware)
+             "impulse": default_impulse(),                       # flagship sizing/learning state (bank, qhat, guard, measurement book)
++            "leader": {"book": [], "n": 0},                     # P5/R3 leader_v1 $0-stake fill-conformance shadow
+             "engines": {e: {"trades": []} for e in ENGINES}}
+ def sanitize(o, args):
+     d = default_state(args)
+@@ -1515,6 +1608,13 @@
+             if isinstance(im.get("measure"), list):
+                 di["measure"] = [m for m in im["measure"] if isinstance(m, dict)
+                                  and isinstance(m.get("t0"), (int, float))][-12000:]
++        ld = o.get("leader")
++        if isinstance(ld, dict):
++            # P5: leader shadow book persists across restarts; transient 'pend' does not
++            if isinstance(ld.get("book"), list):
++                d["leader"]["book"] = [r for r in ld["book"] if isinstance(r, dict)
++                                       and isinstance(r.get("t0"), (int, float))][-LEADER_KEEP:]
++            if isinstance(ld.get("n"), (int, float)): d["leader"]["n"] = int(ld["n"])
+         eng = o.get("engines")
+         if isinstance(eng, dict):
+             for e in ENGINES:
+@@ -1558,6 +1658,8 @@
+                               "retired": bool(ENGINE_CFG[e].get("retired")), "shadow": bool(ENGINE_CFG[e].get("shadow")),
+                               "revEntryMax": ENGINE_CFG[e].get("revEntryMax")} for e in ENGINES},
+             "impulse": {k: bot.st.get("impulse", {}).get(k) for k in ("bank", "qlo", "qhi", "benched", "haircut")},
++            "leaderShadow": {"n": st.get("leader", {}).get("n", 0),                 # P5/R3 $0-stake shadow
++                             "recent": [r for r in st.get("leader", {}).get("book", [])[-30:]]},
+             "vol": bot.vol,
+             "feed": {"src": bot.feed.get("src"), "price": bot.feed.get("last"),
+                      "open": bot.feed.get("open"), "t0": bot.feed.get("t0"), "at": bot.feed.get("at")},
+@@ -1569,7 +1671,7 @@
+             "misses": bot.misses[:30],
+             "btc": {k: st[k] for k in ("on", "auto", "profile", "asset", "stake", "bank", "slip",
+                                        "loosePass", "looseMust", "startedAt", "lifetime", "equity", "misses",
+-                                       "ivlHist", "ivlHist2", "impulse", "engines")}}
++                                       "ivlHist", "ivlHist2", "impulse", "leader", "engines")}}
+ def save_state(path, bot):
+     tmp = path + ".tmp"
+     with open(tmp, "w") as f: json.dump(snapshot(bot), f, separators=(",", ":"))
+@@ -2026,6 +2128,58 @@
+     ok(all("firstFillMax" not in ENGINE_CFG[e] for e in ("impulse50", "reversal_v2", "reversal", "reversal2"))
+        and ENGINE_CFG["impulse_v2"].get("firstFillMax") == 0.47,
+        "P4: firstFillMax=0.47 exists on impulse_v2 ONLY")
++    # --- P5 (R3): leader_v1 $0-stake fill-conformance shadow ---
++    sleeps = []
++    def mkldr(ask=0.62, drift_bps=5.0, left=100, ask2=None):
++        b = Bot({}, default_state(A))
++        t0l = ns - (300 - left)
++        bku = {"bid": round(ask - 0.01, 2), "ask": ask, "asks": [[ask, 300]],
++               "bids": [[round(ask - 0.01, 2), 300]], "topAskUsd": ask * 300,
++               "mirrorTopUsd": (1 - ask + 0.01) * 300, "at": now}
++        b.mkt = dict(t0=t0l, t1=t0l + 300, ev=True, evClosed=False, slug="btc-updown-5m-ldr",
++                     tokUp="LU", tokDown="LD", upBid=round(ask - 0.01, 2), upAsk=ask, pUp=ask, gAt=now,
++                     bookUp=bku, bookDown=mirror(bku))
++        b.feed = {"src": "Coinbase", "open": 100000, "last": 100000 + drift_bps * 10, "at": now, "t0": t0l}
++        b._sleep_fn = lambda s: sleeps.append(s)
++        b._book_fn = lambda tok: {"bid": round((ask2 or ask) - 0.01, 2), "ask": (ask2 or ask), "at": now_ms()}
++        return b
++    del sleeps[:]
++    bl = mkldr()                                             # 5bps aligned drift, 62c ask, window closed
++    bl._leader_tick(now)
++    lr = bl.ldr["book"][-1] if bl.ldr["book"] else None
++    ok(lr is not None and lr["side"] == "up" and lr["ask1"] == 0.62 and lr["ask2"] == 0.62
++       and lr["dtMs"] is not None and sleeps == [LEADER_REPOLL_S] and bl.ldr["n"] == 1,
++       "P5: qualifying drift-leader state records poll 1 + ~2.5s re-poll (quote persistence)",
++       f"rec={lr}")
++    ok(all(not bl.trades(e) for e in ENGINES) and lr.get("win") is None,
++       "P5: leader shadow is $0-stake — no trade in any book, no pnl")
++    bl._leader_tick(now + 4000)                              # same interval again: one record per t0
++    ok(len(bl.ldr["book"]) == 1, "P5: one leader record per interval (dedupe)")
++    del sleeps[:]
++    bl2 = mkldr(left=270, ask2=0.71)                         # entry windows open: re-poll must DEFER
++    bl2._leader_tick(now)
++    ok(bl2.ldr.get("pend") is not None and not sleeps and bl2.ldr["book"][-1]["ask2"] is None,
++       "P5: re-poll defers while a live arm's entry window is open (never delays a decision)",
++       f"pend={bool(bl2.ldr.get('pend'))}")
++    bl2._leader_tick(now + 4000)                             # next tick completes it at the honest dt
++    r2 = bl2.ldr["book"][-1]
++    ok(r2["ask2"] == 0.71 and r2["dtMs"] is not None and bl2.ldr.get("pend") is None,
++       "P5: deferred re-poll completes next tick and logs the moved quote", f"ask2={r2['ask2']}")
++    for bad_ask, bad_drift in ((0.62, 2.0), (0.62, 9.0), (0.70, 5.0), (0.54, 5.0)):
++        bx = mkldr(ask=bad_ask, drift_bps=bad_drift)
++        bx._leader_tick(now)
++        ok(not bx.ldr["book"], f"P5: non-qualifying state records nothing (ask={bad_ask}, drift={bad_drift}bps)")
++    bl.prev_ivl = dict(t0=bl.ldr["book"][0]["t0"], open=100000, close=100050, ret=0.0005)
++    bl.mkt = None                                            # rolled over; backfill still runs
++    bl._leader_tick(now + 300000)
++    ok(bl.ldr["book"][0]["win"] == 1 and bl.ldr["book"][0].get("winBy") == "feed",
++       "P5: outcome backfills from the feed proxy at rollover", f"win={bl.ldr['book'][0]['win']}")
++    bl._measure_settle(bl.ldr["book"][0]["t0"], "down")      # oracle-grade upgrade wins over the proxy
++    ok(bl.ldr["book"][0]["win"] == 0 and bl.ldr["book"][0].get("winBy") == "oracle",
++       "P5: oracle settle upgrades the leader outcome")
++    snp = snapshot(bl)
++    ok(snp["leaderShadow"]["n"] == 1 and snp["leaderShadow"]["recent"]
++       and snp["btc"]["leader"]["book"], "P5: leader shadow is published in state (bounded)")
+     bb = mkimp(); bb.imp["qlo"] = 0.53; bb.imp["benched"] = True
+     bv2 = bb.evaluate(now, "impulse_v2")
+     ok(not bv2["enter"] and bb.imp["measure"][-1]["skip"]=="benched", "guard bench zeroes the stake (tier 3)")

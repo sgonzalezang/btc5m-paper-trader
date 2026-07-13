@@ -1,0 +1,266 @@
+--- a/bot/btc5m_bot.py
++++ b/bot/btc5m_bot.py
+@@ -148,10 +148,14 @@
+                       impGate=True, eff6Min=0.10, cnt12Max=6, shadow=True),
+ }
+ # impulse_v2 sizing/learning state defaults (persisted under st["impulse"]).
+-# qlo/qhi are the bucketed win-prob estimates (effective cost < / >= 50c) with
+-# neutral ledger seeds and prior mass 400 (FINAL-DESIGN v3 MF2/MF3); measure is
+-# the measurement book: every cap-compliant gated signal, sized or skipped —
+-# qhat learns from THIS, never from the bank-censored sized book.
++# qlo/qhi are the bucketed win-prob estimates, bucketed by p_eff = ask + slip
++# (< 0.50 / >= 0.50, FINAL-DESIGN §4.2), refit nightly from the trailing-30d
++# measurement book with the REGISTERED shrinkage (wins+100)/(n+200) — prior
++# mass 200/bucket at mean 0.5, hard cap 0.56. IMP_SEED_LO/HI are the LAUNCH
++# STATE values only (§4.2 MF3 neutral ledger seeds); they no longer anchor
++# the nightly estimator. measure is the measurement book: every cap-compliant
++# gated signal, sized or skipped — qhat learns from THIS, never from the
++# bank-censored sized book.
+ # ---------------------------------------------------------------------------
+ # CHANGELOG 2026-07-12 — wave-2 patch set (research/2026-07-12-edge-hunt/FINDINGS.md)
+ # P1 [R4 AMENDMENT, before day 14] The measurement book is now poll-cumulative
+@@ -168,8 +172,35 @@
+ #    and exclude seed=True rows. The first-poll `cost` series is retained
+ #    unchanged as a DIAGNOSTIC ONLY — it feeds no verdict, no guard, no
+ #    estimator. Committed 2026-07-12, before day 14 of the v3 trial.
++# P2 [R8 CONFORMANCE — dated refit, human-reviewed] Three verified bot-vs-spec
++#    deviations aligned to FINAL-DESIGN; none corrupts the pre-registered
++#    day-14/day-60 verdicts (they never read qhat — R8 verified 3-0):
++#    (a) bucket boundary: was cost<0.50 (== p_eff<~0.4825); now p_eff<0.50
++#        with p_eff = ask + slip exactly as §4.1/§4.2 define it
++#        (IMP_BUCKET_LO). Measurement rows store cost; the boundary is
++#        applied via the exact inverse _p_eff_from_cost.
++#    (b) prior: was mass 400/bucket anchored at the ledger seeds; now the
++#        registered (wins+100)/(n+200) — IMP_PRIOR=200 at IMP_PRIOR_MEAN=0.5
++#        (§4.2 "per-bucket shrinkage n0=200 at mean 0.5"). Direction:
++#        conservative — removes the verified ~1.1c anti-conservative
++#        sizing-threshold inflation and halves the learning lag.
++#    (c) M2 guard seeding (§5.3), never implemented at launch: guard windows
++#        seed from the pre-launch cap-censored family ledger (n=123, flagged
++#        seed=True, impulse_guard_seed.json, loaded via cfg seedPath). Seeds
++#        count toward the guard n-minimums and age out of the trailing
++#        windows naturally; they NEVER feed qhat (MF3: the launch seeds
++#        already encode that ledger).
++#    (d) §5.2/SC3 conformance: the resurrected 15d/−1c haircut tier is
++#        REMOVED; haircut = single 7d<−2c trigger (≥120) with release
++#        hysteresis at 7d≥−1c (holds state in between and when the window
++#        lacks min-n). Bench (15d<−3c on ≥250 OR 7d<−4c on ≥120; release
++#        10d≥0 on ≥100) and the $250 breaker are unchanged.
+ # ---------------------------------------------------------------------------
+-IMP_SEED_LO, IMP_SEED_HI, IMP_PRIOR = 0.5057, 0.5068, 400
++IMP_SEED_LO, IMP_SEED_HI = 0.5057, 0.5068  # launch-day qhat STATE values only (§4.2 MF3)
++IMP_PRIOR = 200          # P2/R8: registered per-bucket shrinkage mass (§4.2); was 400
++IMP_PRIOR_MEAN = 0.5     # P2/R8: registered prior center (§4.2 "mean 0.5"); was the ledger seeds
++IMP_QCAP = 0.56          # hard qhat cap (§4.2)
++IMP_BUCKET_LO = 0.50     # P2/R8: bucket boundary on p_eff = ask + slip (§4.2); was cost<0.50
+ def default_impulse():
+     return dict(bank=1000.0, bank0=1000.0, qlo=IMP_SEED_LO, qhi=IMP_SEED_HI, benched=False,
+                 measure=[], skips={}, lastNightly=0)
+@@ -434,6 +465,7 @@
+         self.sig_secret = os.environ.get("BTC5M_SIGNAL_SECRET", "")
+         self.sig_last = {}                    # eid -> t0 already emitted (one-shot per engine per interval)
+         self._measure_migrate()               # R4 one-shot legacy-row migration (see CHANGELOG P1); idempotent
++        self._guard_seed_load()               # M2 §5.3 one-shot guard-window seeding (see CHANGELOG P2)
+ 
+     # --- config accessors ---
+     def prof(self): return PROFILES[self.st["profile"]]
+@@ -574,12 +606,14 @@
+ 
+     def _impulse_stake(self, p):
+         """Quarter-Kelly stake for a fill at price p (ask+slip), or (None, why).
+-        cost = p + fee(p) per share; qhat bucketed by cost (<50c / >=50c);
++        cost = p + fee(p) per share; qhat bucketed by p_eff = p itself
++        (< 0.50 / >= 0.50 — P2/R8 conformance to FINAL-DESIGN §4.2; the old
++        cost<0.50 boundary mis-bucketed p_eff in [0.4825, 0.50) as hi);
+         f_full = qhat - (1-qhat)*cost/(1-cost). f<=0 is a SKIP (no stake floor
+         exists — MF1), as are the guard bench and the $250 ops breaker."""
+         imp = self.imp
+         cost = p + FEE_RATE * p * (1 - p)
+-        qh = imp["qlo"] if cost < 0.50 else imp["qhi"]
++        qh = imp["qlo"] if p < IMP_BUCKET_LO else imp["qhi"]
+         if imp.get("benched"): return None, "benched"
+         if imp.get("bank", 1000.0) < 0.25 * imp.get("bank0", 1000.0): return None, "breaker"   # ops stop at 25% of launch bank
+         if imp.get("haircut"): qh = 0.5 + (qh - 0.5) / 2      # tier-1/2 base-rate guard: halve the assumed edge
+@@ -647,6 +681,17 @@
+             self.imp["skips"][m["skip"]] = self.imp["skips"].get(m["skip"], 0) + 1
+ 
+     @staticmethod
++    def _p_eff_from_cost(c):
++        """Exact inverse of cost = p + FEE_RATE·p·(1−p) — recovers p_eff from a
++        stored all-in cost so measurement rows can be bucketed by p_eff (§4.2)
++        without a schema change. Quadratic root in [0,1]; rounded to 6dp so a
++        fill at exactly p_eff=0.50 (cost .5175) lands in the hi bucket."""
++        if c is None: return None
++        if FEE_RATE <= 0: return c
++        disc = (1.0 + FEE_RATE) ** 2 - 4.0 * FEE_RATE * c
++        return round(((1.0 + FEE_RATE) - math.sqrt(disc)) / (2.0 * FEE_RATE), 6)
++
++    @staticmethod
+     def _m_opcost(m):
+         """Operated cost basis (R4 pre-commitment — see CHANGELOG P1): realized
+         fill cost when filled, else best in-window fillable cost; legacy rows
+@@ -682,6 +727,32 @@
+         if n_fill:
+             self.log(f"measurement book amended (R4): {n_fill} legacy rows joined to realized fills")
+ 
++    def _guard_seed_load(self):
++        """M2 (FINAL-DESIGN §5.3), one-shot: seed the guard windows from the
++        pre-launch cap-censored family ledger (n=123, +2.75c/share — located
++        and verified in wave 1, R8-repro D_seed_ledger). Seed rows carry
++        seed=True: they count toward the guard n-minimums (netps windows) and
++        age out of the trailing windows naturally, but NEVER feed qhat (MF3:
++        the launch seed values already encode this ledger). Loaded from cfg
++        'seedPath' (main() points it at impulse_guard_seed.json next to this
++        script); absent file = stay unseeded and retry next start."""
++        if self.imp.get("seeded"): return
++        path = self.cfg.get("seedPath")
++        if not path: return
++        try:
++            with open(path) as f: rows = json.load(f)
++        except Exception:
++            return
++        ok_rows = [dict(t0=int(r["t0"]), side=r.get("side"), cost=round(float(r["cost"]), 4),
++                        win=int(r["win"]), sized=False, skip="seed", seed=True, final=True)
++                   for r in rows if isinstance(r, dict) and r.get("win") is not None
++                   and isinstance(r.get("t0"), (int, float)) and isinstance(r.get("cost"), (int, float))]
++        if not ok_rows: return
++        ok_rows.sort(key=lambda r: r["t0"])
++        self.imp["measure"][:0] = ok_rows
++        self.imp["seeded"] = len(ok_rows)
++        self.log(f"guard windows seeded (M2 §5.3): {len(ok_rows)} pre-launch rows flagged seed=True")
++
+     def _measure_settle(self, t0, w):
+         """Backfill measurement outcomes from any oracle-settled interval."""
+         for m in self.imp["measure"]:
+@@ -730,10 +801,16 @@
+         # R4 (2026-07-12): qhat and the guard windows read the OPERATED basis
+         # (_m_opcost: fillCost if filled else bestCost; legacy first-poll cost
+         # as fallback) — the first-poll series no longer feeds any estimator.
+-        def qhat(bucket_lo, seed):
+-            xs = [m for m in settled if (self._m_opcost(m) < 0.50) == bucket_lo]
+-            return round(min(0.56, (sum(m["win"] for m in xs) + IMP_PRIOR * seed) / (len(xs) + IMP_PRIOR)), 4)
+-        imp["qlo"], imp["qhi"] = qhat(True, IMP_SEED_LO), qhat(False, IMP_SEED_HI)
++        # P2/R8 (2026-07-12): registered estimator — buckets by p_eff<0.50
++        # (§4.2, exact inverse of the stored cost), shrinkage
++        # (wins+100)/(n+200) at mean 0.5, cap 0.56; seed=True rows (M2 guard
++        # seeds) never feed qhat.
++        live = [m for m in settled if not m.get("seed")]
++        def qhat(bucket_lo):
++            xs = [m for m in live if (self._p_eff_from_cost(self._m_opcost(m)) < IMP_BUCKET_LO) == bucket_lo]
++            return round(min(IMP_QCAP, (sum(m["win"] for m in xs) + IMP_PRIOR * IMP_PRIOR_MEAN)
++                             / (len(xs) + IMP_PRIOR)), 4)
++        imp["qlo"], imp["qhi"] = qhat(True), qhat(False)
+         def netps(days, nmin):
+             xs = [m for m in settled if m["t0"] >= ns - days * 86400]
+             if len(xs) < nmin: return None
+@@ -745,7 +822,13 @@
+             imp["benched"] = True
+         elif imp["benched"] and n10 is not None and n10 >= 0:
+             imp["benched"] = False; self.log("impulse GUARD: unbenched (trailing 10d recovered)")
+-        imp["haircut"] = bool((n15 is not None and n15 < -0.01) or (n7 is not None and n7 < -0.02))
++        # P2/R8 (§5.2, SC3): single haircut trigger 7d<−2c with release
++        # hysteresis at 7d≥−1c; hold state in the band or without min-n.
++        # The 15d/−1c tier SC3 deleted is gone.
++        if n7 is not None:
++            if n7 < -0.02: imp["haircut"] = True
++            elif n7 >= -0.01: imp["haircut"] = False
++        imp.setdefault("haircut", False)
+         fee_bad = 0
+         for t in self.trades("impulse_v2")[:200]:
+             if t.get("result") in ("win", "loss") and t.get("feeEntry") is not None:
+@@ -1354,7 +1437,7 @@
+         im = o.get("impulse")
+         if isinstance(im, dict):
+             di = d["impulse"]
+-            for k in ("bank", "bank0", "qlo", "qhi", "lastNightly", "mAmend"):
++            for k in ("bank", "bank0", "qlo", "qhi", "lastNightly", "mAmend", "seeded"):
+                 if isinstance(im.get(k), (int, float)): di[k] = im[k]
+             for k in ("benched", "haircut"):
+                 if isinstance(im.get(k), bool): di[k] = im[k]
+@@ -1728,6 +1811,75 @@
+     ok(not opbook(0.30).imp["benched"] and opbook(0.5474).imp["benched"],
+        "P1: nightly guards bench on the operated cost basis, not the first-poll series",
+        f"cheapFill bench={opbook(0.30).imp['benched']}")
++    # --- P2 (R8 conformance): registered qhat formula, p_eff buckets, M2 seeding, §5.2 haircut ---
++    b20 = Bot({}, default_state(A))
++    b20._impulse_nightly(ns)                                 # empty book -> registered prior: 0.5, not the seeds
++    ok(b20.imp["qlo"] == 0.5 and b20.imp["qhi"] == 0.5,
++       "P2: nightly shrinks to prior MEAN 0.5 with mass 200 (registered §4.2), not the ledger seeds",
++       f"qlo={b20.imp['qlo']} qhi={b20.imp['qhi']}")
++    b21 = Bot({}, default_state(A))                          # p_eff=0.49 rows (cost .5075): LO bucket per §4.2
++    b21.imp["measure"] = [dict(t0=ns - 3600 - i * 300, side="up", cost=0.5075, win=1, sized=True, skip=None)
++                          for i in range(10)]
++    b21._impulse_nightly(ns)
++    ok(abs(b21.imp["qlo"] - round(110 / 210, 4)) < 1e-9 and b21.imp["qhi"] == 0.5,
++       "P2: bucket boundary is p_eff<0.50 — cost .5075 (p_eff .49) rows feed the LO bucket",
++       f"qlo={b21.imp['qlo']} (want {round(110/210,4)}) qhi={b21.imp['qhi']}")
++    ok(Bot._p_eff_from_cost(0.5175) == 0.5 and abs(Bot._p_eff_from_cost(0.5075) - 0.49) < 1e-4
++       and Bot._p_eff_from_cost(0.5075) < 0.50 and abs(Bot._p_eff_from_cost(0.4673) - 0.45) < 2e-4,
++       "P2: _p_eff_from_cost inverts the fee formula (4dp-rounded costs land in the right bucket)",
++       f".5175->{Bot._p_eff_from_cost(0.5175)} .5075->{Bot._p_eff_from_cost(0.5075)}")
++    b22 = mkimp(ask=0.48, bid=0.47)                          # p_fill=0.49: LO bucket sizes at learned qlo
++    b22.imp["qlo"], b22.imp["qhi"] = 0.53, 0.50
++    v22 = b22.evaluate(now, "impulse_v2")
++    ok(v22["enter"] and v22["stakeUsd"] and v22["stakeUsd"] >= 1,
++       "P2: sizer buckets by p_eff — a 49c effective fill uses qlo (old cost-boundary sent it to qhi)",
++       f"stake={v22['stakeUsd']}")
++    b23 = mkimp(ask=0.49, bid=0.48)                          # p_fill=0.50 exactly: HI bucket per §4.2 [0.50, 0.53]
++    b23.imp["qlo"], b23.imp["qhi"] = 0.56, 0.50
++    v23 = b23.evaluate(now, "impulse_v2")
++    ok(not v23["enter"] and b23.imp["measure"][-1]["skip"] == "f_nonpos",
++       "P2: p_eff=0.50 exactly lands in the HI bucket (boundary is strict <)",
++       f"skip={b23.imp['measure'][-1]['skip']}")
++    # M2 seeding: seeds satisfy guard minimums and drive netps, but never qhat
++    import tempfile
++    seedf = os.path.join(tempfile.gettempdir(), "btc5m_seed_test.json")
++    with open(seedf, "w") as f:
++        json.dump([dict(t0=ns - 3600 - i * 300, side="up", cost=0.55, win=(1 if i % 5 < 2 else 0))
++                   for i in range(130)], f)                  # 40% wins at 55c: netps -15c -> bench-worthy
++    bsd = Bot({"seedPath": seedf}, default_state(A))
++    ok(bsd.imp.get("seeded") == 130 and all(m.get("seed") for m in bsd.imp["measure"][:130]),
++       "P2: guard seed cohort loads once, flagged seed=True", f"seeded={bsd.imp.get('seeded')}")
++    bsd._impulse_nightly(ns)
++    ok(bsd.imp["benched"] and bsd.imp["qlo"] == 0.5 and bsd.imp["qhi"] == 0.5,
++       "P2: seeds count toward guard windows (bench fires at n=130>=120) but NEVER feed qhat",
++       f"benched={bsd.imp['benched']} qlo={bsd.imp['qlo']}")
++    bsd2 = Bot({"seedPath": seedf}, bsd.st)                  # reload same state: seeded flag stops re-seeding
++    ok(sum(1 for m in bsd2.imp["measure"] if m.get("seed")) == 130, "P2: seeding is one-shot (seeded flag)")
++    os.remove(seedf)
++    # §5.2 haircut: single 7d<-2c trigger with hysteresis; the deleted 15d/-1c tier must NOT fire
++    def hbook(recent_wins, old_rows=None):
++        b = Bot({}, default_state(A))
++        b.imp["measure"] = [dict(t0=ns - 3600 - i * 300, side="up", cost=0.53,
++                                 win=(1 if i < recent_wins else 0), sized=True, skip=None)
++                            for i in range(130)] + (old_rows or [])
++        return b
++    bh1 = hbook(65)                                          # 7d netps = .5 - .53 = -3c < -2c -> haircut
++    bh1._impulse_nightly(ns)
++    ok(bh1.imp["haircut"] and not bh1.imp["benched"],
++       "P2: haircut fires on 7d<-2c (single §5.2 trigger)", f"haircut={bh1.imp['haircut']}")
++    bh2 = hbook(67); bh2.imp["haircut"] = True               # 7d = 67/130-.53 = -1.46c: inside the hysteresis band
++    bh2._impulse_nightly(ns)
++    ok(bh2.imp["haircut"], "P2: haircut HOLDS in the hysteresis band (-2c, -1c)")
++    bh3 = hbook(68); bh3.imp["haircut"] = True               # 7d = 68/130-.53 = -0.69c >= -1c: releases
++    bh3._impulse_nightly(ns)
++    ok(not bh3.imp["haircut"], "P2: haircut releases at 7d>=-1c (hysteresis)")
++    old = [dict(t0=ns - 8 * 86400 - i * 60, side="up", cost=0.53, win=(1 if i < 84 else 0),
++                sized=True, skip=None) for i in range(170)]  # drags 15d to -2.0c while 7d is healthy
++    bh4 = hbook(69, old_rows=old)                            # 7d = 69/130-.53 = +0.08c
++    bh4._impulse_nightly(ns)
++    ok(not bh4.imp["haircut"] and not bh4.imp["benched"],
++       "P2: the deleted 15d/-1c haircut tier is gone — a -2c 15d window with a healthy 7d does nothing",
++       f"haircut={bh4.imp['haircut']}")
+     bb = mkimp(); bb.imp["qlo"] = 0.53; bb.imp["benched"] = True
+     bv2 = bb.evaluate(now, "impulse_v2")
+     ok(not bv2["enter"] and bb.imp["measure"][-1]["skip"]=="benched", "guard bench zeroes the stake (tier 3)")
+@@ -1906,7 +2058,9 @@
+     st["looseMust"] = args.loose_must
+     st["hedgeOn"] = bool(args.hedge)
+     sig_engines = [e for e in (x.strip() for x in args.signal_engines.split(",")) if e in ENGINES]
+-    bot = Bot({"publishEvery": args.publish_every, "sigEngines": sig_engines, "sigFile": args.signal_file}, st)
++    bot = Bot({"publishEvery": args.publish_every, "sigEngines": sig_engines, "sigFile": args.signal_file,
++               # P2/M2: pre-launch guard seed cohort (n=123) ships next to the script
++               "seedPath": os.path.join(os.path.dirname(os.path.abspath(__file__)), "impulse_guard_seed.json")}, st)
+     must_lbl = (" +" + "/".join(GUARD_ABBR.get(k, k) for k in st["looseMust"]) + " req") if st["looseMust"] else ""
+     live_e = [e for e in ENGINES if not ENGINE_CFG[e].get("retired")]
+     bot.log(f"bot started — {st['asset']} · {st['profile']} · FINAL-DESIGN v3 roster: "

@@ -1,0 +1,163 @@
+{
+ "K_selection": 22,
+ "ranked_by_train_pnl": [
+  [
+   "c_M50_informed_cap60",
+   6346.42,
+   2630.42
+  ],
+  [
+   "c_M50_informed_cap100",
+   6346.42,
+   2630.42
+  ],
+  [
+   "c_M400_informed",
+   6334.9,
+   2559.78
+  ],
+  [
+   "c_M50_informed",
+   6331.64,
+   2630.42
+  ],
+  [
+   "c_M100_informed",
+   6278.93,
+   2618.27
+  ],
+  [
+   "c_M200_informed",
+   6252.02,
+   2595.35
+  ],
+  [
+   "e_shrink100",
+   5302.22,
+   2619.86
+  ],
+  [
+   "e_shrink200",
+   5150.21,
+   2596.54
+  ],
+  [
+   "c_M50_neutral",
+   4378.4,
+   2346.97
+  ],
+  [
+   "c_M100_neutral",
+   3757.3,
+   2122.67
+  ],
+  [
+   "d_winInf",
+   3345.77,
+   1947.84
+  ],
+  [
+   "c_M200_neutral",
+   3055.65,
+   1844.52
+  ],
+  [
+   "b_spec",
+   2700.87,
+   1749.11
+  ],
+  [
+   "b_spec_cap60",
+   2700.87,
+   1749.11
+  ],
+  [
+   "b_spec_cap100",
+   2700.87,
+   1749.11
+  ],
+  [
+   "d_decay14",
+   2633.77,
+   1644.45
+  ],
+  [
+   "c_M400_neutral",
+   2420.3,
+   1510.54
+  ],
+  [
+   "d_win10",
+   2316.67,
+   1546.59
+  ],
+  [
+   "d_decay7",
+   2246.01,
+   1410.81
+  ],
+  [
+   "a_current",
+   1996.46,
+   1270.44
+  ],
+  [
+   "a_current_cap60",
+   1996.46,
+   1270.44
+  ],
+  [
+   "a_current_cap100",
+   1996.46,
+   1270.44
+  ]
+ ],
+ "winner_by_train": "c_M50_informed_cap60",
+ "winner_vs_current_test_delta": {
+  "point": 1359.97,
+  "n_blocks": 317,
+  "ci90": [
+   597.08,
+   2108.62
+  ],
+  "p_le_0": 0.0018
+ },
+ "mc_check": {
+  "a_current": {
+   "train": {
+    "pnl_mean": 1865.8,
+    "pnl_sd": 1461.7,
+    "win_frac": 0.96
+   },
+   "test": {
+    "pnl_mean": 1281.1,
+    "pnl_sd": 724.6,
+    "win_frac": 1.0
+   }
+  },
+  "b_spec": {
+   "train": {
+    "pnl_mean": 2216.2,
+    "pnl_sd": 1895.7,
+    "win_frac": 1.0
+   },
+   "test": {
+    "pnl_mean": 1628.1,
+    "pnl_sd": 1046.5,
+    "win_frac": 0.96
+   }
+  },
+  "c_M50_informed": {
+   "train": {
+    "pnl_mean": 5066.3,
+    "pnl_sd": 5025.9,
+    "win_frac": 1.0
+   },
+   "test": {
+    "pnl_mean": 2315.3,
+    "pnl_sd": 1590.5,
+    "win_frac": 1.0
+   }
+  }
+ }
+}

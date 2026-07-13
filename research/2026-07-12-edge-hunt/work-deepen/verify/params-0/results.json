@@ -1,0 +1,28 @@
+{
+ "unit": "wave-2 DEEPENING / params",
+ "lens": "REPRO (adversarial): independent rebuild of the revThr and eff6Min axes (the two strongest, TEST-significant cliff claims) from RAW cb5m.json candles with an independent gate implementation, independent metrics, and an independently coded paired 1h-block bootstrap (different seeds); plus verification of the <=47c cap simulation and window claims against the real v3-era ledger (trades_unified.json) and live state (state_extract.json), with bot-code ground-truth checks (btc5m_bot.py lines 535-580, 684-713).",
+ "verdict": "CONFIRMED",
+ "reproduced_exactly": {
+  "frozen_reference": "TRAIN n=2015 q_xt=.5408 ev_xt=+3.84c $93.07/day mid; TEST n=787 q_xt=.5700 ev_xt=+6.76c $163.44/day mid - exact to the cent from raw candles",
+  "revThr_loosening_cliff": "8bps TEST delta CI90 [-4.42,-0.37] p<=0=.974 (theirs [-4.47,-0.40] .975); added TEST mass n=588 q_xt=.5125 EXACT; 10bps TEST p<=0=.909 (theirs .919)",
+  "eff6Min_loosening_cliff": "0: TEST CI90 [-2.57,-0.31] p<=0=.982 (theirs [-2.57,-0.26] .982); .05: [-1.94,-0.42] p<=0=.994 (theirs [-1.85,-0.38] .991); added TEST mass q_xt .3878/.4579 (theirs .40/.463)",
+  "tightening_plateau": "revThr 15/20 and eff6Min .15/.20/.30 all non-significant (my p<=0 .446-.653), point estimates within noise, $/day falls - plateau call confirmed",
+  "additivity_2d": "joint eff6Min=0 & cnt12Max=8 TRAIN delta -1.85c vs sum of singles -1.83c - EXACT match (interaction -0.02c)",
+  "task2_firstfill47": "implicit f-rule cap .47 now / .46 post-R8-prior200 / .53 at qhat ceiling .56 - all confirmed closed-form and by scan; 0/36 book records blocked-by-47-but-f-sized; f-rule replicates the book's sized stamp 36/36; f_nonpos cohort n=21 q=.4286 EV -9.99c/sh exact; flagship 0/26 settled fills at ask>.47 (max ask=.47); impulse50 20/34 fills ask>.47 realized -12.87c/sh vs -7.82 all - all exact against the raw ledger",
+  "cap_sweep_inputs": "book mean cost .4911, ask censored at max .52 (consistent with live ask+slip<=.53 check, bot line 686), no_refill avail .333/.472/.750/1.0 and refill .714/.774/.893/1.0 reproduce; cap-on-fill-price semantics MATCHES the live revEntryMax convention (ask+slip<=cap)",
+  "window_30s": "loses 8% of first fills (le30=.922 by ledger entrySec field) - confirmed"
+ },
+ "corrections": [
+  "firstFillMax=0.47 semantics MUST be pinned as 'block when ASK > 0.47' at implementation time. If coded with the existing revEntryMax convention (ask+slip <= cap, bot line 686), the cap is NOT behaviorally null today: 2/26 flagship fills (ask=.47: 1 win 1 loss) and 3/36 sized book records sit at ask exactly .47 and would be blocked. The unit's audit used ask>.47 consistently, but its 0.49-rejection rationale ('a .49 ask fills at cost .5075') silently used the OTHER (fill-price) convention - cost of a .49 ask fill is .5175 with slip; .5075 is the cost of a .49 FILL (ask .48). Rejection conclusion unchanged (both >= .50 dead zone).",
+  "window claim '45s captures 97.4% of first fills' is an execution-latency artifact of deriving entrySec as at/1000-t0; the ledger's own entrySec field gives 100% <= 45s (window-censored by construction, as their assumptions concede but the claim text obscures) and 15s loses ~27% (le15=.727), not 34%. 30s loss (8%) and the plateau verdict are unchanged.",
+  "deliverable-1 wording: 'removed mass q_xt .40-.46' for the eff6Min loosening cells should read ADDED mass (mass the frozen gate excludes); the numbers themselves are correct.",
+  "minor: unit's non-frozen cell n's differ from mine by 1-2 rows (their select() uses 4dp-rounded trig_move/eff6 off the frozen point; e.g. revThr=8 TRAIN n=3453 vs 3451 unrounded) - immaterial, matches their own consistency note."
+ ],
+ "not_checked": "cnt12Max axis cells beyond those entering the additivity check; sweep2d cells other than the additivity claim; the refill-corrected cap EV arithmetic beyond its verified inputs (availability weights, 12/21 rate, book CDF).",
+ "artifacts": [
+  "work-deepen/verify/params-0/repro_sweep.py",
+  "work-deepen/verify/params-0/repro_sweep.json",
+  "work-deepen/verify/params-0/repro_cap.py",
+  "work-deepen/verify/params-0/repro_cap.json"
+ ]
+}

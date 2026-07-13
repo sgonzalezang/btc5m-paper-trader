@@ -1,0 +1,257 @@
+{
+ "cap_sweep": {
+  "assumptions": [
+   "flat-arm basis (impulse50-like): the OPERATED flagship's f>0 rule already caps first fills at cost<qlo=.5068 (ask<=.47 at penny quotes), so revEntryMax in {.49,.51,.53,.55} is nearly INERT for impulse_v2 as operated \u2014 this table is the signal-population/flat-arm economics that feed the measurement book and day-60 verdict",
+   "ask CDF = 36-record measurement book first-poll asks (censored <=.52 ask by the .53 cap)",
+   "refill correction: P(dip below cap | rich first quote)=12/21=.571 at ~11.2c improvement (R4 measured, for dips to ~.47) applied to ALL caps \u2014 optimistic for .47, conservative bracket = no_refill variant",
+   "pole q_flat: q independent of fill price (frozen model); pole r2_adj: cost>=.50 zone EV pinned to -2.6c/share (R2 corrected), cheap fills absorb the complement",
+   "q_uncond = frozen-cell TEST ex-tie q = 0.5700 (ties-as-loss 0.5222 shown separately)",
+   "NORMALIZATION: this table's cost mix comes from the empirical book (mean cost .4911 at cap .53), NOT the frozen anchors (.5025) \u2014 so its cap-.53 row (+7.89c ex-tie) is ~1.1c above sweep1d's frozen +6.76c; compare WITHIN the table only"
+  ],
+  "ex_tie": {
+   "refill": [
+    {
+     "cap": 0.47,
+     "avail_mult": 0.714,
+     "fills_day": 18.0,
+     "mean_fill": 0.4009,
+     "mean_cost": 0.4176,
+     "ev_qflat_c": 15.24,
+     "ev_r2adj_c": 24.7,
+     "usd_day_qflat": 342.62
+    },
+    {
+     "cap": 0.49,
+     "avail_mult": 0.774,
+     "fills_day": 19.5,
+     "mean_fill": 0.4188,
+     "mean_cost": 0.4356,
+     "ev_qflat_c": 13.44,
+     "ev_r2adj_c": 21.58,
+     "usd_day_qflat": 313.22
+    },
+    {
+     "cap": 0.51,
+     "avail_mult": 0.893,
+     "fills_day": 22.5,
+     "mean_fill": 0.4499,
+     "mean_cost": 0.467,
+     "ev_qflat_c": 10.3,
+     "ev_r2adj_c": 13.33,
+     "usd_day_qflat": 257.82
+    },
+    {
+     "cap": 0.53,
+     "avail_mult": 1.0,
+     "fills_day": 25.2,
+     "mean_fill": 0.4739,
+     "mean_cost": 0.4911,
+     "ev_qflat_c": 7.89,
+     "ev_r2adj_c": 7.89,
+     "usd_day_qflat": 209.98
+    }
+   ],
+   "no_refill": [
+    {
+     "cap": 0.47,
+     "avail_mult": 0.333,
+     "fills_day": 8.4,
+     "mean_fill": 0.4075,
+     "mean_cost": 0.4242,
+     "ev_qflat_c": 14.58,
+     "ev_r2adj_c": 24.04,
+     "usd_day_qflat": 150.48
+    },
+    {
+     "cap": 0.49,
+     "avail_mult": 0.472,
+     "fills_day": 11.9,
+     "mean_fill": 0.43,
+     "mean_cost": 0.4469,
+     "ev_qflat_c": 12.31,
+     "ev_r2adj_c": 19.62,
+     "usd_day_qflat": 170.52
+    },
+    {
+     "cap": 0.51,
+     "avail_mult": 0.75,
+     "fills_day": 18.9,
+     "mean_fill": 0.457,
+     "mean_cost": 0.4742,
+     "ev_qflat_c": 9.58,
+     "ev_r2adj_c": 11.39,
+     "usd_day_qflat": 198.36
+    },
+    {
+     "cap": 0.53,
+     "avail_mult": 1.0,
+     "fills_day": 25.2,
+     "mean_fill": 0.4739,
+     "mean_cost": 0.4911,
+     "ev_qflat_c": 7.89,
+     "ev_r2adj_c": 7.89,
+     "usd_day_qflat": 209.98
+    }
+   ]
+  },
+  "ties_as_loss": {
+   "refill": [
+    {
+     "cap": 0.47,
+     "avail_mult": 0.714,
+     "fills_day": 18.0,
+     "mean_fill": 0.4009,
+     "mean_cost": 0.4176,
+     "ev_qflat_c": 10.46,
+     "ev_r2adj_c": 13.23,
+     "usd_day_qflat": 235.16
+    },
+    {
+     "cap": 0.49,
+     "avail_mult": 0.774,
+     "fills_day": 19.5,
+     "mean_fill": 0.4188,
+     "mean_cost": 0.4356,
+     "ev_qflat_c": 8.66,
+     "ev_r2adj_c": 10.93,
+     "usd_day_qflat": 201.77
+    },
+    {
+     "cap": 0.51,
+     "avail_mult": 0.893,
+     "fills_day": 22.5,
+     "mean_fill": 0.4499,
+     "mean_cost": 0.467,
+     "ev_qflat_c": 5.52,
+     "ev_r2adj_c": 6.14,
+     "usd_day_qflat": 138.13
+    },
+    {
+     "cap": 0.53,
+     "avail_mult": 1.0,
+     "fills_day": 25.2,
+     "mean_fill": 0.4739,
+     "mean_cost": 0.4911,
+     "ev_qflat_c": 3.11,
+     "ev_r2adj_c": 3.11,
+     "usd_day_qflat": 82.72
+    }
+   ]
+  },
+  "cap_55": {
+   "verdict": "DOMINATED per share; do not raise",
+   "basis": "wave-1 dead-end #36: the 53-55c marginal band ran q=.433 at ~.55 fills (EV -12.9c/share); every unit of added mass is fee-dead. Added mass unmeasurable from the censored book (cap-blocked misses lack asks - wave-1 Tier-2 #7 logging fix)."
+  }
+ },
+ "window_sweep": {
+  "assumptions": [
+   "availability(W<=45) = empirical P(entrySec<=W) on v3 first-fill engines (impulse50+reversal_v2 pooled, n=77, window-censored at 45s)",
+   "c/share for W in {15,30,45} held at the frozen level: micro F3 found NO speed alpha (price-stratified fast-vs-slow diff -4.45c fast-WORSE, p=.75) and the rev-family entry price mix is flat across bins (.486/.471/.484/.489)",
+   "flagship refill loss for W<45: impulse_v2 entries later than W lose the R1 refill benefit (~11.2c cheaper re-entries)",
+   "W in {60,90}: added fills bracketed by micro a5 late-only misses q_cf=.548 (unconditional, ~breakeven at 51c) and wave-1 dead-end #32 (mid-interval cheap dips: q collapses to .32-.33, adverse-selection bait). No candle-side label exists for 'would have filled at 45-90s', so this is a bracket, not an estimate."
+  ],
+  "entrySec": {
+   "first_fill_engines": {
+    "n": 77,
+    "p25": 3.9,
+    "p50": 10.5,
+    "p75": 16.5,
+    "max": 45.2
+   },
+   "impulse_v2": {
+    "n": 26,
+    "p25": 10.9,
+    "p50": 15.4,
+    "p75": 24.0,
+    "max": 32.7
+   }
+  },
+  "cells": [
+   {
+    "window_s": 15,
+    "avail_mult": 0.662,
+    "flagship_entry_frac": 0.423,
+    "ev_c": "~frozen (no speed alpha measured; CI ~ +/-8c)",
+    "usd_day_mid_scaled": 108.25,
+    "note": "loses 34% of first fills and 58% of flagship entries (incl. refills)"
+   },
+   {
+    "window_s": 30,
+    "avail_mult": 0.922,
+    "flagship_entry_frac": 0.885,
+    "ev_c": "~frozen (no speed alpha measured; CI ~ +/-8c)",
+    "usd_day_mid_scaled": 150.7,
+    "note": "loses 8% of first fills and 12% of flagship entries (incl. refills)"
+   },
+   {
+    "window_s": 45,
+    "avail_mult": 0.974,
+    "flagship_entry_frac": 1.0,
+    "ev_c": "~frozen (no speed alpha measured; CI ~ +/-8c)",
+    "usd_day_mid_scaled": 159.19,
+    "note": "frozen"
+   },
+   {
+    "window_s": 60,
+    "avail_mult": ">1 (unmeasurable, cap-blocked misses lack asks)",
+    "ev_added_fills_bracket_c": [
+     -15.0,
+     2.0
+    ],
+    "basis": "q_added in [.32 (#32 cheap-dip conditional), .548 (a5 late-only misses)] at ~.50-.53 costs",
+    "note": "EXTENSION UNPROVEN-TO-HARMFUL: every measured selection effect beyond 45s is adverse; 45+ pooled ledger bin ran -3.47c/share (n=814)"
+   },
+   {
+    "window_s": 90,
+    "avail_mult": ">1 (unmeasurable, cap-blocked misses lack asks)",
+    "ev_added_fills_bracket_c": [
+     -15.0,
+     2.0
+    ],
+    "basis": "q_added in [.32 (#32 cheap-dip conditional), .548 (a5 late-only misses)] at ~.50-.53 costs",
+    "note": "EXTENSION UNPROVEN-TO-HARMFUL: every measured selection effect beyond 45s is adverse; 45+ pooled ledger bin ran -3.47c/share (n=814)"
+   }
+  ]
+ },
+ "task2_firstfill47": {
+  "implicit_cap_audit": {
+   "current_qlo_qhi": [
+    0.5068,
+    0.503
+   ],
+   "implicit_first_fill_ask_cap_now": 0.47,
+   "post_R8_prior200_qlo": 0.4954,
+   "implicit_cap_post_fix": 0.46,
+   "implicit_cap_if_qhat_drifts_to_ceiling_056": 0.53,
+   "note": "f>0 skips iff cost>=qhat_bucket; at penny asks the CURRENT rule already blocks every first fill above the implicit cap"
+  },
+  "decision_changes_on_measure_book": {
+   "n_records": 36,
+   "blocked_by_cap47_but_sized_by_f": 0,
+   "detail": [],
+   "interpretation": "0 changes = the .47 explicit cap is REDUNDANT today at penny quotes; it binds only if nightly qhat drifts UP"
+  },
+  "flagship_ledger_fills_above_47c": {
+   "n": 0,
+   "of": 26,
+   "asks": [],
+   "realized_ev_cshare": null,
+   "all_fills_ev_cshare": 3.57
+  },
+  "impulse50_fills_above_47c": {
+   "n": 20,
+   "of": 34,
+   "realized_ev_cshare": -12.87,
+   "all_fills_ev_cshare": -7.82
+  },
+  "insurance_value": {
+   "leak_if_drift_reopens_rich_fills": "measurement book f_nonpos cohort: n=21, q=0.4286, mean first-poll cost 0.5284, EV -9.99c/share (micro F2: -9.99c)",
+   "drift_scenario": "if qhat drifted to its .56 code ceiling the implicit cap rises to ask 0.53 \u2014 i.e. the whole R2 fee-dead 48-53c zone reopens; the explicit cap forecloses this at zero cost"
+  }
+ },
+ "v3_ledger_counts": {
+  "impulse_v2": 26,
+  "impulse50": 34,
+  "reversal_v2": 43
+ }
+}

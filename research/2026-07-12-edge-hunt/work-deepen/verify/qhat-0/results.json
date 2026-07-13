@@ -1,0 +1,59 @@
+{
+  "verdict": "CONFIRMED",
+  "lens": "repro (independent re-implementation + directed stress)",
+  "scripts": ["v_audit.py", "v_calib.py", "v_bothworlds.py"],
+  "artifacts": ["v_audit_results.json", "v_calib_results.json", "v_bothworlds_results.json"],
+  "reproduction": {
+    "audit_part1": {
+      "loop_metrics_classification": "10 fixture / 4 genuine reproduced from raw signatures; fixture qlo .4175 and n15 -.1975 re-derived from btc5m_bot.py selftest code (300 recs, cost .4975, 30% win, IMP_PRIOR 400)",
+      "bot_log": "0 guard/BENCHED lines, exactly 4 'nightly:' lines — live state never benched or haircut; unit's reading confirmed",
+      "nightly_replication": "4/4 genuine nightlies replicate qlo/qhi/settled exactly (my lag grid 0-600s/15s: lags 0/0/0/15 vs unit's 0/0/0/120 — both consistent, settle-lag inference not unique but conclusion identical)",
+      "nomin_bench_cf": "fires 07-11 00:10 on n=4 (n7 -23.72c); 24 operated trades foregone, +$129.07, +6.49c/sh — EXACT match",
+      "m2_cohort": "recomputed from trades_unified with R8-repro's construction (eng reversal/reversal2, entry<=.531, pre-launch): n=123, +2.75c/sh EXACT; seeded n7 = 2.75/1.92/1.40/1.61c, n 123->143, no fire at any nightly — EXACT",
+      "reachability": "14.24 settled/day vs 17.1 (7d/120) and 16.7 (15d/250) — unreachable; unbench 10d/100 reachable; rescale 80/7d=11.4/day and 170/15d=11.3/day reachable with margin — EXACT"
+    },
+    "calibrator_tournament_part2": {
+      "engine": "written from scratch; all 22 family TRAIN/TEST PnLs match the unit to the cent; full TRAIN ranking identical; TRAIN winner c_M50_informed_cap60 reproduced",
+      "boots_reproduced": {
+        "winner_vs_current_test": "+1359.97 ci90 [605.73, 2104.88] p .0017 (unit [597, 2109] p .0018)",
+        "spec_vs_current_base": "+478.66 [283.65, 670.1] p<.001",
+        "spec_vs_current_stress": "-149.76 [-192.64, -105.8] p~1.0",
+        "hybrid_vs_current_base": "+213.39 [82.05, 343.02] p .0038",
+        "hybrid_vs_current_stress": "+68.20 [44.3, 91.31] p<.001",
+        "seed_effect": "-145.55", "mass_effect": "+358.93"
+      },
+      "cap_grid": "EXACT (deltas $0.00 at caps >=.56 for deployed/spec/informed; cap54 informed -$183.89, spec -$5.20; 37/63 informed nights bound at .54)",
+      "forced_haircut": "EXACT (-$557.47 a_current / -$858.17 spec / -$1458.77 informed TEST; -32.5 to -85.1 $/day; cps rises 6.95->8.12)",
+      "live_book_table": "EXACT (deployed 15 sized; spec/hybrid qlo .4954/.4953, 12 sized, 3 flips, EV sum -$0.005; informed M200 27 sized, 12 flips all newly-sized at costs .5075-.5275, sum -$2.22)",
+      "mc_cross_check": "15 fresh seeds: ordering informed > spec > hybrid > current on TRAIN and TEST — agrees"
+    }
+  },
+  "directed_stresses": {
+    "drop_best_test_day": {
+      "winner_vs_current": "+1099.06 [396, 1778] p .0037 — survives",
+      "hybrid_vs_current_base": "+171.29 [48, 289] p .0087 — survives",
+      "hybrid_vs_current_stress": "+58.13 [36, 80] p<.001 — survives",
+      "spec_vs_current_stress": "-158.34 drop-best / -128.66 drop-worst — sign stable both ways (deliverable-4 flip is not one-day luck)"
+    },
+    "drop_best_train_day": "winner's best TRAIN day = +$716; re-ranked top-5 unchanged (informed cluster still 1-5, margins still noise-level)",
+    "bucket_edge_jitter_1c": {
+      "walk_forward": "cost boundary at .49 and .50 give IDENTICAL partitions/PnL (1c safety margin below); at .51 it admits the .49-anchor: base +$234 TEST but stress -$149 (same tradeoff as peff). peff boundary at .49 becomes the cost partition; at .50/.51 identical to spec. The entire bucket-definition effect on the 3-anchor bed is which side the .49 anchor lands — cost<0.50 is the jitter-robust choice, supporting deliverable 4",
+      "live_book": "hybrid decisions on the real 36-record book invariant to edge .49/.50/.51 (0 additional flips)"
+    },
+    "halved_prior_grid": "M in {25,50,100,200}: TRAIN winner h_M25_informed $6335.22 vs M50 $6331.64 — margin $3.6, pure noise; informed seed drives selection at every mass, confirming the circularity diagnosis (reject) rather than any mass preference"
+  },
+  "corrections": {
+    "claim5_cap_never_binds": "Overstated two ways. (a) unit's q_max_raw tracked the LO bucket only: deployed hi-bucket raw reached .5357 (not .5224); spec .541 (lo) unchanged; all still < .56 and cap-grid deltas remain $0.00, so the action stands. (b) 'never binds for any conforming calibrator' is false for the pooled-shrink families: e_shrink100/200 raw reached .5768/.5727 and were cap-bound 5-6/63 nights at .56 (unit's own calib_results shows this); correct scope is deployed/spec/hybrid/fixed-neutral-seed families",
+    "claim6_only_variant": "'only conforming variant robust in both fill-model worlds' is false by the unit's own part4 numbers: cost_M200_seedled (cost bucket, M200, ledger seeds .5057/.5068) also beats deployed in BOTH worlds and beats the hybrid on the bed in both (base $1629 vs $1484; stress $862 vs $809). Hybrid's edge over seedled is spec conformance (registered mean-.5 prior), not bed performance; the unit's own action text already allows seedled as a documented alternative, so the recommendation stands but the uniqueness sentence must be dropped",
+    "claim3_units": "'12 additional rich first-poll records running -$2.22/share' — the -$2.22 is the SUM of per-share nets over the 12 flipped settled records (mean -18.5c/sh each), not a per-share rate; costs .5075-.5275 = R2 zone confirmed",
+    "minor": "TEST period is 17.15d not 17.5d; Brier spread across all 16 families is .0011 (.24658-.24768), the quoted .0009 holds only excluding the d_win10/d_decay7 variants; measured/day 14.6 (all records) vs 14.24 (settled) both correct in context"
+  },
+  "not_disputed_after_attack": [
+    "guard/bench audit: live never benched, fixture pollution, $0 bench cost, n-minimums saved +$129.07",
+    "structural unreachability of 7d/15d tiers at live cadence; M2 seeding safe (no fire) and evaluable day 1",
+    "TRAIN winner is circular informed seed; conforming families noise-equivalent at n=36 (<=3 flips, -0.5c/sh)",
+    "cost<0.50 boundary is the R2-conservative and jitter-robust choice; document deviation, don't flip",
+    "cap 0.56 not binding for deployed/spec/hybrid; haircut cost only-if-falsely-active $32.5-85/day",
+    "hybrid_cost_M200 sequencing (prior change bundled with R4 amendment; M2/tier-deletion/hysteresis/log fixes safe now)"
+  ]
+}

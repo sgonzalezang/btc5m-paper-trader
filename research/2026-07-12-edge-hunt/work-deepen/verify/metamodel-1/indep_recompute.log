@@ -1,0 +1,57 @@
+gated 2802 extie 2620
+TEST-OOS extie n = 721 base rate 0.57 pooled OOS n = 2309
+TEST extie rows missing from preds: 0
+min OOS t0 - (T_START+10d) = 6000
+
+model TEST brier 0.247069 (claim .247069)  ll 0.687289 (claim .687289)
+anchor1 impl: qhat brier 0.246341 ll 0.685820 | dBrier -0.000727 CI[-0.002137,+0.000699] p_le0=0.842 | dLL -0.001469 CI[-0.004344,+0.001461]
+anchor1 spec: qhat brier 0.246209 ll 0.685555 | dBrier -0.000859 CI[-0.002216,+0.000523] p_le0=0.890 | dLL -0.001734 CI[-0.004541,+0.001096]
+anchor0 impl: qhat brier 0.246355 ll 0.685848 | dBrier -0.000713 CI[-0.002134,+0.000720] p_le0=0.837 | dLL -0.001441 CI[-0.004336,+0.001492]
+anchor0 spec: qhat brier 0.246209 ll 0.685555 | dBrier -0.000859 CI[-0.002216,+0.000523] p_le0=0.890 | dLL -0.001734 CI[-0.004541,+0.001096]
+anchor2 impl: qhat brier 0.246341 ll 0.685820 | dBrier -0.000727 CI[-0.002137,+0.000699] p_le0=0.842 | dLL -0.001469 CI[-0.004344,+0.001461]
+anchor2 spec: qhat brier 0.246209 ll 0.685555 | dBrier -0.000859 CI[-0.002216,+0.000523] p_le0=0.890 | dLL -0.001734 CI[-0.004541,+0.001096]
+
+verdict-diff sensitivity (impl brier):
+  seed=1 block=1800s: mean -0.000727 CI[-0.002111,+0.000691] pass=False
+  seed=1 block=3600s: mean -0.000727 CI[-0.002131,+0.000671] pass=False
+  seed=1 block=7200s: mean -0.000727 CI[-0.002089,+0.000600] pass=False
+  seed=1 block=14400s: mean -0.000727 CI[-0.002106,+0.000700] pass=False
+  seed=2 block=1800s: mean -0.000727 CI[-0.002097,+0.000646] pass=False
+  seed=2 block=3600s: mean -0.000727 CI[-0.002115,+0.000698] pass=False
+  seed=2 block=7200s: mean -0.000727 CI[-0.002101,+0.000634] pass=False
+  seed=2 block=14400s: mean -0.000727 CI[-0.002102,+0.000681] pass=False
+  seed=3 block=1800s: mean -0.000727 CI[-0.002088,+0.000660] pass=False
+  seed=3 block=3600s: mean -0.000727 CI[-0.002158,+0.000691] pass=False
+  seed=3 block=7200s: mean -0.000727 CI[-0.002094,+0.000644] pass=False
+  seed=3 block=14400s: mean -0.000727 CI[-0.002106,+0.000674] pass=False
+  seed=42 block=1800s: mean -0.000727 CI[-0.002128,+0.000644] pass=False
+  seed=42 block=3600s: mean -0.000727 CI[-0.002152,+0.000674] pass=False
+  seed=42 block=7200s: mean -0.000727 CI[-0.002089,+0.000636] pass=False
+  seed=42 block=14400s: mean -0.000727 CI[-0.002147,+0.000674] pass=False
+  seed=12345 block=1800s: mean -0.000727 CI[-0.002152,+0.000625] pass=False
+  seed=12345 block=3600s: mean -0.000727 CI[-0.002182,+0.000670] pass=False
+  seed=12345 block=7200s: mean -0.000727 CI[-0.002055,+0.000613] pass=False
+  seed=12345 block=14400s: mean -0.000727 CI[-0.002097,+0.000682] pass=False
+
+intercept-only TEST brier 0.245925 (claim .245925)
+D2 vs impl:
+  seed=1: mean +0.0004158 CI95[-0.0000446,+0.0008735] p_le0=0.0378
+  seed=2: mean +0.0004158 CI95[-0.0000436,+0.0008834] p_le0=0.0361
+  seed=777: mean +0.0004158 CI95[-0.0000451,+0.0008693] p_le0=0.0385
+  seed=12345: mean +0.0004158 CI95[-0.0000500,+0.0008693] p_le0=0.0392
+  block=1800s: mean +0.0004158 CI95[-0.0000368,+0.0008741] p_le0=0.0357
+  block=7200s: mean +0.0004158 CI95[-0.0000740,+0.0009105] p_le0=0.0482
+  block=14400s: mean +0.0004158 CI95[-0.0001352,+0.0009681] p_le0=0.0713
+D2 vs spec:
+  seed=1: mean +0.0002840 CI95[-0.0001076,+0.0006718] p_le0=0.0780
+  seed=2: mean +0.0002840 CI95[-0.0001077,+0.0006736] p_le0=0.0777
+  seed=777: mean +0.0002840 CI95[-0.0001130,+0.0006803] p_le0=0.0792
+  seed=12345: mean +0.0002840 CI95[-0.0001167,+0.0006707] p_le0=0.0815
+  block=1800s: mean +0.0002840 CI95[-0.0001144,+0.0006794] p_le0=0.0797
+  block=7200s: mean +0.0002840 CI95[-0.0001195,+0.0006981] p_le0=0.0830
+  block=14400s: mean +0.0002840 CI95[-0.0001636,+0.0007086] p_le0=0.1049
+
+money extie median anchor: model 1289.55 (claim 1289.54) impl 1335.72 (claim 1335.71) spec 1459.97 (claim 1459.97)
+diff model-impl per-signal -0.064 CI [-0.745, 0.64]
+
+impl qhat at end: 0.5463 spec: 0.5507 realized TEST q: 0.57

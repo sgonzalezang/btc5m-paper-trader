@@ -1,0 +1,44 @@
+{
+  "unit": "wave-2 patches P1-P6 (work-deepen/patches/)",
+  "verdict": "CONFIRMED",
+  "checks": {
+    "live_untouched": {
+      "bot_md5": "471e2c2f9468c9f090886950d43a5e57 == baseline copy == claim",
+      "loop_metrics_lines": 14,
+      "note": "bot/SIGNAL-BRIDGE.md working-tree edit predates wave 2 (mtime Jul 7 21:09), not this unit's"
+    },
+    "diff_chain": "patch1..5 applied cumulatively to baseline reproduce stages/stage{1..5}.py byte-identically; stage5 == btc5m_bot_patched.py (md5 fc24f99db5ec296151879b796d43c3a9)",
+    "selftests": {"baseline": 62, "stage1": 69, "stage2": 81, "stage3": 86, "stage4": 91, "final": 103, "fails": 0,
+                  "metrics_pollution": "stages<=2 selftest writes loop_metrics.jsonl next to script; stages>=3 write nothing (P3 verified live)"},
+    "replay": "rerun from fresh copies: 22/22 PASS; replay_results.json byte-equal to shipped artifact",
+    "independent_recompute": {
+      "script": "indep_check.py (no patched-module imports for the math)",
+      "measure_rows": 36, "flagship_t0s": 27, "joins": 27, "side_mismatch": 0, "orphan_f_nonpos_repaired": 12,
+      "firstpoll_cps": -6.234, "operated_cps": -2.397, "gap_cps": 3.837, "n_settled": 35, "wins": "15/35",
+      "never_entered_legacy": {"n": 9, "firstpoll_cps": -19.64, "matches_R4": true},
+      "old_formula_reproduces_state": "0.5068/0.5030 exact",
+      "new_qlo": [0.4934, 27, 12], "new_qhi": [0.4952, 8, 3],
+      "sized_boundary_p_eff": {"before": 0.4893, "after": 0.4759, "ask_after": 0.4659},
+      "first_polls_ask_gt_47c": "24/36"
+    },
+    "seed_file": "gen_seed.py regenerates byte-identical impulse_guard_seed.json; n=123, +2.75c, span Jul 9 02:35 -> Jul 10 14:35 UTC; matches wave-1 R8-repro D_seed_ledger exactly",
+    "p3_diagnosis": "live loop_metrics.jsonl: 10 anomalous Jul-10 lines carry qlo=0.4175/measured=300/benched/haircut - field-identical to freshly generated selftest fixture output; diagnosis confirmed",
+    "real_state_load": "copy of bot/state.json (grown to 44 measure rows / 31 flagship trades) loads through patched bot: 31/31 joined, 123 seeds one-shot, all live rows final, control trade books byte-unchanged, snapshot->sanitize round-trip preserves fillCost/bestCost/final/seed/epoch/mAmend/seeded, restart idempotent, lastNightly preserved (no flap)",
+    "control_engines": "code review: every new code path is fenced on cfg['sized'] (impulse_v2 only) or lives in impulse-only nightly/init; P4 selftest asserts impulse50/reversal_v2 take 50c fills unchanged and no control carries firstFillMax; REFUTE trigger not met",
+    "spec_conformance": "FINAL-DESIGN verified: 4.2 p_eff<0.50 buckets + (wins+100)/(n+200) cap 0.56; 5.2/SC3 single 7d<-2c haircut with >=-1c release hysteresis; 5.3/M2 seeds count toward guard minimums never qhat; MF5 kill mean<=-2c min 200; MF6 skip finality at window close"
+  },
+  "corrections": [
+    "P5 overclaims 'can never delay a trading decision' / 'no pre-registered arm's entry timing can shift': (a) the 2.5s re-poll sleep shifts the free-running poll loop's phase (main loop is tick+sleep(TICK_S=4), not wall-clock aligned), so first-poll timing in SUBSEQUENT intervals can land up to 2.5s later - same order as existing network jitter, no decision-rule change; (b) the deferred re-poll completion performs one HTTP book fetch (timeout 11s) at end-of-tick even while an entry window is open, so a hung fetch can delay the next evaluation - within the existing multi-fetch failure envelope. Within-interval claim (defer at left>=145 < reversal2's 150s window) verified correct.",
+    "P5 claims 9 new selftests; the diff adds 12 ok() assertions (103-91=12; the 4 non-qualifying rejections are 4 checks). P6's total (41 added, 62->103) is correct.",
+    "P4's 'first-fill cap' is implemented as an every-fillable-poll ask cap (a 48c re-poll inside the window is also skipped, not only first fills). This matches FINDINGS R1's actual prescription (freeze the f>0 implicit limit order as an explicit cap) and observed refills were ~11c cheaper, so no practical divergence - naming nit only.",
+    "P2's 'n7=+1.61c on 158 matching R8-repro' matches only qualitatively (no guard fires); R8-repro's counterfactual was +1.22c on 144 (first-poll basis, smaller book). Unit's own E-section caveat (operated -2.40c still prices 9 never-entered legacy signals at rich first-poll costs) verified: those 9 run -19.64c/sh and mechanically drag the preview.",
+    "P1 edge (harmless, noting for the record): a record left final=False by a mid-window restart is not finalized until the NEXT signal appends (finalize hook matches only the current interval's t0 against ms[-1]); its skip-histogram increment is delayed and its sized stamp stays provisional; opCost basis still resolves correctly via bestCost fallback.",
+    "P3's epoch fence only protects states saved AFTER the patch (legacy states deliberately load epoch=0), so a pre-patch stale-state resurrection remains unfenced - the documented zero-live-behavior-change tradeoff, acceptable."
+  ],
+  "artifacts": {
+    "indep_check": "verify/patches-0/indep_check.py",
+    "replay_rerun": "verify/patches-0/run/replay/replay_results.json (byte-equal to shipped)",
+    "diff_chain_run": "verify/patches-0/run/bot/",
+    "stage_selftests": "verify/patches-0/run/st/"
+  }
+}

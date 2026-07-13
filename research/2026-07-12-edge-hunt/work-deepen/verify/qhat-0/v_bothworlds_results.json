@@ -1,0 +1,222 @@
+{
+ "both_worlds": {
+  "a_current": {
+   "base_test": 1270.44,
+   "stress_test": 740.42,
+   "beats_current_base": false,
+   "beats_current_stress": false,
+   "both": null,
+   "qmax_lo": 0.5224,
+   "qmax_hi": 0.5357
+  },
+  "b_spec": {
+   "base_test": 1749.11,
+   "stress_test": 590.67,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.541,
+   "qmax_hi": 0.5277
+  },
+  "hybrid_cost_M200": {
+   "base_test": 1483.83,
+   "stress_test": 808.62,
+   "beats_current_base": true,
+   "beats_current_stress": true,
+   "both": true,
+   "qmax_lo": 0.5277,
+   "qmax_hi": 0.541
+  },
+  "cost_M200_seedled": {
+   "base_test": 1629.37,
+   "stress_test": 862.17,
+   "beats_current_base": true,
+   "beats_current_stress": true,
+   "both": true,
+   "qmax_lo": 0.5305,
+   "qmax_hi": 0.5428
+  },
+  "cost_M400_seedmean": {
+   "base_test": 1114.3,
+   "stress_test": 672.77,
+   "beats_current_base": false,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5186,
+   "qmax_hi": 0.5331
+  },
+  "c_M50_neutral": {
+   "base_test": 2346.97,
+   "stress_test": 631.26,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5596,
+   "qmax_hi": 0.5452
+  },
+  "c_M50_informed": {
+   "base_test": 2630.42,
+   "stress_test": 667.99,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.572,
+   "qmax_hi": 0.5585
+  },
+  "c_M100_neutral": {
+   "base_test": 2122.67,
+   "stress_test": 623.31,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5481,
+   "qmax_hi": 0.5385
+  },
+  "c_M100_informed": {
+   "base_test": 2618.27,
+   "stress_test": 692.26,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5634,
+   "qmax_hi": 0.5513
+  },
+  "c_M200_neutral": {
+   "base_test": 1844.52,
+   "stress_test": 610.9,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5426,
+   "qmax_hi": 0.5306
+  },
+  "c_M200_informed": {
+   "base_test": 2595.35,
+   "stress_test": 732.95,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5553,
+   "qmax_hi": 0.5476
+  },
+  "c_M400_neutral": {
+   "base_test": 1510.54,
+   "stress_test": 592.91,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5354,
+   "qmax_hi": 0.5226
+  },
+  "c_M400_informed": {
+   "base_test": 2559.78,
+   "stress_test": 792.5,
+   "beats_current_base": true,
+   "beats_current_stress": true,
+   "both": true,
+   "qmax_lo": 0.5491,
+   "qmax_hi": 0.545
+  },
+  "d_win10": {
+   "base_test": 1546.59,
+   "stress_test": 602.47,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5467,
+   "qmax_hi": 0.5268
+  },
+  "d_winInf": {
+   "base_test": 1947.84,
+   "stress_test": 613.39,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.541,
+   "qmax_hi": 0.5329
+  },
+  "d_decay7": {
+   "base_test": 1410.81,
+   "stress_test": 592.07,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5361,
+   "qmax_hi": 0.5213
+  },
+  "d_decay14": {
+   "base_test": 1644.45,
+   "stress_test": 602.14,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5395,
+   "qmax_hi": 0.526
+  },
+  "e_shrink100": {
+   "base_test": 2619.86,
+   "stress_test": 632.48,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5768,
+   "qmax_hi": 0.5708
+  },
+  "e_shrink200": {
+   "base_test": 2596.54,
+   "stress_test": 626.62,
+   "beats_current_base": true,
+   "beats_current_stress": false,
+   "both": false,
+   "qmax_lo": 0.5727,
+   "qmax_hi": 0.5683
+  }
+ },
+ "both_worlds_winners": [
+  "hybrid_cost_M200",
+  "cost_M200_seedled",
+  "c_M400_informed"
+ ],
+ "mc_check": {
+  "a_current": {
+   "train": {
+    "mean": 3022.5,
+    "med": 2552.7
+   },
+   "test": {
+    "mean": 1609.3,
+    "med": 1275.8
+   }
+  },
+  "b_spec": {
+   "train": {
+    "mean": 4003.3,
+    "med": 3515.2
+   },
+   "test": {
+    "mean": 2131.1,
+    "med": 1583.0
+   }
+  },
+  "c_M50_informed": {
+   "train": {
+    "mean": 9165.8,
+    "med": 7530.3
+   },
+   "test": {
+    "mean": 3097.2,
+    "med": 2348.8
+   }
+  },
+  "hybrid_cost_M200": {
+   "train": {
+    "mean": 3787.8,
+    "med": 2766.9
+   },
+   "test": {
+    "mean": 1916.5,
+    "med": 1403.0
+   }
+  }
+ }
+}

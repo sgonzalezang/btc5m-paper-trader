@@ -1,0 +1,48 @@
+{
+ "unit": "wave-2 DEEPENING / params",
+ "lens": "selection (K vs claims; cliff robustness via block-boot + adjacent-cell agreement; window fill-model optimism)",
+ "verdict": "CONFIRMED",
+ "method": "Independent recomputation from signals_60d.json with own selection code, own 1h-block bootstrap (B=4000, fixed integer seeds), plus raw-data recomputation of every cap/window/task2 number from state_extract.json and trades_unified.json, plus source checks of the wave-1 micro inputs (a1/a5/F3).",
+ "reproduced_exactly": {
+  "frozen_cell": "TRAIN n=2015 q_xt=.5408 ev+3.84c $93.07/d mid; TEST n=787 q_xt=.5700 ev+6.76c $163.44/d mid — exact",
+  "consistency_2_rows": "the 2 recomputed-only rows are t0 1781244600 and 1781599200, trig_move=-0.12 after 4dp rounding with dataset trigger=false — explanation verified verbatim",
+  "additivity_P3": "TRAIN point deltas eff6=0 -0.82, cnt12=8 -1.01, sum -1.83, joint -1.85, interaction -0.02 — exact",
+  "cap_sweep": "avail_mult refill .714/.774/.893/1.0 and no-refill .333/.472/.750/1.0; ev q-flat 15.24/13.44/10.30/7.89c; ties-as-loss pole 10.46->3.11c — exact from raw book",
+  "implicit_caps": "f>0 implicit first-fill ask cap .47 now (qlo .5068), .46 post-R8 (qlo .4954), .53 at the .56 qhat ceiling — verified by direct evaluation of the sizer arithmetic",
+  "task2_counts": "0/36 book records and 0/26 flagship fills above .47 ask sized; book holds 21 asks >.47, all f-skipped; f_nonpos cohort n=21 q=.4286 EV -9.99c; impulse50 >.47 n=20/34 realized -12.87c vs -7.82c all — all exact",
+  "window": "n=77 pooled first-fill entrySec, p50=10.5s, frac<=15/30/45s = .662/.922/.974; flagship n=26 max 32.7s frac .423/.885/1.0 — exact",
+  "wave1_inputs": "micro F3 combined -4.45c perm p=.751; a5 late-only q_cf=.5484; pooled 45s+ bin -3.47c n=814 — all present in wave-1 artifacts as cited"
+ },
+ "boot_reproduction_own_seeds_B4000": {
+  "revThr_.08_TEST": {"theirs": [-4.47, -0.40], "mine": [-4.53, -0.37], "p_le0": 0.974},
+  "revThr_.10_TEST": {"theirs": [-2.99, 0.22], "mine": [-2.99, 0.18], "p_le0": 0.926},
+  "eff6_0_TEST": {"theirs": [-2.57, -0.26], "mine": [-2.53, -0.27], "p_le0": 0.975},
+  "eff6_0_TRAIN": {"theirs": [-1.50, -0.12], "mine": [-1.51, -0.13], "p_le0": 0.979},
+  "eff6_.05_TEST": {"theirs": [-1.85, -0.38], "mine": [-1.89, -0.38], "p_le0": 0.991},
+  "cnt12_8_TRAIN": {"theirs": [-1.82, -0.16], "mine": [-1.82, -0.20], "p_le0": 0.983},
+  "cnt12_3_TEST": {"theirs_p": 0.105, "mine": [-0.59, 4.46], "p_le0": 0.109, "point": 1.91},
+  "rescue_r8c4_TEST": {"theirs": [-4.87, -0.06], "mine": [-4.75, -0.03], "p_le0": 0.952},
+  "note": "their per-cell seeds derive from python hash() (salt-randomized) so their exact CIs are not re-runnable; magnitudes stable to ~0.1c under independent seeds and B=4000 — no claim moves"
+ },
+ "adjacent_cell_agreement": {
+  "revThr_cliff": "8bps TEST-sig; adjacent 10bps directionally negative (point -1.39c, p_le0=.926) with same fee-dead marginal mass (q_xt .5145 vs .5125) — cliff is not a one-cell spike",
+  "eff6_cliff": "0 and .05 BOTH TEST-significant with adverse marginal q (.463/.40) — two-cell agreement, strongest cliff",
+  "cnt12_cliff": "8 is TRAIN-only-significant; adjacent 7 TRAIN negative but n.s. ([-1.12,.16]); TEST flat at both. Weakest of the three — correctly labeled TRAIN-significant in the claim and 'PLATEAU (5-7)' in verdicts.json; supports freezing, would NOT support any action"
+ },
+ "corrections": [
+  "verdicts.json '.49 rejected: cost_of(.49+slip)=.5075' — arithmetic slip: cost of a .49-ask fill (p=.50) is .5175; .5075 is the no-slip cost_of(.49). Conclusion unchanged (still >= .50, inside the R2 dead zone; the slip strengthens it).",
+  "window avail at 45s = .974 not 1.0 because 2 of 77 recorded entrySec exceed 45s (max 45.2s, execution-timestamp lag on a window-censored population) — '45s captures 97.4% of first fills' is a mild misdescription of its own denominator; cosmetic.",
+  "sweep1d marginal added/removed subsets are computed against the 2804-row recomputed frozen ids while cell metrics use the 2802-row dataset frozen — the 2 rounding rows shift TRAIN marginal counts by exactly 2 (e.g. eff6=0 added 302 vs 304); immaterial, root cause identified."
+ ],
+ "caveats_endorsed_or_added": [
+  "cap-sweep r2adj pole (+24.7c at cap .47) applies the calibrated cheap-fill q to refill fills; R4's actual measured refill cohort realized +8.43c — the pole is optimistic even within-table. The no-refill bracket and 'medium' confidence already price this in; treat r2adj as directional only.",
+  "task2's '0/36, 0/26' is true by construction given the implicit .47 cap at penny quotes — it is a consistency audit, not independent evidence; the operative content (cap behaviorally null today, binds only on upward qhat drift) is correct and verified.",
+  "the pooled 45s+ ledger bin (-3.47c, n=814) cited against window extension is 98% momentum-family fills (mom_family n=798/814) — legitimate as an adverse bracket input, weak as a contrarian-specific estimate; the unit's [-15,+2]c bracket and 'logging fix first' action absorb this.",
+  "none of the cliff p-values survive Bonferroni over K=26 candle cells individually — irrelevant to the verdict since nothing is promoted; cliffs only defend the frozen point."
+ ],
+ "K_accounting_check": "1D: 4+5+5=14 non-frozen cells (verified); 2D: 3 grids x (9-1-4)=12 new (ALREADY_1D bookkeeping verified); modeled 8+1+5=14; K_total=40 as claimed; no promoted cell",
+ "artifacts": [
+  "work-deepen/verify/params-1/verify_sweeps.py", "work-deepen/verify/params-1/verify_sweeps.json",
+  "work-deepen/verify/params-1/verify_capwin.py", "work-deepen/verify/params-1/verify_capwin.json"
+ ]
+}
