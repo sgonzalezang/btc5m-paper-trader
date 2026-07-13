@@ -916,6 +916,8 @@ class Bot:
             rec["f50"] = "fill"
             self.log(f"[FADE50] FADE {rec['side']}-move -> BUY {opp.upper()} @ {entry*100:.0f}c "
                      f"${spent:.0f} fee ${fee:.2f} (leader ask {rec['ask1']*100:.0f}c{', ran' if ranup else ''})")
+            self._emit_order("fade50", opp, otok, bopp.get("ask"),
+                             round(rec["drift"] / 100.0, 4), tr["slug"], rec["t0"], t1)
         except Exception as e:
             self.log(f"fade50 enter error: {e}")
 
@@ -972,6 +974,8 @@ class Bot:
                      f"${spent:.0f} fee ${fee:.2f} (re-poll fill, first ask {rec['ask1']*100:.0f}c) "
                      f"+{tr['entrySec']}s into interval")
             self.emit_leader_decision(rec, tr)
+            self._emit_order("leader50", rec["side"], rec.get("tok"), rec.get("ask2"),
+                             round(rec["drift"] / 100.0, 4), tr["slug"], rec["t0"], t1)
         except Exception as e:
             self.log(f"leader50 enter error: {e}")
 
@@ -1012,7 +1016,7 @@ class Bot:
             rec = dict(t0=m["t0"], t1=m.get("t1"), slug=m.get("slug"), side=side, drift=round(drift_bps, 2),
                        sec=max(0, now_s_ - m["t0"]), ask1=q["ask"], bid1=q.get("bid"),
                        top1=(round(q["top"], 2) if q.get("top") is not None else None),
-                       at1=q["at"], ask2=None, bid2=None, dtMs=None, win=None, oppTok=opp_tok)
+                       at1=q["at"], ask2=None, bid2=None, dtMs=None, win=None, tok=tok, oppTok=opp_tok)
             self.ldr["book"].append(rec)
             self.ldr["n"] = self.ldr.get("n", 0) + 1
             del self.ldr["book"][:-LEADER_KEEP]
@@ -1490,6 +1494,35 @@ class Bot:
             except Exception as e:
                 self.log(f"leader bridge webhook error: {e}")
         self.log(log_tag)
+
+    def _emit_order(self, eid, side, tok, ask, drift, slug, t0, t1):
+        """Orderable signal for an EXTERNAL engine (leader50/fade50) at its fill.
+        Same schema/HMAC as emit_signal, so the executor treats it as a real order
+        candidate. Only fires if eid is in sig_engines (bot-side gate); the
+        executor's /btc engines picker + LIVE switch are the real on/off, and it
+        stays SHADOW until the owner enables LIVE. One per (eid,t0); signals.log
+        transport only (never clobbers the impulse signal.json order channel)."""
+        if eid not in self.sig_engines or not tok or ask is None: return
+        key = f"_ord-{eid}-{t0}"
+        if self.sig_last.get(key): return
+        self.sig_last[key] = True
+        now = now_ms()
+        cap = ENGINE_CFG[eid].get("fadeMax") or ENGINE_CFG[eid].get("revEntryMax") or self.prof().get("maxAsk", 0.66)
+        sig = dict(v=1, signalId=f"{eid}-{t0}", engine=eid, emittedAt=now,
+                   asset=self.st["asset"], slug=slug or f"btc-updown-5m-{t0}", t0=t0, t1=t1,
+                   secLeft=max(0, int(t1 - now / 1000)), side=side, tokenId=tok,
+                   ask=ask, bid=None, limitCap=cap, driftPct=drift, passCount=1, need=1)
+        if self.sig_secret:
+            canon = json.dumps(sig, sort_keys=True, separators=(",", ":"))
+            sig["hmac"] = hmac.new(self.sig_secret.encode(), canon.encode(), hashlib.sha256).hexdigest()[:32]
+        try:
+            if self.sig_file:
+                log_path = os.path.join(os.path.dirname(self.sig_file), "signals.log")
+                with open(log_path, "a") as lf:
+                    lf.write(json.dumps(sig, separators=(",", ":")) + "\n")
+        except Exception as e:
+            self.log(f"{eid} order emit error: {e}")
+        self.log(f"[{eid.upper()}] ORDER signal {side.upper()} @ {ask*100:.0f}c -> bridge (executor gates on/off + LIVE)")
 
     def emit_leader_decision(self, rec, tr):
         """ONE combined entry ping for a leader_v1 signal, fired once the re-poll
@@ -2493,6 +2526,25 @@ def selftest():
        and gd.get("fadeUp") == 1 and gd.get("leaderRan") == 0 and lr.get("f50") == "fill",
        "fade50: buys the OPPOSITE (down) side of an up-move at the real opposite book ~40c, tagged fadeUp",
        f"side={fd and fd['side']} entry={fd and fd['entry']} f50={lr.get('f50')}")
+    # leader50 + fade50 emit ORDERABLE signals (SHADOW-mode executor logs them) when
+    # in sig_engines — engine tag, no shadow kind, one per (eid,t0), signals.log only
+    bord = mkldr(); bord.sig_engines = ["leader50", "fade50"]
+    bslog = os.path.join(tempfile.gettempdir(), "btc5m_ord_sig.json"); bord.sig_file = bslog
+    bordlog = os.path.join(os.path.dirname(bslog), "signals.log")
+    if os.path.exists(bordlog): os.remove(bordlog)
+    bord.sig_secret = "k"; bord._leader_tick(now)
+    olines = [json.loads(l) for l in open(bordlog).read().splitlines()]
+    lo = next((x for x in olines if x.get("engine") == "leader50"), None)
+    fo = next((x for x in olines if x.get("engine") == "fade50"), None)
+    ok(lo and lo.get("kind") is None and lo["side"] == "up" and lo["tokenId"] == "LU"
+       and lo["signalId"] == f"leader50-{lo['t0']}" and "hmac" in lo
+       and fo and fo.get("kind") is None and fo["side"] == "down" and fo["tokenId"] == "LD",
+       "leader50/fade50 emit ORDERABLE signals (engine-tagged, no shadow kind) to the bridge",
+       f"leader50={bool(lo)} fade50={bool(fo)}")
+    ok(len([x for x in olines if x.get("engine") == "leader50"]) == 1,
+       "order signal is one-shot per (engine,t0)")
+    os.remove(bordlog)
+    if os.path.exists(bslog): os.remove(bslog)
     bl._leader_tick(now + 4000)                              # same interval again: one record per t0
     ok(len(bl.ldr["book"]) == 1 and len(bl.trades("leader50")) == 1 and len(bl.trades("fade50")) == 1,
        "P5: one leader record per interval (dedupe) — one leader50 + one fade50 trade")
