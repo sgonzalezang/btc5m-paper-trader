@@ -287,7 +287,11 @@ function leaderPanel(st){
     // provisional (feed proxy) outcomes wear a * until the oracle confirms them
     const prov=r.win!=null&&r.winBy!=="oracle"?'<span class="prov" title="provisional — from the price-feed proxy, awaiting Polymarket oracle confirmation">*</span>':"";
     const res=r.win==null?'<span class="tag open">…</span>':r.win===1?'<span class="tag win">WOULD WIN</span>'+prov:'<span class="tag loss">WOULD LOSE</span>'+prov;
-    return `<div><span class="mut">${iv}</span> ${side} <span class="mut">drift ${r.drift}bps · +${r.sec}s ·</span> ask ${(r.ask1*100).toFixed(0)}c ${a2} ${res}</div>`;
+    // for MISSED signals (leader50 didn't fill), show the P&L a faster fill at
+    // the pre-run ask would have booked — so the true rate isn't fill-limited
+    const wb=(r.l50&&r.l50!=="fill"&&typeof r.wbPnl==="number")
+      ?` <span class="mut" title="what a faster fill at the pre-run ask (${(r.wbEntry*100||0).toFixed(0)}c) would have booked — leader50 missed this one">· would-be <b style="color:${r.wbPnl>=0?"var(--up)":"var(--dn)"}">${r.wbPnl>=0?"+":"−"}$${Math.abs(r.wbPnl).toFixed(2)}</b></span>`:"";
+    return `<div><span class="mut">${iv}</span> ${side} <span class="mut">drift ${r.drift}bps · +${r.sec}s ·</span> ask ${(r.ask1*100).toFixed(0)}c ${a2} ${res}${wb}</div>`;
   }).join('');
   return '<h3 class="sec">Leader v1 — 👻 $0-stake shadow <span style="font-weight:400;color:var(--mut)">(fill-conformance probe)</span></h3>'
     +'<div class="mut" style="font-size:12px;margin:-2px 0 4px">Measurement, not a book: when BTC drifts 4–8bps and the drift-leader side quotes 55–66¢ on the real book, it records the ask, <b>re-polls ~2.5s later</b> to see if that quote was real (the R3 stale-ask question), and pings Discord as a <b>shadow alert — never an order, $0 staked</b>. Its staked twin <b style="color:#c07bff">Leader $50</b> paper-trades every qualifying moment at the <b>re-polled</b> price (no fill if the quote ran) — its card and chart line above show the honest returns.</div>'

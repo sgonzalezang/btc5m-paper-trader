@@ -1490,6 +1490,37 @@ class Bot:
         self._emit_bridge(sig, f"[LEADER50] {tr.get('result','?').upper()} {tr['side'].upper()} "
                                f"{'+' if pnl>=0 else ''}${pnl:.2f} (oracle) → bridge")
 
+    def emit_leader_wouldbe(self, rec):
+        """WOULD-BE result ping for a leader_v1 signal leader50 did NOT fill
+        (quote ran / late / busy). Oracle-confirmed win/loss, plus the $50 P&L a
+        FASTER executor would have booked at the first-poll ask (rec.ask1 + slip)
+        — the pre-run quote, i.e. what we'd capture if we could trade faster.
+        This keeps the true hit-rate un-limited by our current fill latency."""
+        if "leader_v1" not in self.sig_engines or rec.get("win") is None: return
+        slip = clampf(self.st["slip"], 0, 5, 1) / 100
+        entry = min(0.99, round(rec["ask1"] + slip, 4))
+        shares = round(50.0 / entry, 4)
+        fee = taker_fee(shares, entry)
+        won = rec.get("win") == 1
+        pnl = round((shares - 50.0 if won else -50.0) - fee - GAS_USD, 2)
+        rec["wbPnl"], rec["wbEntry"] = pnl, entry             # for the website panel
+        now = now_ms()
+        sig = dict(v=1, kind="shadow_wouldbe", orderable=False,
+                   signalId=f"leader_v1-wouldbe-{rec['t0']}", engine="leader_v1", emittedAt=now,
+                   asset=self.st["asset"], slug=rec.get("slug") or f"btc-updown-5m-{rec['t0']}",
+                   t0=rec["t0"], t1=rec.get("t1"), side=rec["side"], result=("win" if won else "loss"),
+                   wbPnl=pnl, wbEntry=entry, miss=rec.get("l50"), ask1=rec["ask1"], ask2=rec.get("ask2"),
+                   note="would-be result of a signal leader50 did not fill (faster-fill P&L at the pre-run ask)")
+        reason = {"ran": "quote ran", "late": "re-poll too late", "busy": "already in a position"}.get(rec.get("l50"), "no fill")
+        emoji = "🟢" if won else "🔴"
+        tail = ("a faster fill at %dc would have WON" % round(entry*100) if won
+                else "a faster fill at %dc would have LOST anyway" % round(entry*100))
+        sig["_body"] = (f"👻📊 **would-be {('WIN' if won else 'LOSS')} {rec['side'].upper()}** "
+                        f"{emoji} {'+' if pnl>=0 else ''}${pnl:.2f} — leader50 missed ({reason}); "
+                        f"{tail} · oracle-confirmed | `{sig['slug']}`")
+        self._emit_bridge(sig, f"[LEADER50] would-be {('WIN' if won else 'LOSS')} {rec['side'].upper()} "
+                               f"{'+' if pnl>=0 else ''}${pnl:.2f} ({rec.get('l50')}, oracle) → bridge")
+
     def manage_open(self, eid, now):
         tr = self.open_trade(eid)
         if not tr: return
@@ -1570,7 +1601,11 @@ class Bot:
         lres = [t for t in self.trades("leader50")
                 if t.get("status") == "settled" and not t.get("provisional")
                 and t.get("result") in ("win", "loss") and not t.get("lpinged")]
-        if not pend and not prov and not lneed and not lres: return
+        # no-fill leader records whose oracle outcome hasn't been would-be-pinged
+        lwb = [r for r in self.ldr.get("book", [])
+               if r.get("winBy") == "oracle" and r.get("win") is not None
+               and r.get("l50") in ("ran", "late", "busy") and not r.get("wbPinged")]
+        if not pend and not prov and not lneed and not lres and not lwb: return
         if now - self.res_at < 8000: return
         self.res_at = now
         cache = {}
@@ -1632,6 +1667,10 @@ class Bot:
         for tr in lres:
             tr["lpinged"] = True
             self.emit_leader_settle(tr)
+        # would-be result ping — for signals leader50 did NOT fill (one-shot)
+        for r in lwb:
+            r["wbPinged"] = True
+            self.emit_leader_wouldbe(r)
 
     # --- market fetch for this tick ---
     def find_market(self, t0):
@@ -2428,6 +2467,27 @@ def selftest():
        and bset.trades("leader50")[0].get("lpinged") is True,
        "leader50: oracle-confirmed settle emits a WIN/LOSS result ping, one-shot",
        f"n={len(lls3)} body={lls3[0]['_body'][:40] if lls3 else None}")
+    os.remove(slog)
+    # would-be ping: a signal leader50 did NOT fill still reports its oracle
+    # win/loss + the $50 P&L a faster fill (at the pre-run ask) would have booked
+    bwb = Bot({}, default_state(A)); bwb.res_at = 0
+    bwb.sig_engines = ["leader_v1"]; bwb.sig_file = sfl; bwb.sig_secret = "testkey"
+    bwb.ldr["book"] = [dict(t0=ns-400, t1=ns-100, slug="btc-updown-5m-wb", side="up",
+                            drift=5.0, sec=10, ask1=0.62, ask2=0.71, dtMs=2500,
+                            l50="ran", win=0, winBy="oracle")]   # up bet, oracle DOWN → would-be LOSS
+    _o3 = (_M2.gamma_by_slug, _M2.parse_event, _M2.winner_of)
+    _M2.gamma_by_slug = lambda s: None; _M2.parse_event = lambda e: e; _M2.winner_of = lambda e: None
+    try:
+        bwb.settle_pending(ns*1000)
+    finally:
+        _M2.gamma_by_slug, _M2.parse_event, _M2.winner_of = _o3
+    wbl = [json.loads(l) for l in open(slog).read().splitlines()]
+    r0 = bwb.ldr["book"][0]
+    ok(len(wbl) == 1 and wbl[0]["kind"] == "shadow_wouldbe" and wbl[0]["result"] == "loss"
+       and wbl[0]["wbPnl"] < 0 and "would-be LOSS" in wbl[0]["_body"] and wbl[0]["miss"] == "ran"
+       and r0.get("wbPinged") is True and r0.get("wbPnl") is not None,
+       "leader50 would-be: a missed signal still pings its oracle win/loss + faster-fill P&L",
+       f"n={len(wbl)} pnl={wbl[0].get('wbPnl') if wbl else None}")
     os.remove(slog)
     if os.path.exists(sfl): os.remove(sfl)
     # 100% resolution: a leader probe record with NO co-interval trade, stuck on
