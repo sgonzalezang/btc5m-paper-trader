@@ -92,9 +92,12 @@ class Sup:
             git("merge", "--ff-only", target)
         except Exception as e:
             log(f"update skipped (tree not fast-forwardable — keeping current code): {e}"); return False
-        # gate the new code on the offline selftest
+        # gate the new code on the offline selftest. Force UTF-8 on the child so
+        # its Unicode output (→ ¼ ·) can't crash under Windows cp1252 when stdout
+        # is a pipe (capture_output) — that false-failed every update and rolled back.
+        _env = dict(os.environ); _env["PYTHONUTF8"] = "1"; _env["PYTHONIOENCODING"] = "utf-8"
         r = subprocess.run((self.py, os.path.join(HERE, "btc5m_bot.py"), "--selftest"),
-                           cwd=HERE, capture_output=True, text=True)
+                           cwd=HERE, capture_output=True, text=True, env=_env)
         if r.returncode != 0:
             log(f"NEW CODE {target[:7]} FAILED selftest — rolling back to {before[:7]}, keeping old code")
             if before: git("reset", "--hard", before)
