@@ -134,7 +134,7 @@
 <header>
   <h1 style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span><span class="b">₿</span> BTC 5m Bot — Live Ledger <span class="b">· read-only</span></span>
     <a href="recap.html" style="margin-left:auto;font-size:13px;font-weight:600;color:var(--btc);text-decoration:none;border:1px solid var(--btc);border-radius:8px;padding:5px 12px;white-space:nowrap">Season recap →</a></h1>
-  <div class="sub">Snapshot published by the headless paper bot · FINAL-DESIGN v3 roster: <b>Impulse v2</b> = fade an isolated ≥12bps prior move (calm hour, efficient last 30min), ≤53¢, first 45s, hold to close, ¼-Kelly sized — the only live arm · <b>Rev v2 ctrl</b> (ungated ≤53¢) and <b>Rev 55c</b> (≤55¢) = zero-risk paired controls for the day-60 gate and cap verdicts · 8 retired engines keep their history but never trade again · simulated, not financial advice</div>
+  <div class="sub" id="roster">Snapshot published by the headless paper bot · FINAL-DESIGN v3 roster · simulated, not financial advice</div>
 </header>
 <div class="wrap">
   <div class="hb" id="hb"><span class="dot" id="dot"></span><b id="hbState">Loading…</b><span class="mut" id="hbMeta"></span></div>
@@ -373,6 +373,21 @@ function eqSeries(st, id){
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
 // floor inherits capless's purple (lg-v/eqvariant classes), band inherits calm's teal (lg-c/eqcalm) — CSS class names kept to avoid churn
 const ENGMETA={impulse_v2:{label:"Impulse v2",lg:"lg-imp",cls:"eqimpulse"},impulse50:{label:"Impulse $50",lg:"lg-i50",cls:"eqimp50"},reversal_v2:{label:"Rev v2 ctrl",lg:"lg-rvv2",cls:"eqrevv2"},loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},value:{label:"value",lg:"lg-va",cls:"eqvalue"},fade:{label:"fade",lg:"lg-f",cls:"eqfade"},reversal:{label:"reversal",lg:"lg-rv",cls:"eqreversal"},reversal2:{label:"reversal2",lg:"lg-rv2",cls:"eqreversal2"},latentfire:{label:"Latent Fire",lg:"lg-lf",cls:"eqlatentfire"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"},leader50:{label:"Leader $50",lg:"lg-l50",cls:"eqleader50"}};
+// One short header blurb PER engine — the single source for the roster line.
+// PROCESS for adding OR retiring an engine (do all four): (1) add/edit its
+// ENGINE_DESC blurb here, (2) its detailed card line in needLbl(), (3) ENGMETA
+// + ENGS_GROUPED for chart colour/order, (4) the bot's ENGINE_CFG label+retired.
+// The header auto-lists only ACTIVE engines and folds the retired ones into a
+// count, so retired descriptions live only on their folded cards.
+const ENGINE_DESC={
+  impulse_v2:"flagship — fade an isolated ≥12bps spike, ≤53¢, first 45s, ¼-Kelly (only sized arm)",
+  impulse50:"its flat-$50 twin (live sizing A/B)",
+  reversal_v2:"ungated ≤53¢ control (day-60 gate verdict)",
+  reversal:"ungated ≤55¢ control (entry-cap verdict)",
+  reversal2:"reversal + gamma fallback",
+  leader50:"leader_v1's staked $50 twin — fills at the re-poll",
+  loose:"momentum 7/10",floor:"loose + ≥0.02% move gate",band:"floor + refuse >0.04% movers",
+  value:"ask < fair value",fade:"fades loose",strict:"10/10",latentfire:"reversal only in chop"};
 const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
 // --- engine display order -----------------------------------------------------
 // "grouped" = the pedagogical layout (ablation pairs, read 2-per-row);
@@ -599,6 +614,13 @@ function draw(st){
   const mustTxt=must.length?` + ${mustAbbr} required`:"";
   $("hbMeta").innerHTML=`last update ${ago(st.heartbeat)} · <span id="cd"></span> · ${esc(st.asset||"BTC")} · loose ${st.loosePass}/10${esc(mustTxt)} · $${st.stake} stake on $${(st.bank!=null?st.bank.toLocaleString():"—")} bank · hedge ${st.hedgeOn?"on":"off"} · real fills, fees paid $${feesTot.toFixed(2)}`;
   tickCd();
+  // Roster line: built from the ACTIVE engines (ENGINE_DESC) so new engines
+  // appear and retired ones drop to a folded count — descriptions self-maintain.
+  const rEng=(st.engineCfg||{}), rAct=activeList(st), rRet=engList(st).filter(e=>(rEng[e]||{}).retired);
+  const rBlurbs=rAct.map(e=>`<b>${(ENGMETA[e]||{}).label||e}</b> ${ENGINE_DESC[e]||""}`.trim()).join(" · ");
+  $("roster").innerHTML=`Live from the headless paper bot · FINAL-DESIGN v3: ${rBlurbs}`
+    +(rRet.length?` · <span class="mut">${rRet.length} retired (history kept, folded below)</span>`:"")
+    +` · simulated, not financial advice`;
   const eng=st.btc&&st.btc.engines||{};
   const HUE={impulse_v2:"#ff8f2b",impulse50:"#ffd166",reversal_v2:"#7bd88f",loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",value:"#8bc34a",fade:"#e0559a",reversal:"#26c6da",reversal2:"#facc15",latentfire:"#ff5252",strict:"var(--btc)",leader50:"#c07bff"};
   const LABEL={impulse_v2:"Impulse v2",impulse50:"Impulse $50",reversal_v2:"Rev v2 ctrl",loose:"Loose",floor:"Floor",band:"Band",value:"Value",fade:"Fade",reversal:"Rev 55c",reversal2:"Reversal2",latentfire:"Latent Fire",strict:"Strict",leader50:"Leader $50"};
