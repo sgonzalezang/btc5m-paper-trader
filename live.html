@@ -837,11 +837,18 @@ function drawBtcBar(){
   el.className="btcbar";
   const slug="btc-updown-5m-"+t0, open=strikeOf(t0), d=(open!=null)?px-open:null;
   const left=Math.max(0,(t0+300)-now), mmss=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");
-  const side = d==null?"" : d>0?`<b class="up">▲ +$${d.toFixed(2)} above → Up leads</b>`
-                            : d<0?`<b class="dn">▼ −$${Math.abs(d).toFixed(2)} below → Down leads</b>`
-                            : `<span class="mut">right at the line</span>`;
+  // Dead-zone guard (matches verdictOf): our reference is Coinbase but Polymarket
+  // settles on the Chainlink BTC/USD stream. Within clearMargin (~3bps) the two
+  // feeds' basis can flip the sign, so DON'T show a confident leader there — defer
+  // to the oracle, exactly like the closed-window verdict does. (Verified: this
+  // removes 19/19 wrong-confident live calls; every disagreement was <3bps.)
+  const tooClose = d!=null && open!=null && Math.abs(d)<clearMargin(open);
+  const side = d==null ? ""
+    : tooClose ? `<span class="prov" title="within $${clearMargin(open).toFixed(0)} of the line — this close, the Coinbase price we show and the Chainlink stream Polymarket settles on can disagree on the sign, so no live feed can call it. The oracle decides at close.">≈ too close to call → oracle decides</span>`
+    : d>0 ? `<b class="up">▲ +$${d.toFixed(2)} above → Up leads</b>`
+          : `<b class="dn">▼ −$${Math.abs(d).toFixed(2)} below → Down leads</b>`;
   el.innerHTML=`<b class="btcpx">₿ ${usd(px)}</b>`
-    +`<span class="mut">${esc(src)} · <a class="pml" target="_blank" rel="noopener" href="https://polymarket.com/event/${slug}" title="BTC must close above this for Up, below it for Down — fixed for the whole 5-min window">price to beat</a></span> `
+    +`<span class="mut">${esc(src)} ≈ proxy · <a class="pml" target="_blank" rel="noopener" href="https://polymarket.com/event/${slug}" title="Reference to beat: BTC ≥ this at close settles Up, below settles Down (ties → Up). This number is our ${esc(src)} feed and is approximate — Polymarket actually settles on the Chainlink BTC/USD data stream, which differs by a few dollars. Fixed for the whole 5-min window.">price to beat</a></span> `
     +`<b class="btcline">${open!=null?usd(open):"—"}</b> ${side}`
     +`<span class="mut"> · ${mmss} to close${live?"":' · <b class="dn">feed blocked</b>'}</span>`;
 }
