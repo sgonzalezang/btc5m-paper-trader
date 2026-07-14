@@ -40,10 +40,16 @@ this repo** — see "Coordination workflow" at the bottom.
   Repo at `C:\btc5m-bot`. Runs under Scheduled Task **`BTC5mBot`** (AtStartup, SYSTEM,
   highest, restart-on-failure, single-instance). Task action:
   `python supervisor.py --host virginia --python "<py>" --git-bin "<git>"`.
-- **mac** — dev machine + live-signal side (`--signal-engines`, `signal.env`). LaunchAgent.
+- **mac** — dev machine + live-signal side (`--signal-engines`, `signal.env`). LaunchAgent
+  `com.btc5m.supervisor` (source + install/enable/disable steps in `ops/mac/`). Runs
+  `supervisor.py --host mac`; stands down while the flag says `virginia`. Kept installed
+  only around swap windows, not 24/7.
 
 ## Deploy runbook
 - **Normal change:** push to `main`. Both supervisors pull within ~30s and self-reload. Done.
+- **Docs / site / HANDOFF-only push:** the supervisor fast-forwards the tree but does **NOT**
+  restart the bot (reload triggers only on `bot/*.py` changes). So coordinating through
+  `ops/HANDOFF.md` is free — a handoff push never bounces the live bot.
 - **Changing `supervisor.py`:** the *running* supervisor is still the old code, so after
   pushing do ONE manual restart per host. On Virginia:
   `Stop-ScheduledTask -TaskName BTC5mBot` → kill any stray `btc5m_bot.py`/`supervisor.py`

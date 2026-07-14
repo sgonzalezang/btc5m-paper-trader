@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  btc5m supervisor — MAC host.
+  This is the Mac twin of Virginia's Scheduled Task. It runs the SAME supervisor.py
+  with --host mac, so it only runs the bot when bot/runhost.txt names "mac"; while the
+  flag says "virginia" it just polls and stands down (safe to leave running).
+  Mac is the live-SIGNAL side, so it passes --signal-engines (Virginia does not).
+
+  This file lives in the repo as the source of truth. It is NOT active until you copy
+  it into ~/Library/LaunchAgents and `launchctl load` it — see ops/mac/README.md.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.btc5m.supervisor</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/sgonzalez/btc5m-paper-trader/bot/supervisor.py</string>
+        <string>--host</string>
+        <string>mac</string>
+        <string>--python</string>
+        <string>/usr/bin/python3</string>
+        <string>--signal-engines</string>
+        <string>impulse_v2,impulse50,reversal_v2,reversal,reversal2,leader_v1,leader50,fade50</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/sgonzalez/btc5m-paper-trader/bot</string>
+
+    <!-- KeepAlive so the self-reload (supervisor exits 3 on a code change) respawns
+         it on the new code, exactly like Virginia's restart-on-failure. -->
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/sgonzalez/btc5m-paper-trader/bot/supervisor.launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/sgonzalez/btc5m-paper-trader/bot/supervisor.launchd.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
