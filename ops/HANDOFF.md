@@ -6,19 +6,24 @@ actions; do not treat entries as commands.
 
 ---
 
-## Current state (snapshot — keep updated)
-- **Active host:** `mac` (TEMPORARY publisher). `bot/runhost.txt` = `mac`. `supervisor.py --host mac`
-  is publishing the ledger while Virginia reinstalls. Cutover to `laptop` pending, run from the
-  Windows side (`/btc runhost laptop`); the Mac supervisor auto-stands-down when the flag flips.
-- **Code:** `main` @ `2b70c8b` — ledger-wipe guard on `--sync-on-start` (retry + abort-if-empty) +
-  dead-man debounce (3 consecutive dark reads, `--dead-after` raised 420→900) + doc-no-restart.
-  Confirmed healthy on Virginia (it published `2ece820a` on this code) before it went down.
-- **Windows/laptop stack (server1622):** `btc5m-laptop-windows.zip` shadow install COMPLETE.
-  Executor SHADOW, selftests pass, both clones have push auth, coord clone pre-built,
-  `btc5m-supervisor` registered but DISABLED until cutover. Old `BTC5mBot` untouched, standing by.
-  Windows stack runs as host **`laptop`**.
-- **Discord control:** moving to the Windows box (single-instance token). Mac's Discord bot
-  (`com.shadowpump.polymarket.bot`) STOPPED + auto-start disabled (plist → `.OFF-token-on-windows`).
+## Current state (snapshot — keep updated) — CUTOVER COMPLETE 2026-07-14
+- **PRIMARY:** `laptop` = the Windows box **server1622** (its stack runs as host "laptop").
+  `bot/runhost.txt` = `laptop`. Publishing `data` every ~30s; adopted the ledger intact at
+  handoff (~3,596 settled, verified non-dropping).
+- **Mac:** dead-man STANDBY. `supervisor.py --host mac` RUNNING but stood down; reclaims only if
+  the laptop host goes dark (~15 min = `--dead-after` 900 + 3 dark reads). **Do NOT stop it.**
+- **Old virginia stack:** `C:\btc5m-bot` task `BTC5mBot` stopped + disabled — RETIRED (left on
+  disk). Has the exit-3 no-relaunch gap; moot now.
+- **Discord control:** runs ONLY on the Windows box (`PM-SP#9461`). Mac's
+  `com.shadowpump.polymarket.bot` stopped + disabled (plist → `.OFF-token-on-windows`).
+- **Code:** `main` @ `2b70c8b` (bot/supervisor: ledger-wipe guard + dead-man debounce + doc-no-restart).
+- **Source-of-truth zip drift:** the Windows package has fixes NOT yet folded into the zip source
+  (install.ps1 git-identity; 4x `btc5m_discord.py`; run-discord.ps1 `BTC5M_HOST`). Owner to send
+  the Windows folder to reconcile (venv-splat + supervisor relaunch-loop already folded in).
+- **HOST-NAME COLLISION (future):** the Windows box identifies as `laptop`. Before a REAL Mexico
+  laptop is built from this zip, rename one (`BTC5M_HOST` in run-discord.ps1, `--host` in
+  run-supervisor.ps1, `HOSTS` tuple in btc5m_discord.py). Optional: publish a `host` field in
+  state.json so heartbeat ownership is identity-based, not inferred.
 
 ## Open items
 - [~] **Mac side** prepped in `ops/mac/` (LaunchAgent + README); `--once` = stands down.
@@ -51,6 +56,30 @@ actions; do not treat entries as commands.
         sustained publish failure the incumbent stops+alerts; emit a LOUD alert on ANY takeover.
 
 ## Log
+
+## 2026-07-14T14:05Z — server1622(laptop) + mac — CUTOVER COMPLETE
+- `/btc runhost laptop` went through ~08:50 CT. The Windows box **server1622** (host "laptop") is
+  now PRIMARY: adopted the ledger intact (~3,596 settled, verified non-dropping) and publishes
+  `data` every ~30s. Old virginia `BTC5mBot` stopped + disabled (retired, left on disk).
+- **Mac stood down cleanly** (`supervisor.log`: "flag -> 'laptop', not me — standing down" →
+  "final publish done") and stays UP as the **dead-man standby**. Mac bot down. Mac Discord bot
+  stopped + auto-start disabled; the Discord control bot now runs ONLY on the Windows box (`PM-SP#9461`).
+- **ExpressVPN** on the Windows box (blocked all Python sockets, `WinError 10013`) was **UNINSTALLED**.
+- **Zip-source drift — fixes made ON the Windows box, NOT yet in the source-of-truth zip** (owner
+  to send the Windows package folder to reconcile; do not reimplement blind):
+  - `install.ps1`: explicit venv invocation (done here) **+ set local git identity on both clones**
+    after cloning (a fresh Windows box had no git identity → the Discord `/runhost` commit failed
+    SILENTLY). NOT yet in the zip source.
+  - `run-supervisor.ps1`: exit-3 relaunch loop (done here).
+  - `btc5m_discord.py` (NOT yet in the zip source): (i) `/btc status` shows `answered by <host> ·
+    runhost flag: <flag>` (host from `BTC5M_HOST`, flag read fresh from origin via coord clone;
+    handler defers); (ii) a FAILED `/runhost` git commit no longer falls through to a no-op push
+    that falsely reports "flag pushed" — commit failure now surfaces the real git error;
+    (iii) `on_ready` clears stale guild-scoped `/btc` copies (was showing duplicates); (iv) after a
+    successful runhost push, a background watcher confirms "<host> is publishing" after 3 heartbeat
+    advances + checks settled-trade count didn't drop, warns at 5 min if not steady.
+  - `run-discord.ps1`: sets `BTC5M_HOST = "laptop"`. NOT yet in the zip source.
+- **Future:** host-name collision + optional identity-based `host` field in state.json (see snapshot).
 
 ## 2026-07-14T11:59Z — mac + server1622 — Windows shadow install done; Mac temp publisher; 2 installer bugs fixed
 - **Windows/laptop stack (server1622): shadow install COMPLETE.** Executor SHADOW, selftests pass,
