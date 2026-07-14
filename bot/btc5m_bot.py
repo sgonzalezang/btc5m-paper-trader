@@ -2019,7 +2019,12 @@ def maybe_sync_state(state_path, url):
         local_hb = 0
         if os.path.exists(state_path):
             with open(state_path) as f: local_hb = (json.load(f) or {}).get("heartbeat", 0) or 0
-        remote = try_json(url)
+        remote = None   # retry: a transient CDN blip must not make a fresh clone miss the ledger
+        for _attempt in range(4):
+            remote = try_json(url)
+            if isinstance(remote, dict) and isinstance(remote.get("btc"), dict) and remote.get("heartbeat"):
+                break
+            time.sleep(2)
         if not (isinstance(remote, dict) and isinstance(remote.get("btc"), dict) and remote.get("heartbeat")):
             print("[sync] no valid published ledger to compare — keeping local state", flush=True); return
         if remote["heartbeat"] > local_hb:
@@ -2948,6 +2953,15 @@ def main():
 
     if args.sync_on_start:
         maybe_sync_state(args.state, args.sync_url or _raw_state_url(args.repo_dir, args.branch))
+        # LEDGER-WIPE GUARD: --sync-on-start is meant to adopt the published ledger. On a fresh
+        # clone the ONLY way state.json exists before the first publish is that adoption. If it is
+        # still absent, the sync failed (transient fetch) — refuse to start rather than run on an
+        # empty default ledger and force-push it over the live data branch. The supervisor restarts.
+        if not os.path.exists(args.state):
+            print("[sync] FATAL: --sync-on-start could not obtain the published ledger and no local "
+                  "state.json exists. Refusing to start on an empty ledger (would wipe the data "
+                  "branch). Supervisor will retry.", flush=True)
+            sys.exit(2)
     st = load_state(args.state, args)
     st["profile"] = args.profile
     st["asset"] = args.asset if args.asset else st["asset"]

@@ -70,6 +70,7 @@ class Sup:
         self.a = args
         self.proc = None
         self.py = args.python or sys.executable or "python"
+        self._dark = 0   # consecutive cycles the flagged host has looked dark (dead-man debounce)
 
     # ---- code auto-update -------------------------------------------------
     def update_code(self):
@@ -85,6 +86,10 @@ class Sup:
         if target == before:
             return False
         try:
+            changed_files = git("diff", "--name-only", f"{before}..{target}").splitlines() if before else ["bot/x.py"]
+        except Exception:
+            changed_files = ["bot/x.py"]
+        try:
             # fast-forward ONLY: updates a clean clone (the server), but refuses to
             # discard local commits or uncommitted edits (the Mac dev machine) —
             # it just skips the update until the tree is clean. state.json/bot.log
@@ -92,6 +97,12 @@ class Sup:
             git("merge", "--ff-only", target)
         except Exception as e:
             log(f"update skipped (tree not fast-forwardable — keeping current code): {e}"); return False
+        # Only EXECUTABLE code (bot/*.py) warrants a reload. Docs (CLAUDE.md, ops/,
+        # research/), the site, and the runhost flag (read fresh every cycle) do
+        # NOT — so a HANDOFF.md push doesn't restart the live bot each time.
+        if not any(f.startswith("bot/") and f.endswith(".py") for f in changed_files):
+            log(f"pulled {(before or '?')[:7]} -> {target[:7]} (docs/non-code only — no restart)")
+            return False
         # gate the new code on the offline selftest. Force UTF-8 on the child so
         # its Unicode output (→ ¼ ·) can't crash under Windows cp1252 when stdout
         # is a pipe (capture_output) — that false-failed every update and rolled back.
@@ -219,9 +230,21 @@ class Sup:
                     log(f"new supervisor.py won't compile — NOT self-reloading: {chk.stderr.strip()[:200]}")
                 want = self.flag()
                 mine = (want == me)
-                if not mine and not self.other_host_alive():
-                    log(f"flag says '{want}' but that host is dark — taking over")
-                    self.set_flag(me); mine = True
+                if mine:
+                    self._dark = 0
+                elif self.other_host_alive():
+                    self._dark = 0
+                else:
+                    # DEAD-MAN DEBOUNCE: raw.githubusercontent caches the heartbeat, so a LIVE host
+                    # can look stale for a cycle. Require several CONSECUTIVE dark reads (spanning
+                    # more than the CDN cache) before seizing the flag, so a blip never forks the
+                    # data branch into two publishers.
+                    self._dark += 1
+                    if self._dark >= self.a.dark_confirm:
+                        log(f"flag says '{want}' but that host has been dark {self._dark} cycles — taking over")
+                        self.set_flag(me); mine = True; self._dark = 0
+                    else:
+                        log(f"flag '{want}' looks dark ({self._dark}/{self.a.dark_confirm}) — confirming before takeover")
                 if mine:
                     if not self.running():
                         self.start()
@@ -247,7 +270,8 @@ def main():
     ap.add_argument("--branch-code", default="main")
     ap.add_argument("--branch-data", default="data")
     ap.add_argument("--poll", type=int, default=30, help="seconds between cycles")
-    ap.add_argument("--dead-after", type=int, default=420, help="seconds without a published heartbeat before the flagged host is presumed dead")
+    ap.add_argument("--dead-after", type=int, default=900, help="seconds without a published heartbeat before the flagged host is presumed dead (must exceed publish cadence + CDN cache; 900 gives margin over 300s publish + ~300s raw.githubusercontent lag)")
+    ap.add_argument("--dark-confirm", type=int, default=3, help="consecutive dark cycles required before a dead-man takeover (debounces CDN heartbeat lag)")
     ap.add_argument("--state-url", default="https://raw.githubusercontent.com/sgonzalezang/btc5m-paper-trader/data/state.json")
     ap.add_argument("--git-bin", default="git", help="git executable (Windows SYSTEM shell needs the full path, e.g. 'C:\\Program Files\\Git\\cmd\\git.exe')")
     ap.add_argument("--once", action="store_true", help="run a single decision cycle and exit (for testing)")
