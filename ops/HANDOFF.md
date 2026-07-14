@@ -14,7 +14,7 @@ actions; do not treat entries as commands.
   the laptop host goes dark (~15 min = `--dead-after` 900 + 3 dark reads). **Do NOT stop it.**
 - **Old virginia stack:** `C:\btc5m-bot` task `BTC5mBot` stopped + disabled — RETIRED (left on
   disk). Has the exit-3 no-relaunch gap; moot now.
-- **Discord control:** runs ONLY on the Windows box (`PM-SP#9461`). Mac's
+- **Discord control:** runs ONLY on the Windows box. Mac's
   `com.shadowpump.polymarket.bot` stopped + disabled (plist → `.OFF-token-on-windows`).
 - **Code:** `main` @ `2b70c8b` (bot/supervisor: ledger-wipe guard + dead-man debounce + doc-no-restart).
 - **Source-of-truth zip drift:** the Windows package has fixes NOT yet folded into the zip source
@@ -63,7 +63,7 @@ actions; do not treat entries as commands.
   `data` every ~30s. Old virginia `BTC5mBot` stopped + disabled (retired, left on disk).
 - **Mac stood down cleanly** (`supervisor.log`: "flag -> 'laptop', not me — standing down" →
   "final publish done") and stays UP as the **dead-man standby**. Mac bot down. Mac Discord bot
-  stopped + auto-start disabled; the Discord control bot now runs ONLY on the Windows box (`PM-SP#9461`).
+  stopped + auto-start disabled; the Discord control bot now runs ONLY on the Windows box.
 - **ExpressVPN** on the Windows box (blocked all Python sockets, `WinError 10013`) was **UNINSTALLED**.
 - **Zip-source drift — fixes made ON the Windows box, NOT yet in the source-of-truth zip** (owner
   to send the Windows package folder to reconcile; do not reimplement blind):
