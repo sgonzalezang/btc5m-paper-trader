@@ -660,8 +660,8 @@ function draw(st){
     +(pRet?`<details class="retired" style="margin-top:14px"><summary><b>Retired engines</b> <span class="mut">— plain-terms descriptions (${rRet.length} terminally killed; books kept, never trade again)</span></summary>`
         +`<div style="margin-top:10px">${pRet}<br><br><span class="mut">Loose, Floor and Band each add exactly one rule to the one before, so the P&amp;L gap between them is the dollar value of that single rule. Value, Fade, Strict and Latent Fire sit outside that chain. All saw the exact same markets.</span></div></details>`:"");
   const eng=st.btc&&st.btc.engines||{};
-  const HUE={impulse_v2:"#ff8f2b",impulse50:"#ffd166",reversal_v2:"#7bd88f",loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",value:"#8bc34a",fade:"#e0559a",reversal:"#26c6da",reversal2:"#facc15",latentfire:"#ff5252",strict:"var(--btc)",leader50:"#c07bff",fade50:"#2dd4bf"};
-  const LABEL={impulse_v2:"Impulse v2",impulse50:"Impulse $50",reversal_v2:"Rev v2 ctrl",loose:"Loose",floor:"Floor",band:"Band",value:"Value",fade:"Fade",reversal:"Rev 55c",reversal2:"Reversal2",latentfire:"Latent Fire",strict:"Strict",leader50:"Leader $50",fade50:"Fade $50"};
+  const HUE={impulse_v2:"#ff8f2b",impulse50:"#ffd166",reversal_v2:"#7bd88f",loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",value:"#8bc34a",fade:"#e0559a",reversal:"#26c6da",reversal2:"#facc15",latentfire:"#ff5252",strict:"var(--btc)",leader50:"#c07bff",fade50:"#2dd4bf",revert20:"#22c55e",revert18:"#4ade80"};
+  const LABEL={impulse_v2:"Impulse v2",impulse50:"Impulse $50",reversal_v2:"Rev v2 ctrl",loose:"Loose",floor:"Floor",band:"Band",value:"Value",fade:"Fade",reversal:"Rev 55c",reversal2:"Reversal2",latentfire:"Latent Fire",strict:"Strict",leader50:"Leader $50",fade50:"Fade $50",revert20:"Revert 0.20",revert18:"Revert 0.18"};
   const needLbl=(id)=>{
     const need=(S[id]||{}).need||(id==="strict"?10:st.loosePass);
     if(id==="strict") return `needs 10/10`;
@@ -679,6 +679,8 @@ function draw(st){
     if(id==="reversal_v2") return `ungated twin · ≤53¢ — its paired delta vs the flagship is the day-60 gate verdict`;
     if(id==="reversal") return `ungated · ≤55¢ — settles the entry-cap dispute`;
     if(id==="reversal2") return `reversal + gamma fallback (jumps in)`;
+    if(id==="revert20") return `fade a ≥0.20% prior move · hold to close (forward test)`;
+    if(id==="revert18") return `same signal at ≥0.18% (significance peak)`;
     if(id==="latentfire") return `reversal, only in choppy regimes`;
     const cfg=(st.engineCfg||{})[id]||{};
     let l=`needs ${need}/10`;
