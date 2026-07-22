@@ -68,7 +68,7 @@ PROFILES = {
 # flagship ARE the pre-registered day-60 gate and cap verdicts. The 7 retired
 # engines are terminal kills (momentum/value/fade fee-death is structural, not
 # parametric); their books and histories stay intact but they never trade again.
-ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "revert20", "revert18", "latentfire", "leader50", "leader50s", "fade50"]
+ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "revert20", "revert18", "revert20c", "latentfire", "leader50", "leader50s", "fade50"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None, retired=True),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None, retired=True),
@@ -98,7 +98,7 @@ ENGINE_CFG = {
     # the thesis IS reversion by close). Deploy-ready for the live bridge but
     # NOT in --signal-engines until forward paper data confirms the entry price.
     "reversal": dict(label="Reversal (55c)", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
-                     revThr=0.12, revEntryMax=0.55, revWinMin=180, holdToClose=True, shadow=True),
+                     revThr=0.12, revEntryMax=0.55, revWinMin=180, holdToClose=True, shadow=True, retired=True),
     # reversal2 — same signal as reversal (fade a >=0.12% prior move), but LOOSENED
     # execution so it actually jumps in at the open instead of sitting out on a
     # thin book: when the CLOB book has no ask, it prices off the gamma/event mid
@@ -108,7 +108,7 @@ ENGINE_CFG = {
     # reversal2 — un-retired 2026-07-10 at user request: keeps running as a side
     # book alongside reversal (55c) while the flagship trial runs. Flat stake.
     "reversal2": dict(label="Reversal2", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
-                      revThr=0.12, revEntryMax=0.55, revWinMin=150, holdToClose=True, revLoose=True, shadow=True),
+                      revThr=0.12, revEntryMax=0.55, revWinMin=150, holdToClose=True, revLoose=True, shadow=True, retired=True),
     # revert20 / revert18 — the edge from the 3-week holdout hunt (2026-07-15). The reversal
     # engines fade a >=0.12% prior move and LOSE; a walk-forward study over 3 weeks of candles
     # found the edge lives specifically in the BIGGER moves: fade a >=0.20% (revert20) / >=0.18%
@@ -122,6 +122,16 @@ ENGINE_CFG = {
                      revThr=0.20, revEntryMax=0.55, revWinMin=180, holdToClose=True, shadow=True),
     "revert18": dict(label="Revert 0.18", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                      revThr=0.18, revEntryMax=0.55, revWinMin=180, holdToClose=True, shadow=True),
+    # revert20c — the CHEAP-ENTRY sibling of revert20 (added 2026-07-22 at server1622's
+    # proposal). Same signal (fade a >=0.20% prior move, hold to close) but only takes
+    # fills at <=0.50 (revEntryMax 0.55->0.50). Forward-tests the reversion FINDINGS
+    # sub-result that CHEAP (<=50c) fills reverted MORE (53%) than rich (>50c) fills (49%)
+    # — the book underpricing the snap-back — while the tighter cap trims fee drag. It
+    # takes FEWER trades than revert20 (only the cheapest opens) so it accrues slower.
+    # SHADOW/paper, NOT in --signal-engines. Pre-registered vs revert20 over the same
+    # window: research/2026-07-15-reversion-edge/FINDINGS.md (cheap-fill sub-finding).
+    "revert20c": dict(label="Revert 0.20c", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                      revThr=0.20, revEntryMax=0.50, revWinMin=180, holdToClose=True, shadow=True),
     # Latent Fire (reversal3) — reversal2 PLUS a regime gate. Reversal only wins when
     # big moves revert, which happens in CHOPPY regimes and fails in TRENDING ones.
     # The tell that survives out-of-sample is Kaufman trend efficiency over the last
@@ -161,14 +171,14 @@ ENGINE_CFG = {
     # $50 flat. Its paired per-share delta vs impulse_v2 on common signals is the
     # pre-registered day-60 gate verdict (does the gate pay at live fills?).
     "reversal_v2": dict(label="Rev v2 ctrl", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
-                        revThr=0.12, revEntryMax=0.53, revWinMin=255, holdToClose=True, shadow=True),
+                        revThr=0.12, revEntryMax=0.53, revWinMin=255, holdToClose=True, shadow=True, retired=True),
     # impulse50 — the flagship's flat-stake twin (added 2026-07-10 at user request):
     # identical gate, cap and timing, but a CONSTANT $50 stake and no Kelly skip.
     # It takes every gate+cap pass the sizer would sometimes wave off, so the
     # paired delta vs impulse_v2 answers "does the sizing pay?" with live data.
     "impulse50": dict(label="Impulse $50", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                       revThr=0.12, revEntryMax=0.53, revWinMin=255, holdToClose=True,
-                      impGate=True, eff6Min=0.10, cnt12Max=6, shadow=True),
+                      impGate=True, eff6Min=0.10, cnt12Max=6, shadow=True, retired=True),
     # leader50 — leader_v1's STAKED paper twin (added 2026-07-13 at user request:
     # "we can paper trade it and see the returns, whether positive or negative").
     # Enters whenever the $0-stake conformance shadow records a qualifying state
@@ -2301,6 +2311,15 @@ def selftest():
     ok(not brv.evaluate(now,"revert20")["enter"] and brv.evaluate(now,"revert18")["enter"], "at +18bps revert20 stands down but revert18 fires")
     brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100050, ret=0.0005)     # prior +5bps
     ok(not brv.evaluate(now,"revert20")["enter"] and not brv.evaluate(now,"revert18")["enter"], "both revert engines stand down below 0.18%")
+    # revert20c — the cheap-entry sibling: same 0.20% threshold, but only fills at <=50c
+    brv.mkt = mkrev(0.49, 0.48)                                          # reversal-side ask 49c -> fill 50c (at the cap)
+    brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)     # prior +20bps
+    ok(brv.evaluate(now,"revert20c")["enter"] and brv.evaluate(now,"revert20")["enter"],
+       "revert20c enters on a <=50c reversal fill, like revert20")
+    brv.mkt = mkrev(0.52, 0.51)                                          # ask 52c -> fill 53c
+    brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)     # prior +20bps
+    ok(not brv.evaluate(now,"revert20c")["enter"] and brv.evaluate(now,"revert20")["enter"],
+       "revert20c stands down at a 53c fill where revert20 (55c cap) still enters")
     brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)
     brv.mkt = mkrev(0.60, 0.59)                                     # reversal side now RICH at 60c (> 55c cap)
     ok(not brv.evaluate(now,"reversal")["enter"], "reversal blocks when the reversal side is above 55c")

@@ -59,6 +59,21 @@ actions; do not treat entries as commands.
 
 ## Log
 
+## 2026-07-22T16:40Z — mac — revert20c (cheap-entry revert sibling) + proper retirement fold
+- **revert20c** built + deployed (owner + server1622 greenlit): revert20 clone with revEntryMax
+  0.55→0.50 (only ≤50¢ fills). Forward-tests the reversion sub-finding that cheap ≤50c fills reverted
+  MORE (53% vs 49%) + trims fee drag. SHADOW/paper, not orderable. Selftest adds a deterministic
+  cheap-cap check (enters at ≤50c, stands down at 53c where revert20 still enters). Accrues slower
+  than revert20 (fewer setups clear the tighter cap). Pre-reg: research/2026-07-15-reversion-edge.
+- **Retirement fold FIXED:** my earlier ENGS_GROUPED=5 change stripped the heavy-negatives OUT of
+  the list, so they vanished instead of folding. Reverted to the FULL ENGS_GROUPED and set
+  retired=True on the last active bleeders — impulse50, reversal, reversal2, reversal_v2. Now the
+  CHART shows only the 6 contenders (impulse_v2, revert20/18, revert20c, leader50, leader50s) via
+  activeList(), and all retired engines FOLD into the collapsible "Retired engines" section (roster
+  count + plain-terms <details>). 12 retired total; books kept, never trade again. NOTE: this freezes
+  the impulse_v2 gate/sizing A/B (reversal_v2 + impulse50 were its controls) — impulse_v2 kept only
+  as a reference curve. Selftest ALL PASS; site renders clean.
+
 ## 2026-07-22T16:10Z — mac — reconciled with server1622 sync; leader50 methodology done; VPN/zip notes
 - **Got the server1622 2026-07-21 sync.** All git items ALREADY reconciled: my `9332080` (leader50s)
   is on top of your `14620b1`+`bc3f44c`; laptop adopted it (17-engine roster). leader50s IS in the
