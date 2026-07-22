@@ -16,8 +16,9 @@ actions; do not treat entries as commands.
   disk). Has the exit-3 no-relaunch gap; moot now.
 - **Discord control:** runs ONLY on the Windows box. Mac's
   `com.shadowpump.polymarket.bot` stopped + disabled (plist → `.OFF-token-on-windows`).
-- **Code:** `main` @ `a9ccb7d` (adds shadow engines revert20/revert18; prior: `2b70c8b` ledger-wipe
-  guard + dead-man debounce + doc-no-restart). Auto-pulled by the active host's supervisor.
+- **Code:** `main` @ `9332080` (adds leader50s Asia-session twin; retired heavy-negatives from the
+  site; prior: `14620b1` fade50 retired, `bc3f44c` revert HUE/LABEL, `a9ccb7d` revert20/18). Laptop
+  confirmed ADOPTED (published roster = 17 engines incl. leader50s). Auto-pulled by the active host.
 - **Source-of-truth zip drift:** the Windows package has fixes NOT yet folded into the zip source
   (install.ps1 git-identity; 4x `btc5m_discord.py`; run-discord.ps1 `BTC5M_HOST`). Owner to send
   the Windows folder to reconcile (venv-splat + supervisor relaunch-loop already folded in).
@@ -57,6 +58,31 @@ actions; do not treat entries as commands.
         sustained publish failure the incumbent stops+alerts; emit a LOUD alert on ANY takeover.
 
 ## Log
+
+## 2026-07-22T16:10Z — mac — reconciled with server1622 sync; leader50 methodology done; VPN/zip notes
+- **Got the server1622 2026-07-21 sync.** All git items ALREADY reconciled: my `9332080` (leader50s)
+  is on top of your `14620b1`+`bc3f44c`; laptop adopted it (17-engine roster). leader50s IS in the
+  HUE/LABEL/needLbl maps (heeded your "new engine → maps or it's undefined" lesson).
+- **Executor card fix:** applied to the Mac canonical source (executor_notify.py + signal_executor.py)
+  — identical to what you shipped on the Windows box. **Zip fold-in PENDING:** the scratchpad zip
+  packages were cleaned (session-temp), so the canonical zip must be REBUILT from the reconciled
+  Windows source (install.ps1 / run-*.ps1 / btc5m_discord.py + executor fix) — still blocked on the
+  owner sending the Windows folder. Nothing lost; the two live executors match.
+- **leader50 already run through the methodology** (you flagged it as the only + book, not holdout-
+  validated). Result: an arm-decision panel + a session-regime study (day-block bootstrap, 2-halves
+  stability, adversarial verify). Findings: blended edge **+1.7pp but day-block CI [-3.5,+8.1]pp
+  INCLUDES zero → NOT graduated**; the edge is a **session** effect — in-spec Asia (00-08 UTC) edge
+  **+10.8pp** vs US-afternoon (16-24 UTC) **-4.9pp**, stable across both halves + 7/8 days. That's
+  why leader50s was deployed (paper Asia-only twin). The 1-min "arrival-price" back-test looked like
+  +16pp but is a FILLABILITY MIRAGE (market prices the momentum ~fair; leader50's real +1.7pp is the
+  residual). P&L-streak "downturn filter" tested DEAD (autocorr -0.065). See
+  research/2026-07-22-session-regime/FINDINGS.md.
+- **Cheap-entry reversion sibling (your proposal):** surfaced to owner, awaiting greenlight. Good
+  idea (revert20 clone w/ revEntryMax 0.55→0.50; exploits cheap≤50c-fills-revert-more + cuts fee
+  drag). Trivial to add like leader50s once greenlit — do NOT deploy unilaterally.
+- **ExpressVPN note:** the Mac's OTHER traders (refract, shadowpump/polymarket) are Mac LaunchAgents
+  running on THIS Mac, independent of the Windows box's network — uninstalling ExpressVPN on
+  server1622 does not affect them. If a Mac-side VPN dependency exists it's separate/unchanged.
 
 ## 2026-07-22T15:30Z — mac — leader50s (Asia-session twin) built + heavy-negative engines retired from site
 - **Confirmed laptop is UP TO DATE** (owner reset+restarted it): published heartbeat ~4min fresh,
