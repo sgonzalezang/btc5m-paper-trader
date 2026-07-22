@@ -466,23 +466,29 @@ function peakTrough(st){
       const hi=Math.max.apply(null,vals), lo=Math.min.apply(null,vals);
       return {lbl,hi,lo,flat:(hi===lo)};
     });
-    return {e,cur,cells};
+    // all-time (this season): eqSeries already carries a [ERA_MS,0] inception point,
+    // so min/max over every point spans the full book from $0.
+    const av=pts.map(p=>p[1]);
+    const ahi=Math.max.apply(null,av), alo=Math.min.apply(null,av);
+    const all={lbl:'all',hi:ahi,lo:alo,flat:(ahi===alo)};
+    return {e,cur,cells,all};
   }).filter(Boolean);
   if(!rows.length) return '';
-  const head='<tr><th class="l">engine</th><th>now</th>'+PKWIN.map(w=>`<th>${w[0]}</th>`).join('')+'</tr>';
+  const head='<tr><th class="l">engine</th><th>now</th>'+PKWIN.map(w=>`<th>${w[0]}</th>`).join('')+'<th>all</th></tr>';
   const sc=v=>v>=0?'eqpos':'eqneg';          // colour by SIGN, not by peak/trough role
   const body=rows.map(r=>{
     const m=ENGMETA[r.e]||{label:r.e,lg:''};
-    const cells=r.cells.map(c=>{
-      if(c.flat) return `<td title="no settled trade in this window"><span class="pkflat">flat</span> <span class="${sc(c.hi)}">${D$(c.hi)}</span></td>`;
-      return `<td title="peak-to-trough swing $${(c.hi-c.lo).toFixed(2)} within ${c.lbl}">`
+    const cell=c=>{
+      if(c.flat) return `<td title="no settled trade ${c.lbl==='all'?'yet':'in this window'}"><span class="pkflat">flat</span> <span class="${sc(c.hi)}">${D$(c.hi)}</span></td>`;
+      return `<td title="peak-to-trough swing $${(c.hi-c.lo).toFixed(2)} within ${c.lbl==='all'?'all time':c.lbl}">`
         +`<span class="${sc(c.hi)}">▲ ${D$(c.hi)}</span><br><span class="${sc(c.lo)}">▼ ${D$(c.lo)}</span></td>`;
-    }).join('');
+    };
+    const cells=r.cells.map(cell).join('')+cell(r.all);
     return `<tr><td class="l"><b class="${m.lg}">${m.label}</b></td>`
       +`<td><b class="${r.cur>=0?'eqpos':'eqneg'}">${D$(r.cur)}</b></td>${cells}</tr>`;
   }).join('');
   return '<h3 class="sec">Peak &amp; trough by window</h3>'
-    +'<div class="mut" style="font-size:12px;margin:-2px 0 6px">Highest (▲) and lowest (▼) point each engine\'s <b>cumulative</b> P&amp;L reached inside each rolling window, ending now. <b>Colour is the sign of the number</b> — green above zero, red below — so a ▲ shows red when an engine\'s best moment in that window was still a loss. Hover a cell for its peak-to-trough swing. <b>flat</b> means no settled trade in that window.</div>'
+    +'<div class="mut" style="font-size:12px;margin:-2px 0 6px">Highest (▲) and lowest (▼) point each engine\'s <b>cumulative</b> P&amp;L reached inside each rolling window, ending now. <b>Colour is the sign of the number</b> — green above zero, red below — so a ▲ shows red when an engine\'s best moment in that window was still a loss. Hover a cell for its peak-to-trough swing. <b>flat</b> means no settled trade in that window. The <b>all</b> column spans the full book this season (from $0).</div>'
     +`<div class="pkwrap"><table class="pk"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
 }
 // timeframe: spanH = show exactly the last N hours, fitted to the container width
