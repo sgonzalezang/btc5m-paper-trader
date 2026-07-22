@@ -58,6 +58,16 @@ actions; do not treat entries as commands.
 
 ## Log
 
+## 2026-07-22T04:00Z — mac — laptop auto-update STALLED; revert engines deployed but not running there yet
+- `revert20`/`revert18` are on `main` @ `a9ccb7d` and verified to publish, but the laptop's `btc5m-bot`
+  clone auto-update is stalled (can't ff-merge), so it runs OLD code without them.
+- Tried running them from the Mac (flip runhost->mac): the laptop never saw the flag (same stalled
+  merge) and both published = brief fork. Stopped the Mac, reverted flag to `laptop`. Stable now,
+  laptop is sole publisher on old code.
+- ACTION on the laptop (paste-block delivered to the Windows session): diagnose the stall (dirty tree /
+  diverged / git path), then `git -C <clone> reset --hard origin/main` + restart btc5m-supervisor. Then
+  the laptop runs the engines and they hit the website. Keep the clone clean so ff-only never stalls again.
+
 ## 2026-07-22T02:49Z — mac — NEW EDGE deployed as shadow engines revert20/revert18
 - Max-effort holdout-disciplined hunt found the first REAL edge (writeup:
   `research/2026-07-15-reversion-edge/FINDINGS.md`): fade a **≥0.20% prior-interval move**, bet the
