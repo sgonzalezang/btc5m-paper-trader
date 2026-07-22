@@ -190,8 +190,10 @@ ENGINE_CFG = {
     # fade = bet down) vs runDown (down-leader fade = bet up) so both directions
     # of the same question are measured separately. Flat $50, hold to close.
     # external=True: entries come from _fade50_enter (the leader tick), not evaluate().
+    # RETIRED 2026-07-21: refuted in research/2026-07-15-reversion-edge (+$168 in-sample n=7
+    # -> -$2,306 out-of-sample) and the roster's worst bleeder (~-$5,553). Book kept; no new trades.
     "fade50": dict(label="Fade $50", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
-                   holdToClose=True, shadow=True, external=True, fadeMax=0.55),
+                   holdToClose=True, shadow=True, external=True, fadeMax=0.55, retired=True),
 }
 # impulse_v2 sizing/learning state defaults (persisted under st["impulse"]).
 # qlo/qhi are the bucketed win-prob estimates, bucketed by p_eff = ask + slip
