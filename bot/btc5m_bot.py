@@ -68,7 +68,7 @@ PROFILES = {
 # flagship ARE the pre-registered day-60 gate and cap verdicts. The 7 retired
 # engines are terminal kills (momentum/value/fade fee-death is structural, not
 # parametric); their books and histories stay intact but they never trade again.
-ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "latentfire", "leader50", "fade50"]
+ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "revert20", "revert18", "latentfire", "leader50", "fade50"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None, retired=True),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None, retired=True),
@@ -109,6 +109,19 @@ ENGINE_CFG = {
     # book alongside reversal (55c) while the flagship trial runs. Flat stake.
     "reversal2": dict(label="Reversal2", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                       revThr=0.12, revEntryMax=0.55, revWinMin=150, holdToClose=True, revLoose=True, shadow=True),
+    # revert20 / revert18 — the edge from the 3-week holdout hunt (2026-07-15). The reversal
+    # engines fade a >=0.12% prior move and LOSE; a walk-forward study over 3 weeks of candles
+    # found the edge lives specifically in the BIGGER moves: fade a >=0.20% (revert20) / >=0.18%
+    # (revert18) prior interval, hold to close. n=453, day-block bootstrap 95% CI [54.1%, 62.3%]
+    # entirely above the 51.75% fee bar, smooth threshold plateau, all 4 weeks positive incl. the
+    # most recent (+8.3pp). Same proven reversal machinery as `reversal`, ONLY revThr changed — so
+    # the pair is a clean test of "was the reversal loss just the threshold?". SHADOW/paper: they
+    # forward-test the ACTUAL open book prices (the one number the backtest couldn't see) before
+    # any live arming. NOT in --signal-engines until the forward paper confirms the fills.
+    "revert20": dict(label="Revert 0.20", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                     revThr=0.20, revEntryMax=0.55, revWinMin=180, holdToClose=True, shadow=True),
+    "revert18": dict(label="Revert 0.18", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                     revThr=0.18, revEntryMax=0.55, revWinMin=180, holdToClose=True, shadow=True),
     # Latent Fire (reversal3) — reversal2 PLUS a regime gate. Reversal only wins when
     # big moves revert, which happens in CHOPPY regimes and fails in TRENDING ones.
     # The tell that survives out-of-sample is Kaufman trend efficiency over the last
@@ -2241,6 +2254,14 @@ def selftest():
     ok(not brv.evaluate(now,"reversal")["enter"], "reversal stands down when prior move < 12bps")
     brv.prev_ivl = dict(t0=brv.mkt["t0"]-2*IVL, open=100000, close=100200, ret=0.0020)  # not the immediately-prior interval
     ok(not brv.evaluate(now,"reversal")["enter"], "reversal requires the immediately-prior interval (contiguity)")
+    # revert20 / revert18 — the holdout-hunt engines: same machinery, higher threshold
+    brv.mkt = mkrev(0.50, 0.49)
+    brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)     # prior +20bps
+    ok(brv.evaluate(now,"revert20")["enter"] and brv.evaluate(now,"revert18")["enter"], "revert20+revert18 fire after a >=0.20% prior move")
+    brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100180, ret=0.0018)     # prior +18bps
+    ok(not brv.evaluate(now,"revert20")["enter"] and brv.evaluate(now,"revert18")["enter"], "at +18bps revert20 stands down but revert18 fires")
+    brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100050, ret=0.0005)     # prior +5bps
+    ok(not brv.evaluate(now,"revert20")["enter"] and not brv.evaluate(now,"revert18")["enter"], "both revert engines stand down below 0.18%")
     brv.prev_ivl = dict(t0=brv.mkt["t0"]-IVL, open=100000, close=100200, ret=0.0020)
     brv.mkt = mkrev(0.60, 0.59)                                     # reversal side now RICH at 60c (> 55c cap)
     ok(not brv.evaluate(now,"reversal")["enter"], "reversal blocks when the reversal side is above 55c")
