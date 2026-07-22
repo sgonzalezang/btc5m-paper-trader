@@ -105,13 +105,14 @@
   .eqimpulse{fill:none;stroke:#ff8f2b;stroke-width:2.8;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqimp50{fill:none;stroke:#ffd166;stroke-width:2;stroke-dasharray:6 3;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqleader50{fill:none;stroke:#c07bff;stroke-width:2;stroke-dasharray:2 3;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+  .eqleader50s{fill:none;stroke:#f59e0b;stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqfade50{fill:none;stroke:#2dd4bf;stroke-width:2;stroke-dasharray:2 3;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqrevv2{fill:none;stroke:#7bd88f;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqreversal2{fill:none;stroke:#facc15;stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqlatentfire{fill:none;stroke:#ff5252;stroke-width:2.6;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqrevert20{fill:none;stroke:#22c55e;stroke-width:2.8;vector-effect:non-scaling-stroke;stroke-linejoin:round}
   .eqrevert18{fill:none;stroke:#4ade80;stroke-width:2;stroke-dasharray:5 3;vector-effect:non-scaling-stroke;stroke-linejoin:round}
-  .eqd-loose{fill:var(--blue)}.eqd-variant{fill:#8f7bff}.eqd-calm{fill:#3fb6a8}.eqd-value{fill:#8bc34a}.eqd-fade{fill:#e0559a}.eqd-reversal{fill:#26c6da}.eqd-reversal2{fill:#facc15}.eqd-latentfire{fill:#ff5252}.eqd-strict{fill:var(--btc)}.eqd-revert20{fill:#22c55e}.eqd-revert18{fill:#4ade80}
+  .eqd-loose{fill:var(--blue)}.eqd-variant{fill:#8f7bff}.eqd-calm{fill:#3fb6a8}.eqd-value{fill:#8bc34a}.eqd-fade{fill:#e0559a}.eqd-reversal{fill:#26c6da}.eqd-reversal2{fill:#facc15}.eqd-latentfire{fill:#ff5252}.eqd-strict{fill:var(--btc)}.eqd-revert20{fill:#22c55e}.eqd-revert18{fill:#4ade80}.eqd-leader50s{fill:#f59e0b}
   .eqpos{color:var(--up)}.eqneg{color:var(--dn)}
   .eqzero{stroke:var(--mut);stroke-dasharray:3 3;stroke-width:1;opacity:.5;vector-effect:non-scaling-stroke}
   .eqarea{stroke:none}.eqarea.pos{fill:var(--up);opacity:.10}.eqarea.neg{fill:var(--dn);opacity:.10}
@@ -119,7 +120,7 @@
   .eqmeta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--mut);margin-top:4px;flex-wrap:wrap}
   .eqnow.pos{color:var(--up);font-weight:700}.eqnow.neg{color:var(--dn);font-weight:700}
   .eqlegend{font-size:11px;color:var(--mut);font-weight:400}
-  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-v{color:#8f7bff}.lg-c{color:#3fb6a8}.lg-va{color:#8bc34a}.lg-f{color:#e0559a}.lg-rv{color:#26c6da}.lg-rv2{color:#facc15}.lg-lf{color:#ff5252}.lg-s{color:var(--btc)}.lg-imp{color:#ff8f2b}.lg-i50{color:#ffd166}.lg-l50{color:#c07bff}.lg-fd50{color:#2dd4bf}.lg-rvv2{color:#7bd88f}
+  .eqlegend b{font-weight:700}.lg-p{color:var(--ink)}.lg-l{color:var(--blue)}.lg-v{color:#8f7bff}.lg-c{color:#3fb6a8}.lg-va{color:#8bc34a}.lg-f{color:#e0559a}.lg-rv{color:#26c6da}.lg-rv2{color:#facc15}.lg-lf{color:#ff5252}.lg-s{color:var(--btc)}.lg-imp{color:#ff8f2b}.lg-i50{color:#ffd166}.lg-l50{color:#c07bff}.lg-l50s{color:#f59e0b}.lg-fd50{color:#2dd4bf}.lg-rvv2{color:#7bd88f}
   .gd{white-space:nowrap}
   .gd i{display:inline-block;font-style:normal;font-size:9px;width:13px;height:13px;line-height:13px;text-align:center;border-radius:3px;margin:0 1px;font-weight:700;cursor:default}
   .gd .g1{background:#173527;color:var(--up)}.gd .g0{background:#3a231c;color:var(--dn)}
@@ -380,7 +381,7 @@ function eqSeries(st, id){
 }
 function stepVal(a,t){ let v=0; for(let i=0;i<a.length;i++){ if(a[i][0]<=t) v=a[i][1]; else break; } return v; }
 // floor inherits capless's purple (lg-v/eqvariant classes), band inherits calm's teal (lg-c/eqcalm) — CSS class names kept to avoid churn
-const ENGMETA={impulse_v2:{label:"Impulse v2",lg:"lg-imp",cls:"eqimpulse"},impulse50:{label:"Impulse $50",lg:"lg-i50",cls:"eqimp50"},reversal_v2:{label:"Rev v2 ctrl",lg:"lg-rvv2",cls:"eqrevv2"},loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},value:{label:"value",lg:"lg-va",cls:"eqvalue"},fade:{label:"fade",lg:"lg-f",cls:"eqfade"},reversal:{label:"reversal",lg:"lg-rv",cls:"eqreversal"},reversal2:{label:"reversal2",lg:"lg-rv2",cls:"eqreversal2"},latentfire:{label:"Latent Fire",lg:"lg-lf",cls:"eqlatentfire"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"},leader50:{label:"Leader $50",lg:"lg-l50",cls:"eqleader50"},fade50:{label:"Fade $50",lg:"lg-fd50",cls:"eqfade50"},revert20:{label:"Revert 0.20",lg:"lg-r20",cls:"eqrevert20"},revert18:{label:"Revert 0.18",lg:"lg-r18",cls:"eqrevert18"}};
+const ENGMETA={impulse_v2:{label:"Impulse v2",lg:"lg-imp",cls:"eqimpulse"},impulse50:{label:"Impulse $50",lg:"lg-i50",cls:"eqimp50"},reversal_v2:{label:"Rev v2 ctrl",lg:"lg-rvv2",cls:"eqrevv2"},loose:{label:"loose",lg:"lg-l",cls:"eqloose"},floor:{label:"floor",lg:"lg-v",cls:"eqvariant"},band:{label:"band",lg:"lg-c",cls:"eqcalm"},value:{label:"value",lg:"lg-va",cls:"eqvalue"},fade:{label:"fade",lg:"lg-f",cls:"eqfade"},reversal:{label:"reversal",lg:"lg-rv",cls:"eqreversal"},reversal2:{label:"reversal2",lg:"lg-rv2",cls:"eqreversal2"},latentfire:{label:"Latent Fire",lg:"lg-lf",cls:"eqlatentfire"},strict:{label:"strict",lg:"lg-s",cls:"eqstrict"},leader50:{label:"Leader $50",lg:"lg-l50",cls:"eqleader50"},leader50s:{label:"Leader Asia",lg:"lg-l50s",cls:"eqleader50s"},fade50:{label:"Fade $50",lg:"lg-fd50",cls:"eqfade50"},revert20:{label:"Revert 0.20",lg:"lg-r20",cls:"eqrevert20"},revert18:{label:"Revert 0.18",lg:"lg-r18",cls:"eqrevert18"}};
 // One short header blurb PER engine — the single source for the roster line.
 // PROCESS for adding OR retiring an engine (do all four): (1) add/edit its
 // ENGINE_DESC blurb here, (2) its detailed card line in needLbl(), (3) ENGMETA
@@ -394,6 +395,7 @@ const ENGINE_DESC={
   reversal:"ungated ≤55¢ control (entry-cap verdict)",
   reversal2:"reversal + gamma fallback",
   leader50:"leader_v1's staked $50 twin — fills at the re-poll",
+  leader50s:"leader50, gated to 00–08 UTC only — forward-tests the Asia-session edge (paper)",
   fade50:"contrarian twin — fades the move, buys the cheap opposite side",
   revert20:"holdout-hunt edge — fade a ≥0.20% prior move, hold to close (forward test)",
   revert18:"same signal at ≥0.18% (the significance peak)",
@@ -406,6 +408,7 @@ const ENGINE_PLAIN={
   impulse50:`<b class="lg-i50">Impulse $50</b> — Impulse v2 with the sizing brain removed. Same isolated-spike signal, same 53¢ cap, same first-45-seconds timing, but a flat $50 on every trade and it never skips. Running it right next to the flagship answers one question with live money: does the quarter-Kelly sizing actually earn its keep, or would plain flat stakes do just as well?`,
   reversal_v2:`<b class="lg-rvv2">Rev v2 ctrl</b> — the flagship's control, minus the gate. It takes the same ≤53¢ reversal bet, but on <b>every</b> big prior move, not only the isolated ones. The P&amp;L gap between this and Impulse v2 is the live measurement of whether the isolated-spike gate is worth anything. Flat $50, paper-only.`,
   leader50:`<b class="lg-l50">Leader $50</b> — the newest experiment, and a different idea from all the others. When BTC drifts just a little (4–8bps) early in a round and the <b>leading</b> side is quoting 55–66¢, it buys that side — but it fills at the price the book shows a few seconds <b>later</b>, after re-checking, not the first quote it glimpsed. That guards against a trap the research turned up: quotes that look cheap but disappear the instant you reach for them. If the quote holds it takes the $50 bet; if it ran away it takes nothing — and logs what a faster trader would have made. Its $0-stake sibling <b>Leader v1</b> records every one of these setups to measure whether those cheap quotes are actually real. Paper-only.`,
+  leader50s:`<b class="lg-l50s">Leader Asia</b> — the same engine as <b class="lg-l50">Leader $50</b>, taking the exact same signal at the exact same price, with one rule added: it only trades between <b>00:00 and 08:00 UTC</b> and sits out the rest of the day. It exists to test a single finding from the 2026-07-22 regime study — that Leader $50's edge is almost entirely an <b>Asia-session</b> phenomenon (+10.8pp in these hours in the sample, versus roughly break-even in Europe and a <b>loss</b> in the US afternoon). Because it is a perfect subset of Leader $50 — identical fills, no price difference — any gap between the two curves is the <b>clock alone</b>, not luck in the fills. It is a pre-registered forward test: if the Asia-only book pulls ahead of the all-hours book over enough trades, the session effect is real; if the two converge, it was noise. Paper-only, and deliberately <b>not</b> a hard rule for real money yet.`,
   fade50:`<b class="lg-fd50">Fade $50</b> — Leader $50's <b>contrarian twin</b>, built to answer a question the early data raised: when a small drift-move happens, is it better to <i>bet with it</i> (Leader) or <i>fade it</i>? On the exact same 4–8bps signals, Fade buys the <b>opposite</b> side — and because the leading side ran up to 55–66¢, the opposite side is <b>cheap</b> (~35–45¢), so a win pays big and it only needs ~40% to break even. It fills at the <b>real opposite-side book</b> (polled at decision time), and tags every trade so both directions of the question are measured separately: <b>fade an up-move</b> (buy down) and <b>fade a down-move</b> (buy up). This is the reversion thesis — the overshoot snaps back — tested with real prices at $50 a bet, paper-only.`,
   revert20:`<b style="color:#22c55e">Revert 0.20</b> — the one strategy the max-effort edge hunt actually endorsed, and the trade the older reversal engines were built to avoid. Same idea as Reversal (a big 5-minute move overshoots and snaps back, so buy the opposite side at the open and hold to close), but with the threshold the research pinned down: only <b>bigger</b> moves, ≥0.20%. A 3-week walk-forward over 4,600 unbiased intervals found this specific slice wins ~58% where the fee break-even is only ~52%, its whole confidence interval sits above break-even, and it held up in the most recent week. Crucially, the market opens this side near 50¢ and doesn't price the snap-back in. Running in <b>paper only</b> to confirm the real fill prices before any live money — the one number a backtest can't see.`,
   revert18:`<b style="color:#4ade80">Revert 0.18</b> — Revert 0.20's twin at the exact threshold where the signal was statistically strongest (≥0.18% instead of ≥0.20%). It trades a bit more often for a bit less edge per trade. Running side by side answers whether to cast the net slightly wider. Paper only.`,
@@ -424,7 +427,12 @@ const D$=v=>(v>=0?"+$":"-$")+Math.abs(v).toFixed(2);
 // "rank"    = sorted by current P&L, best first.
 // ONE list drives the legend, the peak/trough table, the tooltip, the live bar and the
 // cards, so those surfaces can never disagree about ordering.
-const ENGS_GROUPED=["impulse_v2","impulse50","reversal_v2","reversal","reversal2","revert20","revert18","leader50","fade50","loose","floor","band","value","fade","strict","latentfire"];
+// 2026-07-22: retired the heavy-negative / dead engines from the DISPLAY (they keep
+// trading in the bot; this only controls what the site plots). Shown = the contenders:
+// leader50 (only net-positive book), its new Asia-session twin, the two reversion
+// forward-tests, and the flagship impulse_v2 as reference. To un-retire one for the
+// chart, add its id back here (ENGMETA/HUE/LABEL entries are all still present).
+const ENGS_GROUPED=["leader50","leader50s","revert20","revert18","impulse_v2"];
 let ENGSORT="rank";
 function engList(st){
   if(ENGSORT!=="rank") return ENGS_GROUPED.slice();
@@ -660,8 +668,8 @@ function draw(st){
     +(pRet?`<details class="retired" style="margin-top:14px"><summary><b>Retired engines</b> <span class="mut">— plain-terms descriptions (${rRet.length} terminally killed; books kept, never trade again)</span></summary>`
         +`<div style="margin-top:10px">${pRet}<br><br><span class="mut">Loose, Floor and Band each add exactly one rule to the one before, so the P&amp;L gap between them is the dollar value of that single rule. Value, Fade, Strict and Latent Fire sit outside that chain. All saw the exact same markets.</span></div></details>`:"");
   const eng=st.btc&&st.btc.engines||{};
-  const HUE={impulse_v2:"#ff8f2b",impulse50:"#ffd166",reversal_v2:"#7bd88f",loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",value:"#8bc34a",fade:"#e0559a",reversal:"#26c6da",reversal2:"#facc15",latentfire:"#ff5252",strict:"var(--btc)",leader50:"#c07bff",fade50:"#2dd4bf",revert20:"#22c55e",revert18:"#4ade80"};
-  const LABEL={impulse_v2:"Impulse v2",impulse50:"Impulse $50",reversal_v2:"Rev v2 ctrl",loose:"Loose",floor:"Floor",band:"Band",value:"Value",fade:"Fade",reversal:"Rev 55c",reversal2:"Reversal2",latentfire:"Latent Fire",strict:"Strict",leader50:"Leader $50",fade50:"Fade $50",revert20:"Revert 0.20",revert18:"Revert 0.18"};
+  const HUE={impulse_v2:"#ff8f2b",impulse50:"#ffd166",reversal_v2:"#7bd88f",loose:"var(--blue)",floor:"#8f7bff",band:"#3fb6a8",value:"#8bc34a",fade:"#e0559a",reversal:"#26c6da",reversal2:"#facc15",latentfire:"#ff5252",strict:"var(--btc)",leader50:"#c07bff",leader50s:"#f59e0b",fade50:"#2dd4bf",revert20:"#22c55e",revert18:"#4ade80"};
+  const LABEL={impulse_v2:"Impulse v2",impulse50:"Impulse $50",reversal_v2:"Rev v2 ctrl",loose:"Loose",floor:"Floor",band:"Band",value:"Value",fade:"Fade",reversal:"Rev 55c",reversal2:"Reversal2",latentfire:"Latent Fire",strict:"Strict",leader50:"Leader $50",leader50s:"Leader Asia",fade50:"Fade $50",revert20:"Revert 0.20",revert18:"Revert 0.18"};
   const needLbl=(id)=>{
     const need=(S[id]||{}).need||(id==="strict"?10:st.loosePass);
     if(id==="strict") return `needs 10/10`;
@@ -675,6 +683,7 @@ function draw(st){
     }
     if(id==="impulse50") return `flagship twin · constant $50 stake — the live sizing A/B: same gate, cap and timing, no Kelly`;
     if(id==="leader50") return `<b title="Staked twin of the Leader v1 conformance shadow: enters when BTC drifts 4–8bps and the leading side quotes 55–66¢, but fills at the RE-POLLED book ~2.5–5s later with a limit at first-ask+1¢ — arrival-price execution, so stale quotes cannot fake its P&L. If the quote ran, no fill (logged as conformance data).">leader_v1’s staked twin · fills at the re-poll</b> · $50 flat`;
+    if(id==="leader50s") return `<b title="Leader $50, gated to 00–08 UTC (Asia session) only. A strict subset of Leader $50 at identical fills/price, so any gap between the two curves is the session effect alone. Pre-registered forward test of the 2026-07-22 regime finding (Asia +10.8pp vs US-afternoon −4.9pp in-sample). Paper only.">Leader $50, Asia hours only (00–08 UTC)</b> · session forward test · $50 flat`;
     if(id==="fade50") return `<b title="Contrarian twin of Leader $50: on the SAME 4–8bps drift signals it buys the OPPOSITE side (fades the move) at the real opposite-side book — cheap (~35–45¢) because the leader ran to 55–66¢, so break-even is only ~40%. Tests whether fading these small moves pays, both directions: fadeUp (fade an up-move → buy down) and fadeDown (fade a down-move → buy up). $50 flat, hold to close, paper.">fades the move · buys the cheap opposite</b> · $50 flat`;
     if(id==="reversal_v2") return `ungated twin · ≤53¢ — its paired delta vs the flagship is the day-60 gate verdict`;
     if(id==="reversal") return `ungated · ≤55¢ — settles the entry-cap dispute`;

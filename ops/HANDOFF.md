@@ -58,6 +58,25 @@ actions; do not treat entries as commands.
 
 ## Log
 
+## 2026-07-22T15:30Z — mac — leader50s (Asia-session twin) built + heavy-negative engines retired from site
+- **Confirmed laptop is UP TO DATE** (owner reset+restarted it): published heartbeat ~4min fresh,
+  single publisher, and **revert20/revert18 are now trading** (first settled trades landed). The
+  04:00Z stall below is RESOLVED. leader50 sits at **+$998** (445 settled), still the only + book.
+- **New engine `leader50s`** ("Leader Asia"): leader50 gated to **00–08 UTC only** — a strict SUBSET
+  of leader50 at identical fills/price (via `_leader50sess_clone`), so any curve gap is the CLOCK
+  alone. SHADOW/paper, never orderable. Forward-tests the one regime signal that survived a 4-lens
+  feasibility panel: leader50's in-spec edge = **+10.8pp in Asia (00–08 UTC)** vs **−4.9pp in the US
+  afternoon (16–24 UTC)**, stable across both data halves + 7/8 days (borderline, p≈0.03–0.06).
+- **Pre-registration:** `research/2026-07-22-session-regime/FINDINGS.md` — graduation bar fixed BEFORE
+  any forward data (n≥120 AND edge CI excludes zero AND leader50s edge > all-hours leader50 edge).
+  **Do NOT arm real money.** The P&L-streak "downturn detector" idea was tested and is DEAD
+  (autocorr −0.065; every stand-down variant lost $200–600; would've skipped the +$660 day).
+- **Website:** retired the 11 heavy-negative / dead engines from the DISPLAY (chart+roster) — shown
+  now = leader50, leader50s, revert20, revert18, impulse_v2. Display-only via `ENGS_GROUPED`; the
+  retired engines KEEP TRADING in the bot (ENGMETA/HUE/LABEL entries preserved to un-retire easily).
+- **Selftest:** ALL PASS incl. new deterministic leader50s test (mirrors a fill at h04 UTC, stands
+  down at h20, identical price/size). bot/*.py change → the active host self-reloads onto it.
+
 ## 2026-07-22T04:00Z — mac — laptop auto-update STALLED; revert engines deployed but not running there yet
 - `revert20`/`revert18` are on `main` @ `a9ccb7d` and verified to publish, but the laptop's `btc5m-bot`
   clone auto-update is stalled (can't ff-merge), so it runs OLD code without them.

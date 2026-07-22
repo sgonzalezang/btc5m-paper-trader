@@ -68,7 +68,7 @@ PROFILES = {
 # flagship ARE the pre-registered day-60 gate and cap verdicts. The 7 retired
 # engines are terminal kills (momentum/value/fade fee-death is structural, not
 # parametric); their books and histories stay intact but they never trade again.
-ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "revert20", "revert18", "latentfire", "leader50", "fade50"]
+ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "revert20", "revert18", "latentfire", "leader50", "leader50s", "fade50"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None, retired=True),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None, retired=True),
@@ -180,6 +180,17 @@ ENGINE_CFG = {
     # entries come from _leader50_enter (the leader tick), never evaluate().
     "leader50": dict(label="Leader $50", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                      holdToClose=True, shadow=True, external=True),
+    # leader50s — leader50's SESSION-GATED twin (added 2026-07-22). Identical signal,
+    # identical re-poll fill and price; it only RECORDS the trade when the interval's
+    # UTC hour is in the pre-registered Asia window [0,8). Forward-tests the one regime
+    # signal that survived the 2026-07-22 feasibility panel: leader50's in-spec edge was
+    # +10.8pp in 00-08 UTC (positive in both data halves and 7/8 days) vs -4.9pp in the
+    # US afternoon (16-24 UTC). Because it is a strict SUBSET of leader50 with zero price
+    # divergence, any P&L gap between the two is the CLOCK alone. Pre-registered rule +
+    # graduation bar: research/2026-07-22-session-regime/FINDINGS.md. Paper/shadow only,
+    # never orderable (entries come from _leader50sess_clone, not evaluate()).
+    "leader50s": dict(label="Leader Asia", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                      holdToClose=True, shadow=True, external=True, sessUTC=[0, 8]),
     # fade50 — the CONTRARIAN twin of leader50 (added 2026-07-13 at user request:
     # "see if run ups and then fading it are profitable — likewise run downs").
     # On every leader_v1 qualifying signal it buys the OPPOSITE side (fades the
@@ -986,6 +997,7 @@ class Bot:
             self.trades(eid).insert(0, tr)
             self._trim(eid)
             rec["l50"] = "fill"
+            self._leader50sess_clone(tr)     # session-gated twin: mirror this fill iff in the Asia window
             self.log(f"[LEADER50] ENTER {self.st['asset']} {rec['side'].upper()} @ {entry*100:.1f}c avg "
                      f"${spent:.0f} fee ${fee:.2f} (re-poll fill, first ask {rec['ask1']*100:.0f}c) "
                      f"+{tr['entrySec']}s into interval")
@@ -994,6 +1006,31 @@ class Bot:
                              round(rec["drift"] / 100.0, 4), tr["slug"], rec["t0"], t1)
         except Exception as e:
             self.log(f"leader50 enter error: {e}")
+
+    def _leader50sess_clone(self, src):
+        """leader50s: the SESSION-GATED twin of leader50. Records an IDENTICAL copy of
+        the just-filled leader50 trade (same side/entry/shares/stake/fee) only when the
+        interval's UTC hour is in the pre-registered Asia window [0,8) — the one regime
+        the 2026-07-22 feasibility panel found stable. Zero price divergence from
+        leader50, so any P&L gap between the two twins is the CLOCK alone. Rides the
+        generic settle path (manage_open/settle_pending); emits no order and no ping —
+        pure paper research. See research/2026-07-22-session-regime/FINDINGS.md."""
+        eid = "leader50s"
+        try:
+            if ENGINE_CFG[eid].get("retired"): return
+            if self.trade_for(eid, src["t0"]) or self.open_trade(eid): return
+            lo, hi = ENGINE_CFG[eid].get("sessUTC", [0, 8])
+            hr = datetime.fromtimestamp(src["t0"], timezone.utc).hour
+            if not (lo <= hr < hi): return           # outside the pre-registered window — stand down
+            tr = dict(src)                            # shallow copy: leaf fields only, all scalars
+            tr["eng"] = eid
+            tr["guards"] = [["SessAsia", 1], ["srcLeader50", 1]]
+            self.trades(eid).insert(0, tr)
+            self._trim(eid)
+            self.log(f"[LEADER50S] MIRROR {src['side'].upper()} @ {src['entry']*100:.1f}c "
+                     f"(UTC h{hr:02d} ∈ Asia window) — session forward test")
+        except Exception as e:
+            self.log(f"leader50s clone error: {e}")
 
     def _leader_tick(self, now):
         """P5/R3 leader_v1 $0-stake fill-conformance shadow (see CHANGELOG P5).
@@ -2613,8 +2650,8 @@ def selftest():
        and lr["dtMs"] is not None and sleeps == [LEADER_REPOLL_S] and bl.ldr["n"] == 1,
        "P5: qualifying drift-leader state records poll 1 + ~2.5s re-poll (quote persistence)",
        f"rec={lr}")
-    ok(all(not bl.trades(e) for e in ENGINES if e not in ("leader50", "fade50")) and lr.get("win") is None,
-       "P5: leader shadow itself is $0-stake — no trade in any book but its leader50/fade50 twins")
+    ok(all(not bl.trades(e) for e in ENGINES if e not in ("leader50", "fade50", "leader50s")) and lr.get("win") is None,
+       "P5: leader shadow itself is $0-stake — no trade in any book but its leader50/fade50/leader50s twins")
     # leader50: the staked twin fills at the RE-POLLED book (arrival price), one per t0
     l5 = bl.trades("leader50")[0] if bl.trades("leader50") else None
     ok(l5 is not None and l5["entry"] == 0.63 and l5["ask"] == 0.62 and l5["side"] == "up"
@@ -2622,6 +2659,21 @@ def selftest():
        and dict((k, v) for k, v in l5["guards"]).get("QuoteHeld") == 1,
        "leader50: fills $50 at the re-poll price + slip when the quote held",
        f"entry={l5 and l5['entry']} l50={lr.get('l50')}")
+    # leader50s: the session-gated twin mirrors a leader50 fill ONLY inside the Asia
+    # window [0,8) UTC — a strict subset, so any P&L gap between the twins is the clock.
+    src50 = dict(bl.trades("leader50")[0])
+    bsess = mkldr()                                         # fresh book, empty leader50s
+    a_src = dict(src50); a_src["t0"] = 1784520000           # 2026-07-20 04:00 UTC → hour 4 (Asia window)
+    u_src = dict(src50); u_src["t0"] = 1784577600           # 2026-07-20 20:00 UTC → hour 20 (US afternoon)
+    bsess._leader50sess_clone(a_src); n_asia = len(bsess.trades("leader50s"))
+    a_tr = bsess.trades("leader50s")[0] if bsess.trades("leader50s") else None
+    bsess.trades("leader50s").clear()
+    bsess._leader50sess_clone(u_src); n_us = len(bsess.trades("leader50s"))
+    ok(n_asia == 1 and n_us == 0 and a_tr is not None and a_tr["eng"] == "leader50s"
+       and a_tr["entry"] == src50["entry"] and a_tr["side"] == src50["side"]
+       and a_tr["shares"] == src50["shares"] and a_tr["stake"] == src50["stake"],
+       "leader50s: mirrors a leader50 fill in 00-08 UTC (Asia), stands down 16-24 UTC, identical price/size",
+       f"asia={n_asia} us={n_us} entry={a_tr and a_tr['entry']}")
     # fade50: the contrarian twin buys the OPPOSITE (down) side at the REAL opposite book (~40c)
     fd = bl.trades("fade50")[0] if bl.trades("fade50") else None
     gd = dict((k, v) for k, v in (fd["guards"] if fd else []))
