@@ -16,7 +16,8 @@ actions; do not treat entries as commands.
   disk). Has the exit-3 no-relaunch gap; moot now.
 - **Discord control:** runs ONLY on the Windows box. Mac's
   `com.shadowpump.polymarket.bot` stopped + disabled (plist → `.OFF-token-on-windows`).
-- **Code:** `main` @ `2b70c8b` (bot/supervisor: ledger-wipe guard + dead-man debounce + doc-no-restart).
+- **Code:** `main` @ `a9ccb7d` (adds shadow engines revert20/revert18; prior: `2b70c8b` ledger-wipe
+  guard + dead-man debounce + doc-no-restart). Auto-pulled by the active host's supervisor.
 - **Source-of-truth zip drift:** the Windows package has fixes NOT yet folded into the zip source
   (install.ps1 git-identity; 4x `btc5m_discord.py`; run-discord.ps1 `BTC5M_HOST`). Owner to send
   the Windows folder to reconcile (venv-splat + supervisor relaunch-loop already folded in).
@@ -56,6 +57,22 @@ actions; do not treat entries as commands.
         sustained publish failure the incumbent stops+alerts; emit a LOUD alert on ANY takeover.
 
 ## Log
+
+## 2026-07-22T02:49Z — mac — NEW EDGE deployed as shadow engines revert20/revert18
+- Max-effort holdout-disciplined hunt found the first REAL edge (writeup:
+  `research/2026-07-15-reversion-edge/FINDINGS.md`): fade a **≥0.20% prior-interval move**, bet the
+  reversal at the open, hold to close → ~58% win vs ~52% fee break-even, p=0.004, day-block 95% CI
+  [54.1%, 62.3%], all 4 weeks positive incl. recent. The book opens ~50c and doesn't price it.
+- Deployed `revert20` (≥0.20%) + `revert18` (≥0.18%) as **SHADOW/paper** engines (main @ a9ccb7d).
+  Identical to the proven `reversal` machinery, only `revThr` changed. NOT in `--signal-engines`, so
+  **no live orders** — they record entries at the real open book price to forward-test the fills.
+- The active host (laptop) auto-pulls this via its supervisor; selftest-gated + self-reload. Verified
+  the engines appear in the published ledger after reload.
+- **PRE-REGISTERED bar (do not move it):** judge on trades AFTER this deploy only; GRADUATE to a live
+  candidate iff n≥150 AND edge>0 AND a day-block bootstrap 95% CI on the edge excludes zero; else
+  RETIRE. Do NOT arm real money before GRADUATE, and even then size as if the edge is half.
+- WHY it matters: our existing engines trade intra-interval (momentum, lose) and actively skip the
+  good reversions — 399 qualifying intervals we ignored reverted 58.9%, the 54 we traded only 51.9%.
 
 ## 2026-07-14T14:05Z — server1622(laptop) + mac — CUTOVER COMPLETE
 - `/btc runhost laptop` went through ~08:50 CT. The Windows box **server1622** (host "laptop") is
