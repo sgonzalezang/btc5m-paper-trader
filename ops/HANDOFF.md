@@ -16,9 +16,10 @@ actions; do not treat entries as commands.
   disk). Has the exit-3 no-relaunch gap; moot now.
 - **Discord control:** runs ONLY on the Windows box. Mac's
   `com.shadowpump.polymarket.bot` stopped + disabled (plist → `.OFF-token-on-windows`).
-- **Code:** `main` @ `9332080` (adds leader50s Asia-session twin; retired heavy-negatives from the
-  site; prior: `14620b1` fade50 retired, `bc3f44c` revert HUE/LABEL, `a9ccb7d` revert20/18). Laptop
-  confirmed ADOPTED (published roster = 17 engines incl. leader50s). Auto-pulled by the active host.
+- **Code:** `main` @ HEAD (2026-07-28: adds leader50z zero-slack + leader50w weekend twins; prior:
+  `f0992fa` site peak/trough column, `ecde25b` revert20c + retire-4, `9332080` leader50s). 20 engines
+  total, 8 active / 12 retired. Auto-pulled by the active host; verify adoption after each push
+  (this box's clone stalled twice — check the published roster, not just the heartbeat).
 - **Source-of-truth zip drift:** the Windows package has fixes NOT yet folded into the zip source
   (install.ps1 git-identity; 4x `btc5m_discord.py`; run-discord.ps1 `BTC5M_HOST`). Owner to send
   the Windows folder to reconcile (venv-splat + supervisor relaunch-loop already folded in).
@@ -58,6 +59,29 @@ actions; do not treat entries as commands.
         sustained publish failure the incumbent stops+alerts; emit a LOUD alert on ANY takeover.
 
 ## Log
+
+## 2026-07-28T05:30Z — mac — leader50z (zero-slack twin) + leader50w (weekend twin) from the refinement hunt
+- **07-27 pre-registered side eval ran on schedule:** BOTH leader sides cleared the survival bar
+  (up 63.8%/+$891, down 63.9%/+$1,513 full-signal; n=445/493). Caveat logged: full-signal now
+  flatters unfillable would-bes (+$1,292 of +$2,403); actual fills +$1,112 are the honest number.
+  Chase path re-refuted (−$812 at ask2); fade50 refuted terminally (−$5,709, already retired).
+- **Refinement hunt** (5 lenses + adjudicator, n=575 fills / 938 signals, all splits two-halves
+  stability-checked) found ONE robust refinement: the **+1¢ fill-slack tax** — fills where the
+  re-poll quote ticked up (ask2>ask1, n=69) are stably −10.5pp in every slice; dropping them
+  leaves +2.8pp/+$1,380 vs blended +1.2pp/+$1,112.
+- **Deployed `leader50z` ("Leader Held")**: mirrors a leader50 fill iff the quote held/improved
+  (ask2≤ask1). Strict subset, identical booked prices → any twin gap = pure fill-selection.
+  **Deployed `leader50w` ("Leader Wknd")**: mirrors Sat/Sun UTC fills only (weekend +6.7pp stable
+  but only 4 weekend days — cheap orthogonal test; idle till Saturday).
+- **Pre-registration** (bars fixed before data): research/2026-07-28-leader50-refinements/FINDINGS.md
+  — z: n≥100, beat concurrent parent, positive both halves; w: n≥50 or 4 weekends, sign ≥3/4.
+  Sub-metrics (≥64c slice, 62–63c pocket) ride inside z. NO existing bar moves; NO real money.
+- **Killed this hunt** (do not re-propose): down-side twin (fill-selection luck — book is
+  side-symmetric 63.9/63.8), limit widening (+2c/+3c stably negative), band tightens / timing /
+  drift / dtMs / day-of-week gates (all flip), US-cash blackout (deferred — same family as s/w).
+  **Cooling check: NOT cooling** (slope +0.42pp/day, second half better).
+- Selftest ALL PASS (z: mirrors held 62→62, drops slack-caught 62→63; w: Sat yes / Mon no).
+  Site: both twins in all maps (violet solid / pink dashed). Roster now 8 active / 12 retired.
 
 ## 2026-07-22T16:40Z — mac — revert20c (cheap-entry revert sibling) + proper retirement fold
 - **revert20c** built + deployed (owner + server1622 greenlit): revert20 clone with revEntryMax

@@ -68,7 +68,7 @@ PROFILES = {
 # flagship ARE the pre-registered day-60 gate and cap verdicts. The 7 retired
 # engines are terminal kills (momentum/value/fade fee-death is structural, not
 # parametric); their books and histories stay intact but they never trade again.
-ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "revert20", "revert18", "revert20c", "latentfire", "leader50", "leader50s", "fade50"]
+ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "revert20", "revert18", "revert20c", "latentfire", "leader50", "leader50s", "leader50z", "leader50w", "fade50"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None, retired=True),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None, retired=True),
@@ -201,6 +201,28 @@ ENGINE_CFG = {
     # never orderable (entries come from _leader50sess_clone, not evaluate()).
     "leader50s": dict(label="Leader Asia", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                       holdToClose=True, shadow=True, external=True, sessUTC=[0, 8]),
+    # leader50z — leader50's ZERO-SLACK twin (added 2026-07-28 from the refinement hunt on
+    # n=575 fills / 938 signals). Identical signal and IDENTICAL entry pricing, but it only
+    # records the fill when the re-poll quote HELD OR IMPROVED (ask2 <= ask1) — i.e. the
+    # engine a limit at exactly ask1 (no +1c slack) would have been. The hunt found the
+    # slack-caught fills (ask2 > ask1, n=69) are stably NEGATIVE in every slice (-10.5pp,
+    # -$268, both halves, both sides, all price bands): a quote ticking up mid-signal means
+    # you're the slow one reaching for a stale price — the mini-runaway. Dropping them left
+    # +2.8pp/+$1,380 vs blended +1.2pp/+$1,112. A strict SUBSET of leader50 at the same
+    # booked prices, so any edge gap between the twins is pure fill-SELECTION. Two
+    # pre-registered sub-metrics ride inside: entries >=64c (the price-cap question) and
+    # the 62-63c pocket. Bar + full pre-registration:
+    # research/2026-07-28-leader50-refinements/FINDINGS.md. Paper/shadow, never orderable.
+    "leader50z": dict(label="Leader Held", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                      holdToClose=True, shadow=True, external=True),
+    # leader50w — leader50's WEEKEND-ONLY twin (added 2026-07-28, same hunt). Identical
+    # mirror of leader50 fills, recorded only Sat/Sun UTC. Weekend fills ran +6.7pp
+    # (+$312, stable both halves) and the effect survives EX-Asia hours (+9.7pp), so it is
+    # not the leader50s session effect repackaged — but it rests on only 4 weekend days
+    # (standalone p~0.38), hence a cheap orthogonal forward test, not conviction. Zero
+    # weekday activity by construction. Bar: research/2026-07-28-leader50-refinements/.
+    "leader50w": dict(label="Leader Wknd", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                      holdToClose=True, shadow=True, external=True, wkndOnly=True),
     # fade50 — the CONTRARIAN twin of leader50 (added 2026-07-13 at user request:
     # "see if run ups and then fading it are profitable — likewise run downs").
     # On every leader_v1 qualifying signal it buys the OPPOSITE side (fades the
@@ -1008,6 +1030,8 @@ class Bot:
             self._trim(eid)
             rec["l50"] = "fill"
             self._leader50sess_clone(tr)     # session-gated twin: mirror this fill iff in the Asia window
+            self._leader50z_clone(rec, tr)   # zero-slack twin: mirror iff the quote held (ask2 <= ask1)
+            self._leader50wk_clone(tr)       # weekend twin: mirror iff Sat/Sun UTC
             self.log(f"[LEADER50] ENTER {self.st['asset']} {rec['side'].upper()} @ {entry*100:.1f}c avg "
                      f"${spent:.0f} fee ${fee:.2f} (re-poll fill, first ask {rec['ask1']*100:.0f}c) "
                      f"+{tr['entrySec']}s into interval")
@@ -1041,6 +1065,53 @@ class Bot:
                      f"(UTC h{hr:02d} ∈ Asia window) — session forward test")
         except Exception as e:
             self.log(f"leader50s clone error: {e}")
+
+    def _leader50z_clone(self, rec, src):
+        """leader50z: the ZERO-SLACK twin. Records an identical copy of the just-filled
+        leader50 trade ONLY when the re-poll quote held or improved (ask2 <= ask1) —
+        the fills a limit at exactly ask1 (no +1c slack) would have taken. Entry price,
+        size and fees are the parent's own, so any edge gap between the twins is pure
+        fill-SELECTION, never cheaper booked prices. The dropped complement (slack-caught
+        fills where the quote ticked up) tested stably negative in every slice of the
+        2026-07-28 refinement hunt. Rides the generic settle path; no pings, no orders.
+        Pre-registration: research/2026-07-28-leader50-refinements/FINDINGS.md."""
+        eid = "leader50z"
+        try:
+            if ENGINE_CFG[eid].get("retired"): return
+            if self.trade_for(eid, src["t0"]) or self.open_trade(eid): return
+            a1, a2 = rec.get("ask1"), rec.get("ask2")
+            if a1 is None or a2 is None or a2 > a1 + 1e-9: return   # quote worsened — the slack tax; stand down
+            tr = dict(src)
+            tr["eng"] = eid
+            tr["guards"] = [["QuoteHeld", 1], ["srcLeader50", 1]]
+            self.trades(eid).insert(0, tr)
+            self._trim(eid)
+            self.log(f"[LEADER50Z] MIRROR {src['side'].upper()} @ {src['entry']*100:.1f}c "
+                     f"(quote held {a1*100:.0f}c→{a2*100:.0f}c) — zero-slack forward test")
+        except Exception as e:
+            self.log(f"leader50z clone error: {e}")
+
+    def _leader50wk_clone(self, src):
+        """leader50w: the WEEKEND-ONLY twin. Identical copy of the just-filled leader50
+        trade, recorded only when the interval's UTC weekday is Sat/Sun. Forward-tests
+        the weekend edge from the 2026-07-28 refinement hunt (+6.7pp, stable, but only
+        4 weekend days — hence a test, not conviction). Strict subset of leader50 at
+        identical prices; idle Mon-Fri by construction. No pings, no orders.
+        Pre-registration: research/2026-07-28-leader50-refinements/FINDINGS.md."""
+        eid = "leader50w"
+        try:
+            if ENGINE_CFG[eid].get("retired"): return
+            if self.trade_for(eid, src["t0"]) or self.open_trade(eid): return
+            if datetime.fromtimestamp(src["t0"], timezone.utc).weekday() < 5: return   # Mon-Fri — stand down
+            tr = dict(src)
+            tr["eng"] = eid
+            tr["guards"] = [["Weekend", 1], ["srcLeader50", 1]]
+            self.trades(eid).insert(0, tr)
+            self._trim(eid)
+            self.log(f"[LEADER50W] MIRROR {src['side'].upper()} @ {src['entry']*100:.1f}c "
+                     f"(weekend UTC) — weekend forward test")
+        except Exception as e:
+            self.log(f"leader50w clone error: {e}")
 
     def _leader_tick(self, now):
         """P5/R3 leader_v1 $0-stake fill-conformance shadow (see CHANGELOG P5).
@@ -2669,8 +2740,8 @@ def selftest():
        and lr["dtMs"] is not None and sleeps == [LEADER_REPOLL_S] and bl.ldr["n"] == 1,
        "P5: qualifying drift-leader state records poll 1 + ~2.5s re-poll (quote persistence)",
        f"rec={lr}")
-    ok(all(not bl.trades(e) for e in ENGINES if e not in ("leader50", "fade50", "leader50s")) and lr.get("win") is None,
-       "P5: leader shadow itself is $0-stake — no trade in any book but its leader50/fade50/leader50s twins")
+    ok(all(not bl.trades(e) for e in ENGINES if e not in ("leader50", "fade50", "leader50s", "leader50z", "leader50w")) and lr.get("win") is None,
+       "P5: leader shadow itself is $0-stake — no trade in any book but its leader50/fade50/leader50s/z/w twins")
     # leader50: the staked twin fills at the RE-POLLED book (arrival price), one per t0
     l5 = bl.trades("leader50")[0] if bl.trades("leader50") else None
     ok(l5 is not None and l5["entry"] == 0.63 and l5["ask"] == 0.62 and l5["side"] == "up"
@@ -2693,6 +2764,32 @@ def selftest():
        and a_tr["shares"] == src50["shares"] and a_tr["stake"] == src50["stake"],
        "leader50s: mirrors a leader50 fill in 00-08 UTC (Asia), stands down 16-24 UTC, identical price/size",
        f"asia={n_asia} us={n_us} entry={a_tr and a_tr['entry']}")
+    # leader50z: the zero-slack twin — mirrors ONLY when the re-poll quote held (ask2 <= ask1).
+    # In the bl fixture the quote held (0.62 -> 0.62), so z must hold an identical copy.
+    z_tr = bl.trades("leader50z")[0] if bl.trades("leader50z") else None
+    ok(z_tr is not None and z_tr["eng"] == "leader50z" and z_tr["entry"] == l5["entry"]
+       and z_tr["side"] == l5["side"] and z_tr["shares"] == l5["shares"],
+       "leader50z: mirrors the fill when the quote held (62c->62c), identical price/size",
+       f"entry={z_tr and z_tr['entry']}")
+    # ...and when the quote WORSENS but stays inside leader50's +1c slack (62c ask1 -> 63c ask2),
+    # leader50 fills but z stands down — the exact slack-tax population it exists to drop.
+    bworse = mkldr(ask=0.62, ask2=0.63)
+    bworse._leader_tick(now)
+    ok(len(bworse.trades("leader50")) == 1 and not bworse.trades("leader50z"),
+       "leader50z: stands down on a slack-caught fill (quote 62c->63c) that leader50 still takes",
+       f"l50={len(bworse.trades('leader50'))} z={len(bworse.trades('leader50z'))}")
+    # leader50w: the weekend twin — fixed timestamps, mirrors Sat/Sun UTC only.
+    bwk = mkldr()
+    sat_src = dict(src50); sat_src["t0"] = 1784980800    # 2026-07-25 12:00 UTC = Saturday
+    mon_src = dict(src50); mon_src["t0"] = 1784548800    # 2026-07-20 12:00 UTC = Monday
+    bwk._leader50wk_clone(sat_src); n_sat = len(bwk.trades("leader50w"))
+    w_tr = bwk.trades("leader50w")[0] if bwk.trades("leader50w") else None
+    bwk.trades("leader50w").clear()
+    bwk._leader50wk_clone(mon_src); n_mon = len(bwk.trades("leader50w"))
+    ok(n_sat == 1 and n_mon == 0 and w_tr is not None and w_tr["eng"] == "leader50w"
+       and w_tr["entry"] == src50["entry"] and w_tr["shares"] == src50["shares"],
+       "leader50w: mirrors a Saturday fill, stands down on a Monday, identical price/size",
+       f"sat={n_sat} mon={n_mon}")
     # fade50: the contrarian twin buys the OPPOSITE (down) side at the REAL opposite book (~40c)
     fd = bl.trades("fade50")[0] if bl.trades("fade50") else None
     gd = dict((k, v) for k, v in (fd["guards"] if fd else []))
