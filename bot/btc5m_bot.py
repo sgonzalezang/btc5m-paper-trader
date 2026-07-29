@@ -1042,10 +1042,10 @@ class Bot:
             self.trades(eid).insert(0, tr)
             self._trim(eid)
             rec["l50"] = "fill"
-            self._leader50sess_clone(tr)     # session-gated twin: mirror this fill iff in the Asia window
-            self._leader50z_clone(rec, tr)   # zero-slack twin: mirror iff the quote held (ask2 <= ask1)
-            self._leader50wk_clone(tr)       # weekend twin: mirror iff Sat/Sun UTC
-            self._leader50t_clone(tr)        # entry-clock twin: mirror unless daytime 31-60s
+            self._leader50sess_clone(tr, rec)   # session-gated twin: mirror iff in the Asia window
+            self._leader50z_clone(rec, tr)      # zero-slack twin: mirror iff the quote held (ask2 <= ask1)
+            self._leader50wk_clone(tr, rec)     # weekend twin: mirror iff Sat/Sun UTC
+            self._leader50t_clone(tr, rec)      # entry-clock twin: mirror unless daytime 31-60s
             self.log(f"[LEADER50] ENTER {self.st['asset']} {rec['side'].upper()} @ {entry*100:.1f}c avg "
                      f"${spent:.0f} fee ${fee:.2f} (re-poll fill, first ask {rec['ask1']*100:.0f}c) "
                      f"+{tr['entrySec']}s into interval")
@@ -1055,7 +1055,28 @@ class Bot:
         except Exception as e:
             self.log(f"leader50 enter error: {e}")
 
-    def _leader50sess_clone(self, src):
+    def _twin_emit(self, eid, src, rec):
+        """Emit an orderable bridge signal for a leader50 TWIN, so a twin can be the
+        ARMED engine (e.g. /btc engines leader50t) instead of only a paper book.
+
+        Gated three ways and safe by construction: _emit_order returns immediately
+        unless `eid` is in sig_engines, the executor's own allowlist must also name
+        it, and it stays SHADOW until LIVE is enabled. rec is None only from the
+        selftest's direct clone calls, which do not exercise the bridge.
+
+        IMPORTANT: every twin is a strict SUBSET of leader50 on the SAME market and
+        side, so arming a twin AND its parent together would put two orders on one
+        bet. control.set_engines() enforces one-per-family to prevent exactly that."""
+        if rec is None:
+            return
+        try:
+            self._emit_order(eid, rec["side"], rec.get("tok"), rec.get("ask2"),
+                             round(rec["drift"] / 100.0, 4), src["slug"],
+                             rec["t0"], rec["t1"])
+        except Exception as e:
+            self.log(f"{eid} emit error: {e}")
+
+    def _leader50sess_clone(self, src, rec=None):
         """leader50s: the SESSION-GATED twin of leader50. Records an IDENTICAL copy of
         the just-filled leader50 trade (same side/entry/shares/stake/fee) only when the
         interval's UTC hour is in the pre-registered Asia window [0,8) — the one regime
@@ -1077,6 +1098,7 @@ class Bot:
             self._trim(eid)
             self.log(f"[LEADER50S] MIRROR {src['side'].upper()} @ {src['entry']*100:.1f}c "
                      f"(UTC h{hr:02d} ∈ Asia window) — session forward test")
+            self._twin_emit(eid, src, rec)
         except Exception as e:
             self.log(f"leader50s clone error: {e}")
 
@@ -1102,10 +1124,11 @@ class Bot:
             self._trim(eid)
             self.log(f"[LEADER50Z] MIRROR {src['side'].upper()} @ {src['entry']*100:.1f}c "
                      f"(quote held {a1*100:.0f}c→{a2*100:.0f}c) — zero-slack forward test")
+            self._twin_emit(eid, src, rec)
         except Exception as e:
             self.log(f"leader50z clone error: {e}")
 
-    def _leader50wk_clone(self, src):
+    def _leader50wk_clone(self, src, rec=None):
         """leader50w: the WEEKEND-ONLY twin. Identical copy of the just-filled leader50
         trade, recorded only when the interval's UTC weekday is Sat/Sun. Forward-tests
         the weekend edge from the 2026-07-28 refinement hunt (+6.7pp, stable, but only
@@ -1124,10 +1147,11 @@ class Bot:
             self._trim(eid)
             self.log(f"[LEADER50W] MIRROR {src['side'].upper()} @ {src['entry']*100:.1f}c "
                      f"(weekend UTC) — weekend forward test")
+            self._twin_emit(eid, src, rec)
         except Exception as e:
             self.log(f"leader50w clone error: {e}")
 
-    def _leader50t_clone(self, src):
+    def _leader50t_clone(self, src, rec=None):
         """leader50t: the ENTRY-CLOCK twin. Identical copy of the just-filled leader50
         trade, EXCEPT it stands down on daytime (06-21 ET) fills that entered 31-60s
         into the interval — the single worst bucket in the 2026-07-29 EV decomposition
@@ -1156,6 +1180,7 @@ class Bot:
             self._trim(eid)
             self.log(f"[LEADER50T] MIRROR {src['side'].upper()} @ {src['entry']*100:.1f}c "
                      f"(+{sec}s, {hour_et:02d}h ET) — entry-clock forward test")
+            self._twin_emit(eid, src, rec)
         except Exception as e:
             self.log(f"leader50t clone error: {e}")
 
