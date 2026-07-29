@@ -22,7 +22,7 @@ Usage:
 State + logs live next to this file unless --state / --log point elsewhere.
 """
 import argparse, hashlib, hmac, json, math, os, sys, time, urllib.request, urllib.parse, subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 IVL = 300            # interval length, seconds
 TICK_S = 4           # data refresh cadence
@@ -68,7 +68,7 @@ PROFILES = {
 # flagship ARE the pre-registered day-60 gate and cap verdicts. The 7 retired
 # engines are terminal kills (momentum/value/fade fee-death is structural, not
 # parametric); their books and histories stay intact but they never trade again.
-ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "revert20", "revert18", "revert20c", "latentfire", "leader50", "leader50s", "leader50z", "leader50w", "fade50"]
+ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "revert20", "revert18", "revert20c", "latentfire", "leader50", "leader50s", "leader50z", "leader50w", "leader50t", "fade50"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None, retired=True),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None, retired=True),
@@ -223,6 +223,19 @@ ENGINE_CFG = {
     # weekday activity by construction. Bar: research/2026-07-28-leader50-refinements/.
     "leader50w": dict(label="Leader Wknd", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                       holdToClose=True, shadow=True, external=True, wkndOnly=True),
+    # leader50t — leader50's ENTRY-CLOCK twin (added 2026-07-29 from the EV decomposition
+    # on n=600 fills). Identical mirror EXCEPT it stands down on DAYTIME (06-21 ET) fills
+    # that entered 31-60s into the interval. That one bucket lost -$905 on n=119 at 51.3%
+    # (below its own ~58c break-even) and is most of leader50's entire daytime deficit;
+    # the same window at NIGHT is fine (66.7%), so this is not the leader50s session effect
+    # repackaged. Stable both halves (dropped bucket -$482 / -$423, 50.8% / 51.7% win).
+    # Suspected mechanism: 31-60s into a daytime interval is peak informed flow — the drift
+    # is public, the book has already adjusted, and the taker is the last to know. A strict
+    # SUBSET of leader50 at identical booked prices, so any gap is pure entry-TIMING
+    # selection. In-sample: twin +$1,844/63.2% vs parent +$939/60.8%. Judged after n>=150
+    # twin fills; sign must hold in both halves. Paper/shadow, never orderable.
+    "leader50t": dict(label="Leader Clock", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                      holdToClose=True, shadow=True, external=True),
     # fade50 — the CONTRARIAN twin of leader50 (added 2026-07-13 at user request:
     # "see if run ups and then fading it are profitable — likewise run downs").
     # On every leader_v1 qualifying signal it buys the OPPOSITE side (fades the
@@ -1032,6 +1045,7 @@ class Bot:
             self._leader50sess_clone(tr)     # session-gated twin: mirror this fill iff in the Asia window
             self._leader50z_clone(rec, tr)   # zero-slack twin: mirror iff the quote held (ask2 <= ask1)
             self._leader50wk_clone(tr)       # weekend twin: mirror iff Sat/Sun UTC
+            self._leader50t_clone(tr)        # entry-clock twin: mirror unless daytime 31-60s
             self.log(f"[LEADER50] ENTER {self.st['asset']} {rec['side'].upper()} @ {entry*100:.1f}c avg "
                      f"${spent:.0f} fee ${fee:.2f} (re-poll fill, first ask {rec['ask1']*100:.0f}c) "
                      f"+{tr['entrySec']}s into interval")
@@ -1112,6 +1126,38 @@ class Bot:
                      f"(weekend UTC) — weekend forward test")
         except Exception as e:
             self.log(f"leader50w clone error: {e}")
+
+    def _leader50t_clone(self, src):
+        """leader50t: the ENTRY-CLOCK twin. Identical copy of the just-filled leader50
+        trade, EXCEPT it stands down on daytime (06-21 ET) fills that entered 31-60s
+        into the interval — the single worst bucket in the 2026-07-29 EV decomposition
+        (-$905 on n=119 at 51.3%, i.e. below its own break-even, stable in both halves).
+        The same window at night is fine (66.7%), so the drop is entry-TIMING, not the
+        leader50s session effect. Strict subset of leader50 at identical booked prices.
+        Judged after n>=150 twin fills, sign must hold in both halves. No pings, no orders.
+        Pre-registration: research/2026-07-29-leader50-entry-clock/FINDINGS.md."""
+        eid = "leader50t"
+        try:
+            if ENGINE_CFG[eid].get("retired"): return
+            if self.trade_for(eid, src["t0"]) or self.open_trade(eid): return
+            sec = src.get("entrySec")
+            if not isinstance(sec, (int, float)):
+                sec = max(0, round(src.get("at", 0) / 1000 - src["t0"]))
+            # ET hour: fixed -4 (EDT). The bucket is a broad 16h daytime block, so the
+            # one-hour DST shift cannot move a trade across the night/day boundary by
+            # more than an hour at the edges — and the edges are the flat part.
+            hour_et = datetime.fromtimestamp(src["t0"], timezone(timedelta(hours=-4))).hour
+            if hour_et not in (22, 23, 0, 1, 2, 3, 4, 5) and 30 < sec <= 60:
+                return                       # daytime rush window — the informed-flow bucket
+            tr = dict(src)
+            tr["eng"] = eid
+            tr["guards"] = [["ClockOK", 1], ["srcLeader50", 1]]
+            self.trades(eid).insert(0, tr)
+            self._trim(eid)
+            self.log(f"[LEADER50T] MIRROR {src['side'].upper()} @ {src['entry']*100:.1f}c "
+                     f"(+{sec}s, {hour_et:02d}h ET) — entry-clock forward test")
+        except Exception as e:
+            self.log(f"leader50t clone error: {e}")
 
     def _leader_tick(self, now):
         """P5/R3 leader_v1 $0-stake fill-conformance shadow (see CHANGELOG P5).
@@ -2751,8 +2797,8 @@ def selftest():
        and lr["dtMs"] is not None and sleeps == [LEADER_REPOLL_S] and bl.ldr["n"] == 1,
        "P5: qualifying drift-leader state records poll 1 + ~2.5s re-poll (quote persistence)",
        f"rec={lr}")
-    ok(all(not bl.trades(e) for e in ENGINES if e not in ("leader50", "fade50", "leader50s", "leader50z", "leader50w")) and lr.get("win") is None,
-       "P5: leader shadow itself is $0-stake — no trade in any book but its leader50/fade50/leader50s/z/w twins")
+    ok(all(not bl.trades(e) for e in ENGINES if e not in ("leader50", "fade50", "leader50s", "leader50z", "leader50w", "leader50t")) and lr.get("win") is None,
+       "P5: leader shadow itself is $0-stake — no trade in any book but its leader50/fade50/leader50s/z/w/t twins")
     # leader50: the staked twin fills at the RE-POLLED book (arrival price), one per t0
     l5 = bl.trades("leader50")[0] if bl.trades("leader50") else None
     ok(l5 is not None and l5["entry"] == 0.63 and l5["ask"] == 0.62 and l5["side"] == "up"
@@ -2801,6 +2847,29 @@ def selftest():
        and w_tr["entry"] == src50["entry"] and w_tr["shares"] == src50["shares"],
        "leader50w: mirrors a Saturday fill, stands down on a Monday, identical price/size",
        f"sat={n_sat} mon={n_mon}")
+    # leader50t: the entry-clock twin — drops DAYTIME fills entered 31-60s into the interval,
+    # keeps that same window at night, and keeps other daytime seconds. 1784563200 =
+    # 2026-07-20 16:00 UTC = 12:00 ET (day); 1784592000 = 2026-07-21 00:00 UTC = 20:00 ET...
+    # use 1784606400 = 2026-07-21 04:00 UTC = 00:00 ET (night).
+    bclk = mkldr()
+    def _t(t0, sec):
+        d = dict(src50); d["t0"] = t0; d["entrySec"] = sec; d["at"] = (t0 + sec) * 1000; return d
+    cases = [(_t(1784563200, 45), 0, "day 45s dropped"),      # 12:00 ET, in the bucket
+             (_t(1784563200, 20), 1, "day 20s kept"),          # before the bucket
+             (_t(1784563200, 90), 1, "day 90s kept"),          # after the bucket
+             (_t(1784606400, 45), 1, "night 45s kept")]        # 00:00 ET, same seconds
+    clk_ok, clk_dbg = True, []
+    for src_c, want, lbl in cases:
+        bclk.trades("leader50t").clear()
+        bclk._leader50t_clone(src_c)
+        got = len(bclk.trades("leader50t"))
+        clk_dbg.append(f"{lbl}={got}")
+        if got != want: clk_ok = False
+    t_tr = bclk.trades("leader50t")[0] if bclk.trades("leader50t") else None
+    ok(clk_ok and t_tr is not None and t_tr["eng"] == "leader50t"
+       and t_tr["entry"] == src50["entry"] and t_tr["shares"] == src50["shares"],
+       "leader50t: drops the daytime 31-60s bucket, keeps night 31-60s and other daytime seconds",
+       " ".join(clk_dbg))
     # fade50: the contrarian twin buys the OPPOSITE (down) side at the REAL opposite book (~40c)
     fd = bl.trades("fade50")[0] if bl.trades("fade50") else None
     gd = dict((k, v) for k, v in (fd["guards"] if fd else []))
