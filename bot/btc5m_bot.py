@@ -2239,14 +2239,25 @@ def publish(state_path, branch, repo_dir, remote="origin"):
             if r.returncode not in ok:
                 raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
             return r.stdout.strip()
-        with open(state_path, "rb") as f: data = f.read()
-        # write the blob into the object store from stdin (no index involvement)
-        r = subprocess.run(("git", "hash-object", "-w", "--stdin"), cwd=repo_dir,
-                           input=data, capture_output=True)
-        if r.returncode != 0: raise RuntimeError(r.stderr.decode().strip())
-        blob = r.stdout.decode().strip()
+        def blob_of(path):
+            with open(path, "rb") as f:
+                raw = f.read()
+            r = subprocess.run(("git", "hash-object", "-w", "--stdin"), cwd=repo_dir,
+                               input=raw, capture_output=True)
+            if r.returncode != 0: raise RuntimeError(r.stderr.decode().strip())
+            return r.stdout.decode().strip()
+        # state.json, plus any sidecars other processes drop next to it (the
+        # signal executor writes executor.json for the website's sized-book card)
+        entries = [f"100644 blob {blob_of(state_path)}\tstate.json\n"]
+        for side in ("executor.json",):
+            sp = os.path.join(os.path.dirname(state_path) or ".", side)
+            if os.path.exists(sp):
+                try:
+                    entries.append(f"100644 blob {blob_of(sp)}\t{side}\n")
+                except Exception:
+                    pass                     # a bad sidecar never blocks the ledger publish
         tree = subprocess.run(("git", "mktree"), cwd=repo_dir,
-                              input=f"100644 blob {blob}\tstate.json\n".encode(), capture_output=True)
+                              input="".join(entries).encode(), capture_output=True)
         if tree.returncode != 0: raise RuntimeError(tree.stderr.decode().strip())
         tree_sha = tree.stdout.decode().strip()
         commit = g("commit-tree", tree_sha, "-m", "state update")   # orphan: no -p parent

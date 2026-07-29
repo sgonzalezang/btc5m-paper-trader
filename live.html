@@ -188,6 +188,19 @@ async function fetchState(){
   if(best) $("src").textContent=OWNER+"/"+REPO+" ("+BRANCH+" branch)";
   return best;
 }
+// executor.json is a sidecar the SIGNAL EXECUTOR (the separate order-path
+// process) publishes alongside state.json: its own shadow book, sized by the
+// ET session schedule (2x overnight / 0.5x midday) since Jul 28. Absent until
+// that pipeline has published once — the card simply doesn't render then.
+const RAW_EXEC=`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/executor.json`;
+async function fetchExec(){
+  for(const w of PROXIES){
+    try{ const r=await fetch(w(RAW_EXEC+"?t="+Date.now()),{cache:"no-store"});
+      if(r.ok) return JSON.parse(await r.text()); }
+    catch(e){}
+  }
+  return null;
+}
 function tiles(s){
   const be = s.avgEntry!=null?s.avgEntry+"¢":"—";
   let wrCol="var(--ink)"; if(s.winPct!=null&&s.avgEntry!=null) wrCol=s.winPct>=s.avgEntry+5?"var(--up)":(s.winPct<s.avgEntry?"var(--dn)":"#cdc06a");
@@ -651,8 +664,45 @@ function eqUp(ev){
   _eqDown=null;
 }
 let LAST=null;
+// Session-sized executor card — rendered "just like a regular engine", but the
+// data comes from the executor's own shadow ledger (executor.json), not the
+// paper bot's books. Same leader50 signals; the stake varies by ET session.
+function execPanel(ex){
+  if(!ex||!ex.total||!ex.total.n) return "";
+  const t=ex.total, wr=t.n?Math.round(100*t.wins/t.n):null;
+  const sched=Object.entries(ex.schedule||{}).map(([r,m])=>`${r.replace("-","–")} ET ×${m}`).join(" · ")||"flat";
+  const recent=(ex.recent||[]).slice().reverse();
+  const avgE=recent.length?recent.reduce((a,r)=>a+(r.entry||0),0)/recent.length:null;
+  const wrCol=(wr!=null&&avgE!=null)?(wr>=avgE*100+5?"var(--up)":(wr<avgE*100?"var(--dn)":"#cdc06a")):"var(--ink)";
+  const tiles=`<div class="tiles">
+    <div><div class="big">${t.n}</div><div class="lab">trades</div></div>
+    <div><div class="big" style="color:${wrCol}">${wr!=null?wr+"%":"—"}</div><div class="lab">win (${t.wins}/${t.n})</div></div>
+    <div><div class="big">${avgE!=null?(avgE*100).toFixed(1)+"¢":"—"}</div><div class="lab">avg entry (recent) = b/e win%</div></div>
+    <div><div class="big" style="color:${t.pnl>=0?"var(--up)":"var(--dn)"}">${t.pnl>=0?"+":""}${t.pnl.toFixed(2)}</div><div class="lab">P&amp;L · gross of fees</div></div>
+  </div>`;
+  const multRow=Object.entries(ex.byMult||{}).sort((a,b)=>+a[0]-+b[0]).map(([m,b])=>
+    `<span><b style="color:${+m>1?"var(--up)":(+m<1?"#cdc06a":"var(--ink)")}">×${m}</b> <span class="mut">${b.n} tr · ${b.n?Math.round(100*b.wins/b.n):0}% · ${b.pnl>=0?"+":""}$${Math.abs(b.pnl).toFixed(2)}</span></span>`).join(" &nbsp;·&nbsp; ");
+  const body=recent.slice(0,25).map(r=>{
+    const tm=r.ts?new Date(r.ts*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"—";
+    return `<tr><td class="l">${tm} <small>BTC</small></td>`
+      +`<td>${r.side==="up"?'<b class="up">▲</b>':'<b class="dn">▼</b>'}</td>`
+      +`<td>${r.entry!=null?(r.entry*100).toFixed(1)+"¢":"—"}</td>`
+      +`<td><b style="color:${r.mult>1?"var(--up)":(r.mult<1?"#cdc06a":"var(--mut)")}" title="stake multiplier in effect (ET session schedule)">×${r.mult}</b></td>`
+      +`<td>${r.won?'<span class="tag win">WIN</span>':'<span class="tag loss">LOSS</span>'}</td>`
+      +`<td>${typeof r.pnl==="number"?((r.pnl>=0?"+":"")+r.pnl.toFixed(2)):"—"}</td></tr>`;
+  }).join("");
+  const tbl=`<div class="tscroll"><table><thead><tr><th>Time</th><th>Side</th><th>Entry</th><th title="stake multiplier from the ET session schedule">Size</th><th>Result</th><th>P&amp;L</th></tr></thead><tbody>${body}</tbody></table></div>`;
+  return `<div class="books" style="grid-template-columns:1fr;margin-top:16px"><div class="col">`
+    +`<h2><span style="color:#38bdf8">Leader Sized</span> <b style="font-size:10px;padding:1px 6px;border-radius:8px;background:#123a4d;color:#7fd4ff;vertical-align:middle" title="the signal executor's own shadow book: same leader50 signals, but the $${ex.sizeUsd||50} base stake is multiplied by an ET session schedule — the 2026-07-28 streak study found the entire edge lives overnight (22–05 ET, +0.20 EV/$) while midday bleeds (09–15 ET), so this forward-tests sizing the clock instead of the streak">SIZED</b>`
+    +`<span><b title="stake multiplier by ET session, applied at entry">schedule: ${esc(sched)}</b> · session-sizing forward test since Jul 28 · shadow</span></h2>`
+    +tiles
+    +`<div class="mut" style="font-size:12px;margin:6px 0 4px"><b>By size bucket:</b> ${multRow||"—"} <span title="pre-schedule history counts in the ×1 bucket">ⓘ</span></div>`
+    +tbl+`</div></div>`;
+}
+let EXEC=null;
 async function render(){
   const st=await fetchState();
+  EXEC=await fetchExec();
   if(!st){ $("dot").className="dot stale"; $("hbState").textContent="No data published yet";
     $("hbMeta").textContent="— once the bot runs with --publish, this fills in."; return; }
   LAST=st; draw(st);
@@ -782,6 +832,7 @@ function draw(st){
     +ablation(st)
     +peakTrough(st)                                                  /* numeric companion to the chart: highs/lows per window */
     +cards
+    +execPanel(EXEC)                                                 /* session-sized executor book (executor.json sidecar) */
     +retired
     +leaderPanel(st)
     +guardKey(must)
