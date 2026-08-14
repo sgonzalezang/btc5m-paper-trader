@@ -2298,6 +2298,80 @@ def save_state(path, bot):
     os.replace(tmp, path)   # atomic
 
 # ---------- git publish (low cadence, isolated data branch) ----------
+
+# ---------- git publish auth + fail-fast plumbing --------------------------
+# The publisher force-pushes to the data branch. Historically every git call here
+# ran with NO timeout and interactive prompts ENABLED, so when the stored Windows
+# credential expired the push got a 401, Git Credential Manager popped a GUI
+# prompt that can never be answered on a headless VM, and the push hung forever.
+# The scheduler then restacked a new hung git + git-credential-manager pair every
+# cycle (27k+ logged publish failures, some with an EMPTY error = the hang).
+# Fixes below: prompts off, hard timeouts, and in-memory header auth so the
+# expired stored credential is never consulted at all.
+
+_PUB_ALERT_STAMP = os.path.join(os.path.expanduser("~"), ".btc5m", "publish-alert.stamp")
+_PUB_ALERT_EVERY_S = 7200          # throttle: at most one alert per 2h
+
+
+def _github_token():
+    """GITHUB_TOKEN, defensively cleaned. Never logged, never printed.
+    Strips stray <> brackets and quotes: a placeholder pasted literally as
+    <token> is a classic cause of a silent 401."""
+    t = (os.environ.get("GITHUB_TOKEN") or "").strip()
+    return t.strip("<>").strip("\"'").strip()
+
+
+def _git_env():
+    """Environment that makes git FAIL FAST instead of hanging on a prompt.
+
+    GIT_TERMINAL_PROMPT=0 stops git asking for credentials on the terminal;
+    GCM_INTERACTIVE=never stops Git Credential Manager opening its GUI; the empty
+    ASKPASS vars stop any other helper taking over. Together these turn an
+    expired-credential push from an infinite hang into a ~1s error.
+
+    When GITHUB_TOKEN is present the token is injected as an http.extraHeader via
+    GIT_CONFIG_* rather than `-c` on the command line, so it never appears in the
+    process table (wmic/ps) or in any log line.
+    """
+    env = dict(os.environ)
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GCM_INTERACTIVE"] = "never"
+    env["GIT_ASKPASS"] = ""
+    env["SSH_ASKPASS"] = ""
+    tok = _github_token()
+    if tok:
+        import base64
+        basic = base64.b64encode(f"x-access-token:{tok}".encode()).decode()
+        env["GIT_CONFIG_COUNT"] = "1"
+        env["GIT_CONFIG_KEY_0"] = "http.extraHeader"
+        env["GIT_CONFIG_VALUE_0"] = f"Authorization: Basic {basic}"
+    return env
+
+
+def _publish_alert(msg):
+    """Throttled Discord ping so a persistent publish break surfaces in minutes
+    rather than hours of silent staleness. Never raises."""
+    try:
+        now = time.time()
+        try:
+            if now - os.path.getmtime(_PUB_ALERT_STAMP) < _PUB_ALERT_EVERY_S:
+                return
+        except OSError:
+            pass
+        hook = os.environ.get("BTC5M_SIGNAL_WEBHOOK", "")
+        if hook:
+            body = json.dumps({"content": msg[:1900],
+                               "allowed_mentions": {"parse": []}}).encode()
+            req = urllib.request.Request(hook, data=body, method="POST",
+                                         headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=10).read()
+        os.makedirs(os.path.dirname(_PUB_ALERT_STAMP), exist_ok=True)
+        with open(_PUB_ALERT_STAMP, "w") as f:
+            f.write(str(int(now)))
+    except Exception:
+        pass
+
+
 def publish(state_path, branch, repo_dir, remote="origin"):
     """Force-update `branch` with a single ORPHAN commit holding only state.json.
 
@@ -2305,8 +2379,12 @@ def publish(state_path, branch, repo_dir, remote="origin"):
     working tree — main stays clean, and the data branch never grows history
     (each publish replaces it with one parent-less commit)."""
     try:
-        def g(*a, ok=(0,)):
-            r = subprocess.run(("git",)+a, cwd=repo_dir, capture_output=True, text=True)
+        env = _git_env()
+        def g(*a, ok=(0,), timeout=45):
+            # timeout is mandatory: without it an auth prompt hangs this process
+            # forever and the scheduler stacks a new zombie pair every cycle
+            r = subprocess.run(("git",)+a, cwd=repo_dir, capture_output=True,
+                               text=True, env=env, timeout=timeout)
             if r.returncode not in ok:
                 raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
             return r.stdout.strip()
@@ -2314,7 +2392,7 @@ def publish(state_path, branch, repo_dir, remote="origin"):
             with open(path, "rb") as f:
                 raw = f.read()
             r = subprocess.run(("git", "hash-object", "-w", "--stdin"), cwd=repo_dir,
-                               input=raw, capture_output=True)
+                               input=raw, capture_output=True, env=env, timeout=45)
             if r.returncode != 0: raise RuntimeError(r.stderr.decode().strip())
             return r.stdout.decode().strip()
         # state.json, plus any sidecars other processes drop next to it (the
@@ -2328,14 +2406,31 @@ def publish(state_path, branch, repo_dir, remote="origin"):
                 except Exception:
                     pass                     # a bad sidecar never blocks the ledger publish
         tree = subprocess.run(("git", "mktree"), cwd=repo_dir,
-                              input="".join(entries).encode(), capture_output=True)
+                              input="".join(entries).encode(), capture_output=True,
+                              env=env, timeout=45)
         if tree.returncode != 0: raise RuntimeError(tree.stderr.decode().strip())
         tree_sha = tree.stdout.decode().strip()
         commit = g("commit-tree", tree_sha, "-m", "state update")   # orphan: no -p parent
-        g("push", "--force", remote, f"{commit}:refs/heads/{branch}")
+        g("push", "--force", remote, f"{commit}:refs/heads/{branch}", timeout=60)
         return True
+    except subprocess.TimeoutExpired as e:
+        # a timeout here means git was still waiting on something (almost always a
+        # credential prompt). Surface it -- a silent hang is how this went unnoticed.
+        print(f"publish TIMED OUT after {e.timeout}s: {' '.join(map(str, e.cmd))[:120]}", flush=True)
+        _publish_alert(f"[!] **btc5m publish TIMED OUT** ({e.timeout}s) - git is hanging, "
+                       f"likely an expired GitHub credential. Dashboard data is going stale.")
+        return False
     except Exception as e:
-        print(f"publish failed: {e}", flush=True); return False
+        msg = str(e)
+        print(f"publish failed: {msg}", flush=True)
+        low = msg.lower()
+        if ("authentication" in low or "invalid username or token" in low
+                or "403" in low or "401" in low or "could not read" in low
+                or "terminal prompts disabled" in low or not msg.strip()):
+            _publish_alert(f"[!] **btc5m publish AUTH FAILURE** - `{msg[:160]}`\n"
+                           f"Dashboard data is going stale. Refresh GITHUB_TOKEN "
+                           f"(needs write access to btc5m-paper-trader).")
+        return False
 
 
 # ================= SELF TEST (offline, no network) =================
