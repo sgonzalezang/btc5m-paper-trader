@@ -2358,12 +2358,21 @@ def _publish_alert(msg):
                 return
         except OSError:
             pass
-        hook = os.environ.get("BTC5M_SIGNAL_WEBHOOK", "")
+        # BTC5M_SIGNAL_WEBHOOK is the bot's own channel but is not always set;
+        # fall back to DISCORD_WEBHOOK (#pm-alert), which is. Without a fallback
+        # the publish-failure alert was itself silent -- defeating its purpose.
+        hook = (os.environ.get("BTC5M_SIGNAL_WEBHOOK", "")
+                or os.environ.get("DISCORD_WEBHOOK", ""))
         if hook:
             body = json.dumps({"content": msg[:1900],
                                "allowed_mentions": {"parse": []}}).encode()
+            # A User-Agent is REQUIRED: Discord sits behind Cloudflare, which
+            # rejects urllib's default UA with 403 "error code: 1010". Without
+            # this the publish-failure alert silently 403s -- the alert about the
+            # silent failure would itself have failed silently.
             req = urllib.request.Request(hook, data=body, method="POST",
-                                         headers={"Content-Type": "application/json"})
+                                         headers={"Content-Type": "application/json",
+                                                  "User-Agent": "pm-exec/1.0"})
             urllib.request.urlopen(req, timeout=10).read()
         os.makedirs(os.path.dirname(_PUB_ALERT_STAMP), exist_ok=True)
         with open(_PUB_ALERT_STAMP, "w") as f:
