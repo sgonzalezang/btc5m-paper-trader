@@ -2295,7 +2295,22 @@ def snapshot(bot):
 def save_state(path, bot):
     tmp = path + ".tmp"
     with open(tmp, "w") as f: json.dump(snapshot(bot), f, separators=(",", ":"))
-    os.replace(tmp, path)   # atomic
+    # os.replace is atomic, but on Windows it raises PermissionError (WinError 5)
+    # whenever ANY other process holds the destination open -- and three do: the
+    # Discord dashboard, the leader probe and the supervisor all read state.json.
+    # The file is ~6 MB, so a reader keeps its handle long enough to collide with
+    # a tick. That killed the bot 19 times before this retry existed (7 of them on
+    # 2026-08-18 alone), and every death cost minutes of signals while the
+    # supervisor respawned it. Readers let go in milliseconds, so back off and try
+    # again; if it still will not land, skip this one save and keep running -- the
+    # next tick writes a fresher snapshot anyway. A save must never kill the bot.
+    for attempt in range(12):
+        try:
+            os.replace(tmp, path); return   # atomic
+        except PermissionError:
+            if attempt == 11: break
+            time.sleep(0.1)
+    bot.log("WARN state.json save skipped - file locked by another process for 1.2s")
 
 # ---------- git publish (low cadence, isolated data branch) ----------
 
