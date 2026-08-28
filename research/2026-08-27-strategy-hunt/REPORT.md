@@ -68,3 +68,17 @@ ret/$ is retired. RAN/expired-post lines in the log are the fill-selection data.
 
 Files: harvest.py, bt.py, candidates.py, run_protocol.py, baserates.py, picks.json, out_train.json.
 Audit transcripts: session agents (code / stats / mechanics), 2026-08-27→28.
+
+## Addendum 2026-08-28 — SPEC-2 trigger correction
+
+First night live (23:00-05:44 CT): all four books negative (-$284 to -$408 on 31-36 trades),
+ZERO ran/no-fill events, fire rate 4-6x the validated config. Diagnosis: the live sigma was
+derived from the 10-min RANGE (vol/1.6/sqrt(10)), which collapses in quiet tape -> fair value
+overconfident (claimed 63-99c where the calibrated book said 53c) -> the 8c gap gate passed on
+ordinary momentum and the family bled fee+spread exactly like the old leader family.
+
+SPEC-2 (deployed ~05:20 CT): sigma60 = RMS of overlapping 60s log-returns from the 4s sample
+window; fair value uses the same sigma, TWAP-aware (30s of the remaining clock does not
+diffuse), capped at 0.95; fire-rate governor stands the family down after 4 fills in an hour.
+First-night trades VOIDED on load (LL_SPEC2_MS) — the 200-fill kill criterion counts only
+corrected-spec fills.

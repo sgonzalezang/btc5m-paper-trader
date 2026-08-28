@@ -563,6 +563,8 @@ def mirror(b):
 FEE_RATE = 0.07
 GAS_USD = 0.004
 MIN_ORDER_USD = 1.0        # Polymarket minimum order size
+LL_SPEC2_MS = 1787916000000   # 2026-08-28 ~05:20 CT — leadlag trades before this ran the
+                              # mis-specified range-sigma trigger and are voided on load
 
 def _levels(bk, side):
     """[[price,size],...] for 'ask' (ascending) / 'bid' (descending). Uses the
@@ -659,6 +661,19 @@ class Bot:
         # leadlagM resting paper posts, one per interval; in-memory only (losing
         # a post across a restart just means one missed paper fill).
         self.ll_post = {}
+        # SPEC-2 one-shot (2026-08-28): the first night ran on a range-derived
+        # sigma that collapsed in quiet tape — fair value overconfident, 4-6x the
+        # validated fire rate, zero RANs (buying ordinary momentum, not the lag).
+        # Those paper trades measure the WRONG spec, so they are void: the
+        # 200-fill kill criterion counts only corrected-trigger fills. Idempotent
+        # (post-patch trades all have at >= LL_SPEC2_MS).
+        for _e in ("leadlag", "leadlag12", "leadlagT", "leadlagM"):
+            if any(t.get("at", 0) < LL_SPEC2_MS for t in self.st["engines"][_e]["trades"]):
+                n_void = len(self.st["engines"][_e]["trades"])
+                self.st["engines"][_e]["trades"] = []
+                self.st["lifetime"][_e] = _zero_life()
+                self.st["equity"][_e] = []
+                print(f"[{_e}] SPEC-2 reset: voided {n_void} pre-patch paper trades", flush=True)
 
     # --- config accessors ---
     def prof(self): return PROFILES[self.st["profile"]]
@@ -2085,6 +2100,26 @@ class Bot:
             self.log(f"pm reference skipped: {e}")
 
     # ---- leadlag family (2026-08-27 strategy hunt; see ENGINE_CFG) ----------
+    def _ll_sigma60(self):
+        """RMS of overlapping 60s log-returns over the pxwin (~10 min of 4s
+        samples). SPEC-2: the direct estimator of the 60s move std the trigger
+        and fair value need. The old range/1.6/sqrt(10) proxy collapsed in quiet
+        tape, made fair_value overconfident, and let the family fire 4-6x the
+        validated rate. RMS (mean zero) is robust at this sample count."""
+        w = self.pxwin
+        if len(w) < 40: return None
+        sq, n, j = 0.0, 0, 0
+        for i in range(0, len(w), 3):                 # one return per ~12s
+            t1, p1 = w[i]
+            while j < len(w) and w[j][0] < t1 - 66000: j += 1
+            if j >= i or j >= len(w): continue
+            t0_, p0 = w[j]
+            if not (t1 - 66000 <= t0_ <= t1 - 48000) or not p0 or not p1: continue
+            r = math.log(p1 / p0)
+            sq += r * r; n += 1
+        if n < 5: return None
+        return math.sqrt(sq / n)
+
     def _ll_enter(self, eid, side, ask, pf, now, cfg):
         """Taker-style entry: walk the CURRENT side book with a marketable limit
         of ask + llChase. The book was fetched this tick, so this is arrival
@@ -2167,17 +2202,29 @@ class Bot:
             if f.get("t0") != m["t0"]: return              # feed must be on this interval
             t0 = m["t0"]; ns = now / 1000.0; sec = ns - t0
             if not (45 <= sec <= 250): return
-            if self.vol is None or len(self.pxwin) < 8: return
+            # SPEC-2 fire-rate governor: the validated config fired on ~6% of
+            # markets. 4+ fills on the loosest book inside an hour (>30%) means
+            # the trigger is misbehaving — stand down rather than collect noise.
+            if sum(1 for t in self.trades("leadlag") if now - t["at"] < 3600000) >= 4: return
+            sigma60 = self._ll_sigma60()
+            if not sigma60: return
             ago = next((p for t, p in reversed(self.pxwin) if t <= now - 60000), None)
-            if not ago: return
-            mv60 = (f["last"] - ago) / ago
-            sigma60 = (self.vol / 100.0) / 1.6 / math.sqrt(10.0)   # 10-min range% -> 60s endpoint std
-            if sigma60 <= 0 or abs(mv60) < sigma60: return          # no fresh, vol-significant move
+            if not ago or f["last"] <= 0: return
+            mv60 = math.log(f["last"] / ago)
+            if abs(mv60) < sigma60: return                          # no fresh, vol-significant move
             delta = f["last"] - f["open"]
             if delta == 0 or (delta > 0) != (mv60 > 0): return      # move must validate the displacement
             side = "up" if delta > 0 else "down"
-            pf = self.fair_value(delta, f["open"], (t0 + IVL) - ns, 1.6)
-            if pf is None: return
+            # SPEC-2 fair value: same-sigma diffusion, TWAP-aware (settlement is
+            # the last-60s Chainlink average, so ~30s of the remaining clock does
+            # not diffuse), capped at 0.95 — the book is calibrated, so a model
+            # claiming near-certainty is wrong by construction, and uncapped
+            # fair values were what let the old gate pass on noise.
+            left_eff = max(((t0 + IVL) - ns) - 30.0, 20.0)
+            sig_rem = sigma60 * math.sqrt(left_eff / 60.0)
+            if sig_rem <= 0: return
+            z = abs(math.log(f["last"] / f["open"])) / sig_rem
+            pf = min(0.95, 0.5 * (1.0 + math.erf(z / math.sqrt(2.0))))
             q = self.quote(side)
             ask = q.get("ask") if q else None
             if ask is None or ask > 0.60: return
