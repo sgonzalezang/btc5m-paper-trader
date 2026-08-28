@@ -68,7 +68,7 @@ PROFILES = {
 # flagship ARE the pre-registered day-60 gate and cap verdicts. The 7 retired
 # engines are terminal kills (momentum/value/fade fee-death is structural, not
 # parametric); their books and histories stay intact but they never trade again.
-ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "revert20", "revert18", "revert20c", "latentfire", "leader50", "leader50s", "leader50z", "leader50w", "leader50t", "fade50"]
+ENGINES = ["impulse_v2", "impulse50", "reversal_v2", "reversal", "loose", "floor", "band", "strict", "value", "fade", "reversal2", "revert20", "revert18", "revert20c", "latentfire", "leader50", "leader50s", "leader50z", "leader50w", "leader50t", "fade50", "leadlag", "leadlag12", "leadlagT", "leadlagM"]
 ENGINE_CFG = {
     "loose":  dict(label="Loose",  tunable=True,  driftMin=None, driftMax=None, entryMax=0.65, volMax=None, retired=True),
     "floor":  dict(label="Floor",  tunable=True,  driftMin=0.02, driftMax=None, entryMax=0.65, volMax=None, retired=True),
@@ -250,6 +250,36 @@ ENGINE_CFG = {
     # -> -$2,306 out-of-sample) and the roster's worst bleeder (~-$5,553). Book kept; no new trades.
     "fade50": dict(label="Fade $50", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
                    holdToClose=True, shadow=True, external=True, fadeMax=0.55, retired=True),
+    # leadlag family — the 2026-08-27 strategy hunt's verdict (research/
+    # 2026-08-27-strategy-hunt/): 30 days x 8,636 markets backtested, 68 configs,
+    # three adversarial audits. Every TAKER edge found in backtest died under an
+    # honest clock + real-fill pricing (stale 60s-grid midpoints + an oracle that
+    # changed 4x in-window). What SURVIVED as a hypothesis, not a proof: BTC moves
+    # on Coinbase seconds before the Polymarket book reprices (fresh-print days:
+    # +20%/$ at harsh slippage, t+2.9 — but 91% of those fills are unproven).
+    # These four engines exist to settle that live, the only place it can be
+    # settled. Signal (all four): last-60s spot move >= 1 sigma60, aligned with
+    # the interval displacement, and the leading side's REAL ask still >= llGap
+    # below the fair value Phi-estimate — i.e. the book has not caught up to the
+    # tape. Entry window 45-250s, ask cap 60c, one entry/interval, hold to close.
+    # They differ ONLY in execution, which is the open question:
+    #   leadlag   — lift the current book, limit ask+1c, no chase (arrival price)
+    #   leadlag12 — same, but demands a 12c gap (deeper mispricing, rarer)
+    #   leadlagT  — pays up to ask+3c (does chasing capture the 89.5% runaways?)
+    #   leadlagM  — MAKER: posts at the bid, fee-free per crypto_fees_v2
+    #               (takerOnly:true); fill proxy = a later poll's ask crossing
+    #               the posted price. Tests the fee-asymmetry route.
+    # SHADOW paper books, flat $50, never emitted to the live bridge. Kill
+    # criterion (pre-registered): after >=200 FILLED trades an engine whose
+    # fill-conditioned ret/$ is negative is retired; the family dies with it.
+    "leadlag":   dict(label="LeadLag",     tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                      holdToClose=True, shadow=True, external=True, llGap=0.08, llChase=0.01),
+    "leadlag12": dict(label="LeadLag 12c", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                      holdToClose=True, shadow=True, external=True, llGap=0.12, llChase=0.01),
+    "leadlagT":  dict(label="LeadLag Tkr", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                      holdToClose=True, shadow=True, external=True, llGap=0.08, llChase=0.03),
+    "leadlagM":  dict(label="LeadLag Mkr", tunable=False, driftMin=None, driftMax=None, entryMax=None, volMax=None,
+                      holdToClose=True, shadow=True, external=True, llGap=0.08, llMaker=True),
 }
 # impulse_v2 sizing/learning state defaults (persisted under st["impulse"]).
 # qlo/qhi are the bucketed win-prob estimates, bucketed by p_eff = ask + slip
@@ -626,6 +656,9 @@ class Bot:
         self.ldr = self.st.setdefault("leader", {"book": [], "n": 0})
         self._book_fn = book
         self._sleep_fn = time.sleep
+        # leadlagM resting paper posts, one per interval; in-memory only (losing
+        # a post across a restart just means one missed paper fill).
+        self.ll_post = {}
 
     # --- config accessors ---
     def prof(self): return PROFILES[self.st["profile"]]
@@ -2051,6 +2084,123 @@ class Bot:
         except Exception as e:
             self.log(f"pm reference skipped: {e}")
 
+    # ---- leadlag family (2026-08-27 strategy hunt; see ENGINE_CFG) ----------
+    def _ll_enter(self, eid, side, ask, pf, now, cfg):
+        """Taker-style entry: walk the CURRENT side book with a marketable limit
+        of ask + llChase. The book was fetched this tick, so this is arrival
+        pricing — if depth has already run past the limit, the order does not
+        fill and the miss is the datum (same discipline as leader50)."""
+        m, f = self.mkt, self.feed
+        bk = self.side_book(side)
+        levels = _levels(bk, "ask") if bk else []
+        limit = min(0.99, ask + cfg["llChase"])
+        shares, spent, avg, fully = walk_buy(levels, 50.0, limit)
+        if spent < MIN_ORDER_USD or not avg:
+            self.log(f"[{eid.upper()}] RAN {side.upper()} — book past limit {limit*100:.0f}c (fair {pf*100:.0f}c)")
+            return
+        entry = min(0.99, round(avg, 4))
+        shares = round(spent / entry, 4)
+        fee = taker_fee(shares, entry)
+        t0 = m["t0"]; t1 = t0 + IVL
+        tr = dict(at=now, t0=t0, t1=t1, slug=m.get("slug") or f"btc-updown-5m-{t0}",
+                  profile=self.st["profile"],
+                  entrySec=max(0, int(round(now/1000 - t0))),
+                  asset=self.st["asset"], eng=eid, passCount=1, need=1,
+                  side=side, entry=entry, ask=ask, slip=cfg["llChase"]*100,
+                  stake=round(spent, 2), reqStake=50.0, fillFrac=round(spent/50.0, 3),
+                  shares=shares, feeEntry=fee, feeExit=0.0, gas=GAS_USD,
+                  btcOpen=f["open"], btcEntry=f["last"], btcClose=None,
+                  driftPct=round((f["last"]-f["open"])/f["open"], 4) if f["open"] else None,
+                  feed=f["src"], status="open", hedge=None, pnl=None, result=None, settledBy=None,
+                  guards=[["LeadLag", 1], ["FairGap", 1], ["FullFill", 1 if fully else 0]])
+        self.trades(eid).insert(0, tr)
+        self._trim(eid)
+        self.log(f"[{eid.upper()}] ENTER {side.upper()} @ {entry*100:.1f}c "
+                 f"${spent:.0f} fee ${fee:.2f} (ask {ask*100:.0f}c fair {pf*100:.0f}c) +{tr['entrySec']}s")
+
+    def _ll_maker_manage(self, now):
+        """leadlagM resting-post lifecycle. Fill proxy: a later poll's ask at or
+        below the posted bid means a seller crossed the book — our resting bid
+        would have been hit first (conservative: we also had queue priority at
+        a better price than that ask). Fee-free fill per crypto_fees_v2
+        takerOnly; the 20% maker rebate is NOT credited (conservative)."""
+        post = self.ll_post.get("leadlagM")
+        if not post: return
+        eid = "leadlagM"
+        ns = now / 1000.0
+        if ns >= post["t1"] - 10:                       # expire before the close
+            self.log(f"[LEADLAGM] post expired unfilled ({post['side'].upper()} {post['price']*100:.0f}c)")
+            self.ll_post.pop(eid, None)
+            return
+        if self.trade_for(eid, post["t0"]) or self.open_trade(eid):
+            self.ll_post.pop(eid, None); return
+        q = self.quote(post["side"])
+        if not q or q.get("ask") is None or q["ask"] > post["price"]: return
+        entry = post["price"]; spent = 50.0
+        shares = round(spent / entry, 4)
+        f = self.feed
+        tr = dict(at=now, t0=post["t0"], t1=post["t1"], slug=post["slug"],
+                  profile=self.st["profile"],
+                  entrySec=max(0, int(round(ns - post["t0"]))),
+                  asset=self.st["asset"], eng=eid, passCount=1, need=1,
+                  side=post["side"], entry=entry, ask=post["ask0"], slip=0.0,
+                  stake=spent, reqStake=50.0, fillFrac=1.0,
+                  shares=shares, feeEntry=0.0, feeExit=0.0, gas=GAS_USD,
+                  btcOpen=post["open"], btcEntry=post["last"], btcClose=None,
+                  driftPct=post.get("drift"),
+                  feed=f.get("src"), status="open", hedge=None, pnl=None, result=None, settledBy=None,
+                  guards=[["LeadLag", 1], ["MakerFill", 1]])
+        self.trades(eid).insert(0, tr)
+        self._trim(eid)
+        self.ll_post.pop(eid, None)
+        self.log(f"[LEADLAGM] MAKER FILL {post['side'].upper()} @ {entry*100:.1f}c $50 fee $0.00 "
+                 f"(posted +{int((now-post['at'])/1000)}s ago)")
+
+    def _leadlag_tick(self, now):
+        """leadlag family entry scan — runs LAST in the tick (after _leader_tick)
+        so its work can never delay another engine's decision. One shared signal
+        evaluation; the four engines differ only in gap and execution."""
+        try:
+            m, f = self.mkt, self.feed
+            self._ll_maker_manage(now)
+            if not m or not m.get("ev") or f.get("last") is None or not f.get("open"): return
+            if f.get("t0") != m["t0"]: return              # feed must be on this interval
+            t0 = m["t0"]; ns = now / 1000.0; sec = ns - t0
+            if not (45 <= sec <= 250): return
+            if self.vol is None or len(self.pxwin) < 8: return
+            ago = next((p for t, p in reversed(self.pxwin) if t <= now - 60000), None)
+            if not ago: return
+            mv60 = (f["last"] - ago) / ago
+            sigma60 = (self.vol / 100.0) / 1.6 / math.sqrt(10.0)   # 10-min range% -> 60s endpoint std
+            if sigma60 <= 0 or abs(mv60) < sigma60: return          # no fresh, vol-significant move
+            delta = f["last"] - f["open"]
+            if delta == 0 or (delta > 0) != (mv60 > 0): return      # move must validate the displacement
+            side = "up" if delta > 0 else "down"
+            pf = self.fair_value(delta, f["open"], (t0 + IVL) - ns, 1.6)
+            if pf is None: return
+            q = self.quote(side)
+            ask = q.get("ask") if q else None
+            if ask is None or ask > 0.60: return
+            for eid in ("leadlag", "leadlag12", "leadlagT", "leadlagM"):
+                cfg = ENGINE_CFG[eid]
+                if cfg.get("retired"): continue
+                if self.trade_for(eid, t0) or self.open_trade(eid): continue
+                if (pf - ask) < cfg["llGap"]: continue
+                if cfg.get("llMaker"):
+                    if self.ll_post.get(eid, {}).get("t0") == t0: continue
+                    bid = q.get("bid")
+                    if bid is None or bid <= 0: continue
+                    self.ll_post[eid] = dict(t0=t0, t1=t0 + IVL, side=side, price=bid, at=now,
+                                             slug=m.get("slug") or f"btc-updown-5m-{t0}",
+                                             open=f["open"], last=f["last"],
+                                             drift=round(delta / f["open"], 4), ask0=ask)
+                    self.log(f"[LEADLAGM] POST {side.upper()} bid {bid*100:.0f}c "
+                             f"(ask {ask*100:.0f}c fair {pf*100:.0f}c)")
+                    continue
+                self._ll_enter(eid, side, ask, pf, now, cfg)
+        except Exception as e:
+            self.log(f"leadlag tick error: {e}")
+
     def tick(self):
         try:
             ns = now_s(); t0 = (ns // IVL) * IVL; t1 = t0 + IVL
@@ -2110,6 +2260,7 @@ class Bot:
             self.settle_pending(now)
             self.nightly_tick(ns)
             self._leader_tick(now)    # P5/R3 $0-stake shadow — last, so its re-poll can never delay a decision
+            self._leadlag_tick(now)   # leadlag family (2026-08-27 hunt) — after leader: shares the tick's books
             self.err = None
         except Exception as e:
             self.err = str(e)

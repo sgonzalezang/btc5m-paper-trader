@@ -10,3 +10,6 @@ bot/loop_metrics.jsonl
 research/2026-07-10-edge-hunt/data/
 research/2026-07-12-edge-hunt/data/
 research/2026-07-12-edge-hunt/work-deepen/dataset/signals_60d.json
+research/2026-08-27-strategy-hunt/data/
+research/2026-08-27-strategy-hunt/harvest.log
+__pycache__/
